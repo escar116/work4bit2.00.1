@@ -1118,7 +1118,10 @@ async function loadPostedJobs(isSilent = false) {
   if (!isSilent) container.innerHTML = '<div class="loader"></div>';
   try {
     const res = await listMyHelpRequestsWithApplications(dc, { userId: userData.id }, SERVER_ONLY);
-    const jobs = (res.data.helpRequests || []).filter(j => (j.status === 'OPEN' || !j.status) && j.category !== 'MENTORING');
+    const jobs = (res.data.helpRequests || []).filter(j => {
+      const isMentoring = j.category === 'MENTORING' || (j.title && j.title.toLowerCase().startsWith('mentoring:'));
+      return (j.status === 'OPEN' || !j.status) && !isMentoring;
+    });
     container.innerHTML = '';
     if (jobs.length === 0) {
       container.innerHTML = '<div class="empty-state text-center text-muted" style="padding: 2rem;">You have not posted any open jobs.</div>';
@@ -1126,44 +1129,46 @@ async function loadPostedJobs(isSilent = false) {
     }
     jobs.forEach(job => {
       const pending = (job.applications_on_helpRequest || []).filter(a => a.status === 'PENDING');
-      
-      const jobEl = document.createElement('div');
-      jobEl.className = 'job-card';
-      jobEl.innerHTML = `
-        <div class="job-card-header">
-          <h3>${job.title}</h3>
-          <span class="badge badge-normal">${peso(job.budget)}</span>
-          <span class="badge badge-pending">${pending.length} candidate(s)</span>
-        </div>
-        <div class="candidates-list"></div>
-      `;
-      const candList = jobEl.querySelector('.candidates-list');
-      
-      if (pending.length === 0) {
-        candList.innerHTML = `<div class="text-sm text-muted italic" style="padding: 1rem 0;">No applicants yet.</div>`;
-      } else {
-        pending.forEach(app => {
-          const row = document.createElement('div');
-          row.className = 'candidate-row';
-          row.innerHTML = `
-            <div class="avatar avatar-sm cursor-pointer" onclick="openViewProfileDialog('${app.applicant?.id}')">${initials(app.applicant?.fullName || '')}</div>
-            <div class="candidate-info">
-              <strong class="cursor-pointer hover:underline" onclick="openViewProfileDialog('${app.applicant?.id}')">${app.applicant?.fullName || 'Applicant'}</strong>
-            <small class="text-muted">${app.applicant?.studentId || ''}</small>
-            <div class="candidate-message">"${app.message}"</div>
-          </div>
-          <div class="candidate-price">${peso(app.priceOffer)}</div>
-          <div class="candidate-actions">
-            <button type="button" class="btn btn-outline btn-sm reject-btn">Reject</button>
-            <button type="button" class="btn btn-purple btn-sm approve-btn">Approve</button>
-          </div>
-        `;
-        row.querySelector('.approve-btn').addEventListener('click', (e) => { e.preventDefault(); handleApprove(app, job); });
-        row.querySelector('.reject-btn').addEventListener('click', (e) => { e.preventDefault(); handleReject(app); });
-        candList.appendChild(row);
-        });
-      }
-      container.appendChild(jobEl);
+          const proposedAmt = (pending[0] && pending[0].priceOffer !== undefined) ? pending[0].priceOffer : job.budget;
+          
+          const jobEl = document.createElement('div');
+          jobEl.className = 'job-card';
+          
+          let appsHtml = '';
+          if (pending.length === 0) {
+            appsHtml = '<p class="text-xs text-muted mt-2">No pending applications for this request.</p>';
+          } else {
+            appsHtml = pending.map(app => `
+              <div class="application-card">
+                <div class="candidate-info">
+                  <strong class="cursor-pointer hover:underline" onclick="openViewProfileDialog('${app.applicant?.id || ''}')">${app.applicant?.fullName || 'Applicant'}</strong>
+                  <div class="candidate-message">"${app.message}"</div>
+                </div>
+                <div class="candidate-offer">
+                  <strong>${peso(app.priceOffer)}</strong>
+                  <div class="flex gap-1 mt-1">
+                    <button type="button" class="btn btn-purple btn-sm" onclick="approveApplication('${app.id}', '${job.id}')">Accept</button>
+                    <button type="button" class="btn btn-outline btn-sm" style="border-color:#ef4444; color:#ef4444;" onclick="rejectApplication('${app.id}')">Decline</button>
+                  </div>
+                </div>
+              </div>
+            `).join('');
+          }
+          
+          jobEl.innerHTML = `
+            <div class="flex justify-between items-start mb-2">
+              <div>
+                <h3 class="job-title" style="margin: 0;">${job.title}</h3>
+                <p class="text-sm text-muted mt-1">${job.description || ''}</p>
+              </div>
+              <span class="badge badge-normal" style="font-weight: 700; color: var(--color-green);">${peso(proposedAmt)}</span>
+            </div>
+            <div class="mt-4">
+              <h4 class="text-sm font-bold mb-2">Mentoring Proposals (${pending.length})</h4>
+              ${appsHtml}
+            </div>
+          `;
+          container.appendChild(jobEl);
     });
     if (container.children.length === 0) {
       container.innerHTML = '<div class="empty-state text-center text-muted" style="padding: 2rem;">No pending candidates.</div>';
@@ -1180,7 +1185,10 @@ async function loadPostedJobs(isSilent = false) {
     if (!isSilent) container.innerHTML = '<div class="loader"></div>';
     try {
       const res = await listMyHelpRequestsWithApplications(dc, { userId: userData.id }, SERVER_ONLY);
-      const jobs = (res.data.helpRequests || []).filter(j => j.category === 'MENTORING' && (j.status === 'OPEN' || !j.status));
+      const jobs = (res.data.helpRequests || []).filter(j => {
+        const isMentoring = j.category === 'MENTORING' || (j.title && j.title.toLowerCase().startsWith('mentoring:'));
+        return (j.status === 'OPEN' || !j.status) && isMentoring;
+      });
       container.innerHTML = '';
       if (jobs.length === 0) {
         container.innerHTML = '<div class="empty-state text-center text-muted" style="padding: 2rem;">No pending mentoring requests received.</div>';
@@ -1331,7 +1339,7 @@ async function loadMessages(isSilent = false) {
   try {
     const res = await listConversations(dc, { userId: userData.id }, SERVER_ONLY);
     conversations = (res.data.conversations || []).filter(c =>
-      c.application?.status !== 'TERMINATED' && c.application?.helpRequest?.status !== 'COMPLETED'
+      c.application?.status !== 'TERMINATED'
     );
     renderConversationList();
     if (conversations.length > 0 && !activeConvId) {
@@ -1365,12 +1373,16 @@ function renderConversationList() {
   conversations.forEach(conv => {
     const isPoster = conv.poster?.id === userData?.id;
     const otherName = isPoster ? conv.applicant?.fullName : conv.poster?.fullName;
+    const isCompleted = conv.application?.helpRequest?.status === 'COMPLETED';
     const item = document.createElement('div');
     item.className = `conversation-item ${conv.id === activeConvId ? 'active' : ''}`;
     item.innerHTML = `
       <div class="avatar avatar-sm">${initials(otherName || '')}</div>
       <div class="flex-1 truncate">
-        <strong class="truncate block">${otherName || 'User'}</strong>
+        <div class="flex justify-between items-center">
+          <strong class="truncate block">${otherName || 'User'}</strong>
+          ${isCompleted ? '<span class="badge badge-approved" style="font-size: 9px; padding: 1px 5px; flex-shrink: 0;">Completed</span>' : ''}
+        </div>
         <small class="text-muted truncate block">${conv.application?.helpRequest?.title || ''}</small>
       </div>
     `;
@@ -1427,6 +1439,7 @@ async function selectConversation(convId) {
     })();
   }
 
+  const isCompleted = conv.application?.helpRequest?.status === 'COMPLETED';
   const chatHeader = $('#chat-header-content');
   chatHeader.innerHTML = `
     <div class="flex items-center gap-3">
@@ -1437,8 +1450,11 @@ async function selectConversation(convId) {
       </div>
     </div>
     <div class="chat-header-actions">
-      <button type="button" class="btn btn-terminate" id="btn-terminate">Terminate</button>
-      ${isPoster ? '<button type="button" class="btn btn-complete" id="btn-complete">Complete</button>' : ''}
+      ${isCompleted 
+        ? '<span class="badge badge-approved" style="padding: 4px 10px; font-size: 12px;">Completed</span>'
+        : `<button type="button" class="btn btn-terminate" id="btn-terminate">Terminate</button>
+           ${isPoster ? '<button type="button" class="btn btn-complete" id="btn-complete">Complete</button>' : ''}`
+      }
     </div>
   `;
 
@@ -2342,7 +2358,7 @@ window.openViewProfileDialog = async function(userId) {
           const reqRes = await createHelpRequest(dc, {
             title: "Mentoring: " + title,
             description: desc,
-            budget: 0,
+            budget: amount,
             requesterId: activeMentoringTarget.id,
             category: 'MENTORING'
           });
