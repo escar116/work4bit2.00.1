@@ -1129,117 +1129,117 @@ async function loadPostedJobs(isSilent = false) {
     }
     jobs.forEach(job => {
       const pending = (job.applications_on_helpRequest || []).filter(a => a.status === 'PENDING');
-          const proposedAmt = (pending[0] && pending[0].priceOffer !== undefined) ? pending[0].priceOffer : job.budget;
-          
-          const jobEl = document.createElement('div');
-          jobEl.className = 'job-card';
-          
-          let appsHtml = '';
-          if (pending.length === 0) {
-            appsHtml = '<p class="text-xs text-muted mt-2">No pending applications for this request.</p>';
-          } else {
-            appsHtml = pending.map(app => `
-              <div class="application-card">
-                <div class="candidate-info">
-                  <strong class="cursor-pointer hover:underline" onclick="openViewProfileDialog('${app.applicant?.id || ''}')">${app.applicant?.fullName || 'Applicant'}</strong>
-                  <div class="candidate-message">"${app.message}"</div>
-                </div>
-                <div class="candidate-offer">
-                  <strong>${peso(app.priceOffer)}</strong>
-                  <div class="flex gap-1 mt-1">
-                    <button type="button" class="btn btn-purple btn-sm" onclick="approveApplication('${app.id}', '${job.id}')">Accept</button>
-                    <button type="button" class="btn btn-outline btn-sm" style="border-color:#ef4444; color:#ef4444;" onclick="rejectApplication('${app.id}')">Decline</button>
-                  </div>
-                </div>
-              </div>
-            `).join('');
-          }
-          
-          jobEl.innerHTML = `
-            <div class="flex justify-between items-start mb-2">
-              <div>
-                <h3 class="job-title" style="margin: 0;">${job.title}</h3>
-                <p class="text-sm text-muted mt-1">${job.description || ''}</p>
-              </div>
-              <span class="badge badge-normal" style="font-weight: 700; color: var(--color-green);">${peso(proposedAmt)}</span>
+      
+      const jobEl = document.createElement('div');
+      jobEl.className = 'job-card';
+      jobEl.innerHTML = `
+        <div class="job-card-header">
+          <h3>${job.title}</h3>
+          <span class="badge badge-normal">${peso(job.budget)}</span>
+          <span class="badge badge-pending">${pending.length} candidate(s)</span>
+        </div>
+        <div class="candidates-list"></div>
+      `;
+      const candList = jobEl.querySelector('.candidates-list');
+      
+      if (pending.length === 0) {
+        candList.innerHTML = `<div class="text-sm text-muted italic" style="padding: 1rem 0;">No applicants yet.</div>`;
+      } else {
+        pending.forEach(app => {
+          const row = document.createElement('div');
+          row.className = 'candidate-row';
+          row.innerHTML = `
+            <div class="avatar avatar-sm cursor-pointer" onclick="openViewProfileDialog('${app.applicant?.id}')">${initials(app.applicant?.fullName || '')}</div>
+            <div class="candidate-info">
+              <strong class="cursor-pointer hover:underline" onclick="openViewProfileDialog('${app.applicant?.id}')">${app.applicant?.fullName || 'Applicant'}</strong>
+              <small class="text-muted">${app.applicant?.studentId || ''}</small>
+              <div class="candidate-message">"${app.message}"</div>
             </div>
-            <div class="mt-4">
-              <h4 class="text-sm font-bold mb-2">Mentoring Proposals (${pending.length})</h4>
-              ${appsHtml}
+            <div class="candidate-price">${peso(app.priceOffer)}</div>
+            <div class="candidate-actions">
+              <button type="button" class="btn btn-outline btn-sm reject-btn">Reject</button>
+              <button type="button" class="btn btn-purple btn-sm approve-btn">Approve</button>
             </div>
           `;
-          container.appendChild(jobEl);
+          row.querySelector('.approve-btn').addEventListener('click', (e) => { e.preventDefault(); handleApprove(app, job); });
+          row.querySelector('.reject-btn').addEventListener('click', (e) => { e.preventDefault(); handleReject(app); });
+          candList.appendChild(row);
+        });
+      }
+      container.appendChild(jobEl);
     });
-    if (container.children.length === 0) {
-      container.innerHTML = '<div class="empty-state text-center text-muted" style="padding: 2rem;">No pending candidates.</div>';
-    }
   } catch (err) {
-    if (!isSilent) container.innerHTML = '<div class="empty-state">Error loading applications.</div>';
+    if (!isSilent) container.innerHTML = '<div class="empty-state">Error loading posted jobs.</div>';
   }
 }
 
-
-  async function loadMentoringRequests(isSilent = false) {
-    const container = document.getElementById('mentoring-requests-list');
-    if (!container) return;
-    if (!isSilent) container.innerHTML = '<div class="loader"></div>';
-    try {
-      const res = await listMyHelpRequestsWithApplications(dc, { userId: userData.id }, SERVER_ONLY);
-      const jobs = (res.data.helpRequests || []).filter(j => {
-        const isMentoring = j.category === 'MENTORING' || (j.title && j.title.toLowerCase().startsWith('mentoring:'));
-        return (j.status === 'OPEN' || !j.status) && isMentoring;
-      });
-      container.innerHTML = '';
-      if (jobs.length === 0) {
-        container.innerHTML = '<div class="empty-state text-center text-muted" style="padding: 2rem;">No pending mentoring requests received.</div>';
-        return;
-      }
-      jobs.forEach(job => {
-        const pending = (job.applications_on_helpRequest || []).filter(a => a.status === 'PENDING');
-        
-        const jobEl = document.createElement('div');
-        jobEl.className = 'job-card';
-        
-        let appsHtml = '';
-        if (pending.length === 0) {
-          appsHtml = '<p class="text-xs text-muted mt-2">No pending applications for this request.</p>';
-        } else {
-          appsHtml = pending.map(app => `
-            <div class="application-card">
-              <div class="candidate-info">
-                <strong class="cursor-pointer hover:underline" onclick="openViewProfileDialog('${app.applicant?.id || ''}')">${app.applicant?.fullName || 'Applicant'}</strong>
-                <div class="candidate-message">"${app.message}"</div>
-              </div>
-              <div class="candidate-offer">
-                <strong>${peso(app.priceOffer)}</strong>
-                <div class="flex gap-1 mt-1">
-                  <button type="button" class="btn btn-purple btn-sm" onclick="approveApplication('${app.id}', '${job.id}')">Accept</button>
-                  <button type="button" class="btn btn-outline btn-sm" style="border-color:#ef4444; color:#ef4444;" onclick="rejectApplication('${app.id}')">Decline</button>
-                </div>
-              </div>
-            </div>
-          `).join('');
-        }
-        
-        jobEl.innerHTML = `
-          <div class="flex justify-between items-start mb-2">
-            <div>
-              <h3 class="job-title" style="margin: 0;">${job.title}</h3>
-              <p class="text-sm text-muted mt-1">${job.description}</p>
-            </div>
-          </div>
-          <div class="mt-4">
-            <h4 class="text-sm font-bold mb-2">Mentoree Applications (${pending.length})</h4>
-            ${appsHtml}
-          </div>
-        `;
-        container.appendChild(jobEl);
-      });
-    } catch(e) {
-      console.error(e);
-      container.innerHTML = '<div class="empty-state">Error loading mentoring requests.</div>';
+async function loadMentoringRequests(isSilent = false) {
+  const container = document.getElementById('mentoring-requests-list');
+  if (!container) return;
+  if (!isSilent) container.innerHTML = '<div class="loader"></div>';
+  try {
+    const res = await listMyHelpRequestsWithApplications(dc, { userId: userData.id }, SERVER_ONLY);
+    const jobs = (res.data.helpRequests || []).filter(j => {
+      const isMentoring = j.category === 'MENTORING' || (j.title && j.title.toLowerCase().startsWith('mentoring:'));
+      return (j.status === 'OPEN' || !j.status) && isMentoring;
+    });
+    container.innerHTML = '';
+    if (jobs.length === 0) {
+      container.innerHTML = '<div class="empty-state text-center text-muted" style="padding: 2rem;">No pending mentoring requests received.</div>';
+      return;
     }
+    jobs.forEach(job => {
+      const pending = (job.applications_on_helpRequest || []).filter(a => a.status === 'PENDING');
+      const proposedAmt = (pending[0] && pending[0].priceOffer !== undefined) ? pending[0].priceOffer : job.budget;
+
+      const jobEl = document.createElement('div');
+      jobEl.className = 'job-card';
+      jobEl.innerHTML = `
+        <div class="flex justify-between items-start mb-2">
+          <div>
+            <h3 class="job-title" style="margin: 0;">${job.title}</h3>
+            <p class="text-sm text-muted mt-1">${job.description || ''}</p>
+          </div>
+          <span class="badge badge-normal" style="font-weight: 700; color: var(--color-green);">${peso(proposedAmt)}</span>
+        </div>
+        <div class="mt-4">
+          <h4 class="text-sm font-bold mb-2">Mentoring Proposals (${pending.length})</h4>
+          <div class="candidates-list"></div>
+        </div>
+      `;
+      const candList = jobEl.querySelector('.candidates-list');
+
+      if (pending.length === 0) {
+        candList.innerHTML = `<div class="text-sm text-muted italic" style="padding: 1rem 0;">No pending applications for this request.</div>`;
+      } else {
+        pending.forEach(app => {
+          const row = document.createElement('div');
+          row.className = 'candidate-row';
+          row.innerHTML = `
+            <div class="avatar avatar-sm cursor-pointer" onclick="openViewProfileDialog('${app.applicant?.id || ''}')">${initials(app.applicant?.fullName || '')}</div>
+            <div class="candidate-info">
+              <strong class="cursor-pointer hover:underline" onclick="openViewProfileDialog('${app.applicant?.id || ''}')">${app.applicant?.fullName || 'Mentoree'}</strong>
+              <small class="text-muted">${app.applicant?.studentId || ''}</small>
+              <div class="candidate-message">"${app.message}"</div>
+            </div>
+            <div class="candidate-price">${peso(app.priceOffer)}</div>
+            <div class="candidate-actions">
+              <button type="button" class="btn btn-outline btn-sm reject-btn" style="border-color:#ef4444; color:#ef4444;">Decline</button>
+              <button type="button" class="btn btn-purple btn-sm approve-btn">Accept</button>
+            </div>
+          `;
+          row.querySelector('.approve-btn').addEventListener('click', (e) => { e.preventDefault(); handleApprove(app, job); });
+          row.querySelector('.reject-btn').addEventListener('click', (e) => { e.preventDefault(); handleReject(app); });
+          candList.appendChild(row);
+        });
+      }
+      container.appendChild(jobEl);
+    });
+  } catch (e) {
+    console.error(e);
+    container.innerHTML = '<div class="empty-state">Error loading mentoring requests.</div>';
   }
+}
 
   async function loadMyApplications(isSilent = false) {
   const container = $('#my-applications-list');
@@ -1304,6 +1304,35 @@ async function handleReject(application) {
     showToast('Error: ' + err.message, 'error');
   }
 }
+
+window.approveApplication = async function(appId, jobId) {
+  try {
+    const res = await listMyHelpRequestsWithApplications(dc, { userId: userData.id }, SERVER_ONLY);
+    const jobs = res.data.helpRequests || [];
+    const job = jobs.find(j => j.id === jobId);
+    const app = job?.applications_on_helpRequest?.find(a => a.id === appId);
+    if (app && job) {
+      await handleApprove(app, job);
+    } else {
+      await updateApplicationStatus(dc, { id: appId, status: 'APPROVED' });
+      if (jobId) await updateHelpRequestStatus(dc, { id: jobId, status: 'CLOSED' });
+      showToast('Application approved!');
+      loadApplications();
+    }
+  } catch (err) {
+    showToast('Error: ' + err.message, 'error');
+  }
+};
+
+window.rejectApplication = async function(appId) {
+  try {
+    await updateApplicationStatus(dc, { id: appId, status: 'REJECTED' });
+    showToast('Application rejected.');
+    loadApplications();
+  } catch (err) {
+    showToast('Error: ' + err.message, 'error');
+  }
+};
 
 function setupApplicationTabs() {
   $$('.tab-btn[data-tab]').forEach(btn => {
