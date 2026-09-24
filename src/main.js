@@ -228,6 +228,8 @@ function showApp() {
 function clearUserSessionDOM() {
   activeSection = 'dashboard';
   sessionStorage.removeItem('active_section');
+  sessionStorage.removeItem('active_conversation_id');
+  activeConvId = null;
 
   const avatar = $('#profile-avatar'); if (avatar) avatar.textContent = '';
   const name = $('#profile-name'); if (name) name.textContent = '';
@@ -847,6 +849,7 @@ async function loadDashboard(isSilent = false) {
         `;
         row.addEventListener('click', () => {
           activeConvId = conv.id;
+          sessionStorage.setItem('active_conversation_id', conv.id);
           navigateTo('messages');
         });
         recentMsgEl.appendChild(row);
@@ -1287,6 +1290,7 @@ async function handleApprove(application, job) {
         timestamp: serverTimestamp()
       });
       activeConvId = convId;
+      sessionStorage.setItem('active_conversation_id', convId);
     }
     showToast('Application approved! Chat created.');
     navigateTo('messages');
@@ -1371,16 +1375,25 @@ async function loadMessages(isSilent = false) {
       c.application?.status !== 'TERMINATED'
     );
     renderConversationList();
-    if (conversations.length > 0 && !activeConvId) {
-      selectConversation(conversations[0].id);
-    } else if (activeConvId) {
-      const exists = conversations.some(c => c.id === activeConvId);
-      if (!exists && conversations.length > 0) {
-        selectConversation(conversations[0].id);
-      } else if (exists) {
+
+    if (!activeConvId) {
+      const savedConvId = sessionStorage.getItem('active_conversation_id');
+      if (savedConvId && conversations.some(c => c.id === savedConvId)) {
+        activeConvId = savedConvId;
+      }
+    }
+
+    if (conversations.length > 0) {
+      if (activeConvId && conversations.some(c => c.id === activeConvId)) {
         selectConversation(activeConvId);
+      } else {
+        // Prioritize open/in-progress conversations over completed ones
+        const defaultConv = conversations.find(c => c.application?.helpRequest?.status !== 'COMPLETED') || conversations[0];
+        selectConversation(defaultConv.id);
       }
     } else {
+      activeConvId = null;
+      sessionStorage.removeItem('active_conversation_id');
       $('#chat-panel').innerHTML = '<div class="empty-state text-center text-muted" style="padding: 2rem;">No conversations yet.<br><br><a href="#" onclick="navigateTo(\'dashboard\')" class="btn btn-purple">Find Jobs</a></div>';
     }
   } catch (err) {
@@ -1429,6 +1442,7 @@ async function selectConversation(convId) {
     if (msgArea) msgArea.innerHTML = '<div class="loader"></div>';
   }
   activeConvId = convId;
+  sessionStorage.setItem('active_conversation_id', convId);
   renderConversationList();
   
   // Add class for mobile messenger-style view
@@ -1494,6 +1508,7 @@ async function selectConversation(convId) {
       await terminateJob(dc, { applicationId: conv.application.id, helpRequestId: conv.application.helpRequest.id });
       showToast('Job terminated.');
       activeConvId = null;
+      sessionStorage.removeItem('active_conversation_id');
       loadMessages();
     } catch (err) {
       showToast('Error: ' + err.message, 'error');
@@ -1918,6 +1933,7 @@ function setupReviewDialog() {
       
       // 3. Clear chat UI & refresh
       activeConvId = null;
+      sessionStorage.removeItem('active_conversation_id');
       $('#messages-container')?.classList.remove('chat-open');
       loadMessages();
       loadDashboard(true);
