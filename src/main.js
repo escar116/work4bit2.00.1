@@ -658,12 +658,13 @@ async function loadDashboard(isSilent = false) {
     const listEl = $('#dashboard-listings');
     if (!isSilent) listEl.innerHTML = `<div class="job-list-item" style="border: none;">    <div class="skeleton-loader" style="width: 44px; height: 44px; border-radius: 12px; flex-shrink: 0;"></div>    <div class="job-item-info" style="width: 100%;">        <div class="skeleton-loader skeleton-title" style="margin-bottom: 8px; width: 60%; height: 16px;"></div>        <div class="skeleton-loader skeleton-line-short" style="margin-bottom: 0; width: 40%; height: 12px;"></div>    </div></div><div class="job-list-item" style="border: none;">    <div class="skeleton-loader" style="width: 44px; height: 44px; border-radius: 12px; flex-shrink: 0;"></div>    <div class="job-item-info" style="width: 100%;">        <div class="skeleton-loader skeleton-title" style="margin-bottom: 8px; width: 50%; height: 16px;"></div>        <div class="skeleton-loader skeleton-line-short" style="margin-bottom: 0; width: 30%; height: 12px;"></div>    </div></div><div class="job-list-item" style="border: none;">    <div class="skeleton-loader" style="width: 44px; height: 44px; border-radius: 12px; flex-shrink: 0;"></div>    <div class="job-item-info" style="width: 100%;">        <div class="skeleton-loader skeleton-title" style="margin-bottom: 8px; width: 70%; height: 16px;"></div>        <div class="skeleton-loader skeleton-line-short" style="margin-bottom: 0; width: 45%; height: 12px;"></div>    </div></div>`;
     
-    // Filter out jobs the user posted themselves, only show OPEN jobs, and hide expired jobs
+    // Filter out jobs the user posted themselves, only show OPEN jobs, hide expired jobs, and exclude listings exceeding the 100k cap (e.g. 1B placeholder)
     const now = new Date();
     const recommended = requests.filter(r => 
       (r.status === 'OPEN' || !r.status) && 
       r.requester?.id !== userData?.id && 
-      (!r.deadline || new Date(r.deadline + 'T23:59:59') >= now)
+      (!r.deadline || new Date(r.deadline + 'T23:59:59') >= now) &&
+      (Number(r.budget) <= 100000 && Number(r.budget) > 0)
     );
     
     if (recommended.length === 0) {
@@ -835,6 +836,7 @@ async function loadDashboard(isSilent = false) {
       conversations.slice(0, 2).forEach(conv => {
         const isPoster = conv.poster?.id === userData?.id;
         const otherUser = isPoster ? conv.applicant : conv.poster;
+        const isCompleted = conv.application?.helpRequest?.status === 'COMPLETED';
         const row = document.createElement('div');
         row.className = 'message-row-item';
         row.innerHTML = `
@@ -842,7 +844,7 @@ async function loadDashboard(isSilent = false) {
           <div class="message-row-info">
             <div class="flex-between">
               <h4 class="message-row-name">${otherUser?.fullName || 'Peer'}</h4>
-              <span class="message-row-time">Active</span>
+              <span class="${isCompleted ? 'badge badge-approved' : 'badge badge-pending'}" style="font-size: 10px; padding: 2px 7px;">${isCompleted ? 'Job Completed' : 'In Progress'}</span>
             </div>
             <p class="message-row-text truncate">${conv.application?.helpRequest?.title || 'Chat conversation'}</p>
           </div>
@@ -892,8 +894,9 @@ function renderServices(requests, appliedIds = new Set()) {
   const grid = $('#requests-grid');
   const now = new Date();
   let filtered = requests.filter(r => {
-    // Hide expired listings
+    // Hide expired listings and listings exceeding the 100k platform cap
     if (r.deadline && new Date(r.deadline + 'T23:59:59') < now) return false;
+    if (Number(r.budget) > 100000 || Number(r.budget) <= 0) return false;
 
     if (requestFilters.q) {
       const hay = `${r.title} ${r.description} ${r.category} ${r.requester?.fullName}`.toLowerCase();
