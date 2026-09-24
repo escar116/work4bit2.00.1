@@ -955,15 +955,28 @@ button {
     display: flex;
     justify-content: space-between;
     align-items: flex-end;
+    gap: 0.75rem;
+    flex-wrap: wrap;
     margin-top: auto;
     padding-top: 0.85rem;
     border-top: 1px solid var(--border-light);
 }
 
+.request-card-footer > div:first-child {
+    min-width: 0;
+    flex: 1 1 auto;
+}
+
 .request-card-price {
-    font-size: 1.2rem;
+    font-size: 1.15rem;
     font-weight: 800;
     color: var(--text-heading);
+    word-break: break-word;
+    overflow-wrap: break-word;
+}
+
+.request-card-footer .apply-btn {
+    flex-shrink: 0;
 }
 
 /* ==========================================================================

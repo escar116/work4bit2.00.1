@@ -906,9 +906,34 @@ function renderServices(requests, appliedIds = new Set()) {
   filtered.forEach(r => {
     const isMine = r.requester?.id === userData?.id;
     const hasApplied = appliedIds.has(r.id);
+    const isExpired = r.deadline ? new Date(r.deadline + 'T23:59:59') < new Date() : false;
     const card = document.createElement('article');
     card.className = 'request-card';
     const urgencyClass = r.urgency === 'Urgent' ? 'badge-urgent' : r.urgency === 'Low' ? 'badge-low' : 'badge-normal';
+
+    let btnText = 'Apply Now';
+    let btnClass = 'btn-purple';
+    let btnDisabled = false;
+
+    if (isMine) {
+      btnText = 'Your Post';
+      btnClass = 'btn-mine';
+      btnDisabled = true;
+    } else if (hasApplied) {
+      btnText = 'Applied';
+      btnClass = 'btn-applied';
+      btnDisabled = true;
+    } else if (isExpired) {
+      btnText = 'Expired';
+      btnClass = 'btn-mine';
+      btnDisabled = true;
+    }
+
+    const deadlineBadge = r.deadline
+      ? (isExpired
+          ? `<span class="request-card-deadline" style="color: #ef4444; font-weight: 600;">📅 Due ${r.deadline} (Expired)</span>`
+          : `<span class="request-card-deadline">📅 Due ${r.deadline}</span>`)
+      : '';
 
     card.innerHTML = `
       <div class="request-card-header">
@@ -920,21 +945,20 @@ function renderServices(requests, appliedIds = new Set()) {
       <p class="request-card-desc line-clamp-3">${r.description || 'No description provided.'}</p>
       <div class="request-card-meta">
         <span class="badge badge-normal">${r.category || 'General'}</span>
-        ${r.deadline ? `<span class="request-card-deadline">📅 Due ${r.deadline}</span>` : ''}
+        ${deadlineBadge}
       </div>
       <div class="request-card-footer">
         <div>
           <small class="text-muted">Budget</small>
           <div class="request-card-price">${peso(r.budget)}</div>
         </div>
-        <button type="button" class="btn ${isMine ? 'btn-mine' : hasApplied ? 'btn-applied' : 'btn-purple'} btn-sm apply-btn"
-                ${isMine || hasApplied ? 'disabled' : ''}>
-          ${isMine ? 'Your Post' : hasApplied ? 'Applied' : 'Apply Now'}
+        <button type="button" class="btn ${btnClass} btn-sm apply-btn" ${btnDisabled ? 'disabled' : ''}>
+          ${btnText}
         </button>
       </div>
     `;
 
-    if (!isMine && !hasApplied) {
+    if (!isMine && !hasApplied && !isExpired) {
       card.querySelector('.apply-btn').addEventListener('click', (e) => {
         e.preventDefault();
         openApplyDialog(r);
@@ -1053,7 +1077,8 @@ let appTab = 'posted';
 
 async function loadApplications(isSilent = false) {
   if (appTab === 'posted') await loadPostedJobs(isSilent);
-  else await loadMyApplications(isSilent);
+  else if (appTab === 'applied') await loadMyApplications(isSilent);
+  else if (appTab === 'mentoring') await loadMentoringRequests(isSilent);
 }
 
 async function loadPostedJobs(isSilent = false) {
@@ -1247,12 +1272,17 @@ function setupApplicationTabs() {
       appTab = btn.dataset.tab;
       $$('.tab-btn[data-tab]').forEach(b => b.classList.remove('active'));
       btn.classList.add('active');
+
+      hide($('#posted-jobs-list'));
+      hide($('#my-applications-list'));
+      hide($('#mentoring-requests-list'));
+
       if (appTab === 'posted') {
         show($('#posted-jobs-list'));
-        hide($('#my-applications-list'));
-      } else {
-        hide($('#posted-jobs-list'));
+      } else if (appTab === 'applied') {
         show($('#my-applications-list'));
+      } else if (appTab === 'mentoring') {
+        show($('#mentoring-requests-list'));
       }
       loadApplications();
     });
@@ -1718,6 +1748,23 @@ function renderTransactionsTable(filter = 'all') {
       ? '<span class="badge" style="background: rgba(16, 185, 129, 0.1); color: var(--color-green); border: 1px solid rgba(16, 185, 129, 0.2); font-size: 11px; padding: 2px 6px;">Earning</span>'
       : '<span class="badge" style="background: rgba(99, 102, 241, 0.1); color: var(--primary-purple); border: 1px solid rgba(99, 102, 241, 0.2); font-size: 11px; padding: 2px 6px;">Payment</span>';
 
+    // Clear financial status labels
+    let statusLabel = item.status || 'Pending';
+    let statusBadgeClass = 'badge-pending';
+    if (item.status === 'COMPLETED') {
+      statusLabel = 'Completed';
+      statusBadgeClass = 'badge-approved';
+    } else if (item.status === 'APPROVED') {
+      statusLabel = 'Payment Pending';
+      statusBadgeClass = 'badge-pending';
+    } else if (item.status === 'PENDING') {
+      statusLabel = 'Pending Approval';
+      statusBadgeClass = 'badge-pending';
+    } else if (item.status === 'TERMINATED') {
+      statusLabel = 'Terminated';
+      statusBadgeClass = 'badge-rejected';
+    }
+
     tr.innerHTML = `
       <td>
         <strong>${item.title}</strong>
@@ -1725,7 +1772,7 @@ function renderTransactionsTable(filter = 'all') {
       </td>
       <td>${item.date}</td>
       <td><strong style="${amountColor}">${amountPrefix}${peso(item.amount)}</strong></td>
-      <td><span class="badge ${isCompleted ? 'badge-approved' : 'badge-pending'}">${item.status || 'Pending'}</span></td>
+      <td><span class="badge ${statusBadgeClass}">${statusLabel}</span></td>
     `;
     tbody.appendChild(tr);
   });
