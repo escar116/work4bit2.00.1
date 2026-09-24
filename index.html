@@ -1238,7 +1238,7 @@
                 <div class="form-row">
                     <div class="form-group flex-1">
                         <label class="form-label" for="nr-budget">Budget / Payment (₱) *</label>
-                        <input type="number" id="nr-budget" class="form-control" placeholder="500" min="50" required>
+                        <input type="number" id="nr-budget" class="form-control" placeholder="500" min="50" max="100000" required>
                     </div>
                     <div class="form-group flex-1">
                         <label class="form-label" for="nr-deadline">Deadline</label>
@@ -1264,7 +1264,7 @@
             <form id="apply-form">
                 <div class="form-group">
                     <label class="form-label" for="apply-amount">Proposed Rate (₱) *</label>
-                    <input type="number" id="apply-amount" class="form-control" min="1" required>
+                    <input type="number" id="apply-amount" class="form-control" min="1" max="100000" required>
                 </div>
                 <div class="form-group">
                     <label class="form-label" for="apply-message">Cover Message *</label>
@@ -1661,7 +1661,7 @@
                 </div>
                 <div class="form-group">
                     <label>Proposed Price (₱)</label>
-                    <input type="number" id="mentoring-amount" class="input" min="0" placeholder="e.g. 500" required>
+                    <input type="number" id="mentoring-amount" class="input" min="0" max="100000" placeholder="e.g. 500" required>
                 </div>
                 <div class="flex justify-end gap-3 mt-6">
                     <button type="button" class="btn btn-outline dialog-close-btn">Cancel</button>

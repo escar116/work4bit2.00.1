@@ -656,8 +656,13 @@ async function loadDashboard(isSilent = false) {
     const listEl = $('#dashboard-listings');
     if (!isSilent) listEl.innerHTML = `<div class="job-list-item" style="border: none;">    <div class="skeleton-loader" style="width: 44px; height: 44px; border-radius: 12px; flex-shrink: 0;"></div>    <div class="job-item-info" style="width: 100%;">        <div class="skeleton-loader skeleton-title" style="margin-bottom: 8px; width: 60%; height: 16px;"></div>        <div class="skeleton-loader skeleton-line-short" style="margin-bottom: 0; width: 40%; height: 12px;"></div>    </div></div><div class="job-list-item" style="border: none;">    <div class="skeleton-loader" style="width: 44px; height: 44px; border-radius: 12px; flex-shrink: 0;"></div>    <div class="job-item-info" style="width: 100%;">        <div class="skeleton-loader skeleton-title" style="margin-bottom: 8px; width: 50%; height: 16px;"></div>        <div class="skeleton-loader skeleton-line-short" style="margin-bottom: 0; width: 30%; height: 12px;"></div>    </div></div><div class="job-list-item" style="border: none;">    <div class="skeleton-loader" style="width: 44px; height: 44px; border-radius: 12px; flex-shrink: 0;"></div>    <div class="job-item-info" style="width: 100%;">        <div class="skeleton-loader skeleton-title" style="margin-bottom: 8px; width: 70%; height: 16px;"></div>        <div class="skeleton-loader skeleton-line-short" style="margin-bottom: 0; width: 45%; height: 12px;"></div>    </div></div>`;
     
-    // Filter out jobs the user posted themselves, and only show OPEN jobs
-    const recommended = requests.filter(r => (r.status === 'OPEN' || !r.status) && r.requester?.id !== userData?.id);
+    // Filter out jobs the user posted themselves, only show OPEN jobs, and hide expired jobs
+    const now = new Date();
+    const recommended = requests.filter(r => 
+      (r.status === 'OPEN' || !r.status) && 
+      r.requester?.id !== userData?.id && 
+      (!r.deadline || new Date(r.deadline + 'T23:59:59') >= now)
+    );
     
     if (recommended.length === 0) {
       listEl.innerHTML = '<div class="empty-state text-center text-muted" style="padding: 1.5rem;">No services available right now. Be the first to post!</div>';
@@ -882,7 +887,11 @@ async function loadServices(isSilent = false) {
 
 function renderServices(requests, appliedIds = new Set()) {
   const grid = $('#requests-grid');
+  const now = new Date();
   let filtered = requests.filter(r => {
+    // Hide expired listings
+    if (r.deadline && new Date(r.deadline + 'T23:59:59') < now) return false;
+
     if (requestFilters.q) {
       const hay = `${r.title} ${r.description} ${r.category} ${r.requester?.fullName}`.toLowerCase();
       if (!hay.includes(requestFilters.q.toLowerCase())) return false;
@@ -1005,33 +1014,51 @@ function setupServiceFilters() {
 function setupNewRequestDialog() {
   $('#btn-post-request')?.addEventListener('click', (e) => {
     e.preventDefault();
+    const dl = $('#nr-deadline');
+    if (dl) dl.min = new Date().toISOString().split('T')[0];
     $('#dialog-new-request').showModal();
   });
 
   $('#new-request-form')?.addEventListener('submit', async (e) => {
     e.preventDefault();
+    const budget = Number($('#nr-budget').value);
+    if (budget > 100000) {
+      showToast('Maximum budget allowed is ₱100,000.', 'error');
+      return;
+    }
+    if (budget < 50) {
+      showToast('Minimum budget is ₱50.', 'error');
+      return;
+    }
+
+    const deadline = $('#nr-deadline').value || null;
+    if (deadline && new Date(deadline + 'T23:59:59') < new Date()) {
+      showToast('Deadline cannot be in the past.', 'error');
+      return;
+    }
+
     const btn = $('#new-request-submit');
     btn.disabled = true; btn.textContent = 'Publishing...';
     try {
       await createHelpRequest(dc, {
         title: $('#nr-title').value.trim(),
         description: $('#nr-description').value.trim(),
-        budget: Number($('#nr-budget').value),
+        budget: budget,
         requesterId: userData.id,
         category: $('#nr-category').value || null,
         urgency: $('#nr-urgency').value || null,
-        deadline: $('#nr-deadline').value || null
+        deadline: deadline
       });
-      showToast('Job published successfully!');
+      showToast('Service published successfully!');
       $('#dialog-new-request').close();
       e.target.reset();
       loadServices();
       loadDashboard(true);
     } catch (err) {
-      showToast('Could not post job: ' + err.message, 'error');
+      showToast('Could not post service: ' + err.message, 'error');
     } finally {
       btn.disabled = false;
-      btn.textContent = 'Publish Job';
+      btn.textContent = 'Publish Service';
     }
   });
 }
@@ -1050,16 +1077,21 @@ function openApplyDialog(request) {
 function setupApplyDialog() {
   $('#apply-form')?.addEventListener('submit', async (e) => {
     e.preventDefault();
+    const amount = Number($('#apply-amount').value);
+    if (amount > 100000) {
+      showToast('Proposed rate cannot exceed ₱100,000.', 'error');
+      return;
+    }
     const btn = $('#apply-submit');
     btn.disabled = true; btn.textContent = 'Submitting...';
     try {
       await createApplication(dc, {
         helpRequestId: applyTarget.id,
         applicantId: userData.id,
-        priceOffer: Number($('#apply-amount').value),
+        priceOffer: amount,
         message: $('#apply-message').value.trim()
       });
-      showToast(`Application sent! Proposed rate: ${peso($('#apply-amount').value)}`);
+      showToast(`Application sent! Proposed rate: ${peso(amount)}`);
       $('#dialog-apply').close();
       loadServices();
       loadDashboard(true);
@@ -2300,6 +2332,12 @@ window.openViewProfileDialog = async function(userId) {
           const desc = document.getElementById('mentoring-desc').value.trim();
           const time = document.getElementById('mentoring-time').value.trim();
           const amount = Number(document.getElementById('mentoring-amount').value);
+          if (amount > 100000) {
+            showToast('Proposed price cannot exceed ₱100,000.', 'error');
+            btn.disabled = false;
+            btn.textContent = 'Submit Proposal';
+            return;
+          }
           
           const reqRes = await createHelpRequest(dc, {
             title: "Mentoring: " + title,
