@@ -225,8 +225,42 @@ function showApp() {
 }
 
 // ── Auth Listener ────────────────────────────────────────────────────────────
+function clearUserSessionDOM() {
+  activeSection = 'dashboard';
+  sessionStorage.removeItem('active_section');
+
+  const avatar = $('#profile-avatar'); if (avatar) avatar.textContent = '';
+  const name = $('#profile-name'); if (name) name.textContent = '';
+  const faculty = $('#profile-faculty'); if (faculty) faculty.textContent = '';
+  const studentId = $('#profile-student-id'); if (studentId) studentId.textContent = '';
+  const bio = document.getElementById('profile-bio-display'); if (bio) bio.textContent = '';
+  const skills = document.getElementById('profile-skills-display'); if (skills) skills.innerHTML = '';
+  
+  ['stat-app-pending', 'stat-app-completed', 'stat-app-terminated',
+   'stat-emp-pending', 'stat-emp-completed', 'stat-emp-terminated'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.textContent = '0';
+  });
+
+  renderReviewsProfile([]);
+
+  allTransactions = [];
+  const transTbody = $('#transactions-tbody');
+  if (transTbody) transTbody.innerHTML = '<tr><td colspan="4" class="text-center text-muted" style="padding: 2rem;">No transaction history found.</td></tr>';
+  const totalEl = $('#trans-total-earnings'); if (totalEl) totalEl.textContent = '₱0';
+  const pendEl = $('#trans-pending-earnings'); if (pendEl) pendEl.textContent = '₱0';
+  const compEl = $('#trans-completed-earnings'); if (compEl) compEl.textContent = '₱0';
+
+  activeConvId = null;
+  reviewTarget = null;
+  conversations = [];
+}
+
 onAuthStateChanged(auth, async (user) => {
   if (user) {
+    if (userData && userData.id !== user.uid) {
+      clearUserSessionDOM();
+    }
     currentUser = user;
     try {
       const res = await getUser(dc, { id: user.uid }, SERVER_ONLY);
@@ -249,6 +283,7 @@ onAuthStateChanged(auth, async (user) => {
   } else {
     currentUser = null;
     userData = null;
+    clearUserSessionDOM();
     showAuth('landing');
   }
 });
@@ -1333,6 +1368,22 @@ async function selectConversation(convId) {
   $('#btn-complete')?.addEventListener('click', async (e) => {
     e.preventDefault();
     reviewTarget = { conv, otherUser };
+
+    const jobTitle = conv.application?.helpRequest?.title || 'Service Request';
+    const price = Number(conv.application?.priceOffer) || Number(conv.application?.helpRequest?.budget) || 0;
+
+    const jobEl = $('#review-payment-job');
+    if (jobEl) jobEl.textContent = jobTitle;
+    const recEl = $('#review-payment-recipient');
+    if (recEl) recEl.textContent = `Pay to: ${otherUser.fullName}`;
+    const amtEl = $('#review-payment-amount');
+    if (amtEl) amtEl.textContent = peso(price);
+    const confAmtEl = $('#review-payment-confirm-amt');
+    if (confAmtEl) confAmtEl.textContent = peso(price);
+
+    const commentEl = $('#review-comment');
+    if (commentEl) commentEl.value = '';
+
     $('#dialog-review').showModal();
   });
 
@@ -1461,23 +1512,95 @@ async function loadTransactions() {
   const tbody = $('#transactions-tbody');
   tbody.innerHTML = '<tr><td colspan="4" class="text-center"><div class="loader"></div></td></tr>';
   try {
-    const res = await listApplicationsByApplicant(dc, { userId: userData.id }, SERVER_ONLY);
-    const apps = res.data.applications || [];
-    allTransactions = apps;
+    const [appRes, myPostRes] = await Promise.all([
+      listApplicationsByApplicant(dc, { userId: userData.id }, SERVER_ONLY),
+      listMyHelpRequestsWithApplications(dc, { userId: userData.id }, SERVER_ONLY)
+    ]);
+    const apps = appRes.data.applications || [];
+    const myPosts = myPostRes.data.helpRequests || [];
 
-    const completed = apps.filter(a => a.status === 'COMPLETED');
-    const pending = apps.filter(a => a.status === 'PENDING' || a.status === 'APPROVED');
+    const txList = [];
 
-    const completedTotal = completed.reduce((sum, a) => sum + (Number(a.priceOffer) || 0), 0);
-    const pendingTotal = pending.reduce((sum, a) => sum + (Number(a.priceOffer) || 0), 0);
-    const grandTotal = completedTotal + pendingTotal;
+    // 1. Applicant earnings (freelancer work)
+    apps.forEach(a => {
+      txList.push({
+        id: a.id,
+        title: a.helpRequest?.title || 'Service Request',
+        counterpart: a.helpRequest?.requester?.fullName ? `Client: ${a.helpRequest.requester.fullName}` : 'Freelance Service',
+        amount: Number(a.priceOffer) || 0,
+        status: a.status,
+        type: 'EARNING',
+        date: a.createdAt ? new Date(a.createdAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }) : 'Recently'
+      });
+    });
 
-    $('#trans-total-earnings').textContent = peso(grandTotal);
-    $('#trans-pending-earnings').textContent = peso(pendingTotal);
-    $('#trans-completed-earnings').textContent = peso(completedTotal);
+    // 2. Client payments (hired peer services)
+    myPosts.forEach(p => {
+      const appsOnJob = p.applications_on_helpRequest || [];
+      appsOnJob.forEach(a => {
+        // Show applications that have been approved or completed
+        txList.push({
+          id: a.id,
+          title: p.title || 'Posted Service',
+          counterpart: a.applicant?.fullName ? `Paid to: ${a.applicant.fullName}` : 'Applicant Payment',
+          amount: Number(a.priceOffer) || Number(p.budget) || 0,
+          status: a.status,
+          type: 'PAYMENT',
+          date: 'Recently'
+        });
+      });
+    });
+
+    allTransactions = txList;
+
+    // Calculate totals
+    const completedEarnings = txList.filter(t => t.type === 'EARNING' && t.status === 'COMPLETED').reduce((sum, t) => sum + t.amount, 0);
+    const pendingEarnings = txList.filter(t => t.type === 'EARNING' && (t.status === 'PENDING' || t.status === 'APPROVED')).reduce((sum, t) => sum + t.amount, 0);
+
+    const completedPayments = txList.filter(t => t.type === 'PAYMENT' && t.status === 'COMPLETED').reduce((sum, t) => sum + t.amount, 0);
+    const pendingPayments = txList.filter(t => t.type === 'PAYMENT' && (t.status === 'PENDING' || t.status === 'APPROVED')).reduce((sum, t) => sum + t.amount, 0);
+
+    const totalEarned = completedEarnings + pendingEarnings;
+    const totalSpent = completedPayments + pendingPayments;
+
+    // Update stat cards
+    const totalEl = $('#trans-total-earnings');
+    if (totalEl) {
+      if (totalSpent > 0 && totalEarned > 0) {
+        totalEl.innerHTML = `<div style="font-size: 1.5rem; line-height: 1.2;">${peso(totalEarned)} <span style="font-size: 0.8rem; font-weight: 600; color: var(--color-green);">Earned</span></div>
+                             <div style="font-size: 1.1rem; color: var(--text-heading); margin-top: 0.2rem;">${peso(totalSpent)} <span style="font-size: 0.75rem; font-weight: 500; color: var(--text-muted);">Spent</span></div>`;
+      } else if (totalSpent > 0) {
+        totalEl.innerHTML = `<div style="font-size: 1.5rem; line-height: 1.2; color: var(--text-heading);">${peso(totalSpent)} <span style="font-size: 0.8rem; font-weight: 600; color: var(--text-muted);">Spent</span></div>`;
+      } else {
+        totalEl.textContent = peso(totalEarned);
+      }
+    }
+
+    const pendingEl = $('#trans-pending-earnings');
+    if (pendingEl) {
+      if (pendingPayments > 0 && pendingEarnings > 0) {
+        pendingEl.innerHTML = `<div style="font-size: 1.3rem;">${peso(pendingEarnings)}</div><div style="font-size: 0.85rem; color: var(--text-muted);">${peso(pendingPayments)} Out</div>`;
+      } else if (pendingPayments > 0) {
+        pendingEl.textContent = `${peso(pendingPayments)} Out`;
+      } else {
+        pendingEl.textContent = peso(pendingEarnings);
+      }
+    }
+
+    const completedEl = $('#trans-completed-earnings');
+    if (completedEl) {
+      if (completedPayments > 0 && completedEarnings > 0) {
+        completedEl.innerHTML = `<div style="font-size: 1.3rem; color: var(--color-green);">${peso(completedEarnings)}</div><div style="font-size: 0.85rem; color: var(--text-muted);">${peso(completedPayments)} Paid</div>`;
+      } else if (completedPayments > 0) {
+        completedEl.textContent = `${peso(completedPayments)} Paid`;
+      } else {
+        completedEl.textContent = peso(completedEarnings);
+      }
+    }
 
     renderTransactionsTable('all');
   } catch (err) {
+    console.error('Error loading transactions:', err);
     tbody.innerHTML = '<tr><td colspan="4" class="text-center text-muted" style="padding: 2rem;">Error loading transactions.</td></tr>';
   }
 }
@@ -1490,17 +1613,27 @@ function renderTransactionsTable(filter = 'all') {
 
   tbody.innerHTML = '';
   if (list.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="4" class="text-center text-muted" style="padding: 2rem;">No transaction records found.<br><br><button class="btn btn-purple btn-sm" onclick="navigateTo(\'dashboard\')">Find Work</button></td></tr>';
+    tbody.innerHTML = '<tr><td colspan="4" class="text-center text-muted" style="padding: 2rem;">No transaction records found.<br><br><button class="btn btn-purple btn-sm" onclick="navigateTo(\'services\')">Find Services</button></td></tr>';
     return;
   }
 
   list.forEach(item => {
     const tr = document.createElement('tr');
     const isCompleted = item.status === 'COMPLETED';
+    const isEarning = item.type === 'EARNING';
+    const amountPrefix = isEarning ? '+ ' : '- ';
+    const amountColor = isEarning ? 'color: var(--color-green);' : 'color: var(--text-heading);';
+    const typeBadge = isEarning
+      ? '<span class="badge" style="background: rgba(16, 185, 129, 0.1); color: var(--color-green); border: 1px solid rgba(16, 185, 129, 0.2); font-size: 11px; padding: 2px 6px;">Earning</span>'
+      : '<span class="badge" style="background: rgba(99, 102, 241, 0.1); color: var(--primary-purple); border: 1px solid rgba(99, 102, 241, 0.2); font-size: 11px; padding: 2px 6px;">Payment</span>';
+
     tr.innerHTML = `
-      <td><strong>${item.helpRequest?.title || 'Service Request'}</strong></td>
-      <td>Recently</td>
-      <td><strong>${peso(item.priceOffer)}</strong></td>
+      <td>
+        <strong>${item.title}</strong>
+        <div class="text-xs text-muted" style="margin-top: 2px;">${item.counterpart} • ${typeBadge}</div>
+      </td>
+      <td>${item.date}</td>
+      <td><strong style="${amountColor}">${amountPrefix}${peso(item.amount)}</strong></td>
       <td><span class="badge ${isCompleted ? 'badge-approved' : 'badge-pending'}">${item.status || 'Pending'}</span></td>
     `;
     tbody.appendChild(tr);
@@ -1549,7 +1682,7 @@ function setupReviewDialog() {
     e.preventDefault();
     if (!selectedRating || !reviewTarget) return;
     const submitBtn = e.target.querySelector('button[type="submit"]');
-    if (submitBtn) { submitBtn.disabled = true; submitBtn.textContent = 'Submitting...'; }
+    if (submitBtn) { submitBtn.disabled = true; submitBtn.textContent = 'Processing...'; }
     try {
       // 1. Complete the job
       await completeJob(dc, { applicationId: reviewTarget.conv.application.id, helpRequestId: reviewTarget.conv.application.helpRequest.id });
@@ -1565,18 +1698,19 @@ function setupReviewDialog() {
         };
       await addDoc(collection(firestore, "reviews"), revData);
       
-      showToast('Job completed and review submitted!');
+      showToast('Payment confirmed and job completed!');
       $('#dialog-review').close();
       
-      // 3. Clear chat UI
+      // 3. Clear chat UI & refresh
       activeConvId = null;
       $('#messages-container')?.classList.remove('chat-open');
       loadMessages();
       loadDashboard(true);
+      if (activeSection === 'transactions') loadTransactions();
     } catch (err) {
       showToast('Error: ' + err.message, 'error');
     } finally {
-      if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = 'Submit Rating'; }
+      if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = 'Confirm Payment & Complete'; }
     }
   });
 }
@@ -1629,6 +1763,18 @@ async function loadProfile() {
   $('#profile-faculty').textContent = userData.facultyReference || 'Not provided';
   $('#profile-student-id').textContent = userData.studentId || 'N/A';
 
+  const bioDisplay = document.getElementById('profile-bio-display');
+  if (bioDisplay) bioDisplay.textContent = userData.bio ? userData.bio : 'Loading bio...';
+  
+  const skillsDisplay = document.getElementById('profile-skills-display');
+  if (skillsDisplay) {
+    if (userData.skills && userData.skills.length > 0) {
+      skillsDisplay.innerHTML = userData.skills.map(s => `<span class="skill-pill" style="display:inline-block; margin:2px; background:var(--accent-purple-light); color:var(--primary-purple); border:1px solid rgba(79, 70, 229, 0.2); font-weight:600; padding:4px 10px; border-radius:999px; font-size:12px;">${s}</span>`).join('');
+    } else {
+      skillsDisplay.innerHTML = '<span class="text-xs text-muted">Loading skills...</span>';
+    }
+  }
+
   try {
     const resUser = await getUserProfile(dc, { id: userData.id }, SERVER_ONLY);
     const userProfile = resUser.data.user;
@@ -1651,17 +1797,23 @@ async function loadProfile() {
         const data = profileDoc.data();
         userData.bio = data.bio || '';
         userData.skills = data.skills || [];
-        
-        const bioDisplay = document.getElementById('profile-bio-display');
-        if (bioDisplay) bioDisplay.textContent = userData.bio || 'No bio provided yet.';
-        
-        const skillsDisplay = document.getElementById('profile-skills-display');
-        if (skillsDisplay && userData.skills.length > 0) {
+      } else {
+        userData.bio = '';
+        userData.skills = [];
+      }
+      
+      if (bioDisplay) bioDisplay.textContent = userData.bio || 'No bio provided yet.';
+      if (skillsDisplay) {
+        if (userData.skills && userData.skills.length > 0) {
           skillsDisplay.innerHTML = userData.skills.map(s => `<span class="skill-pill" style="display:inline-block; margin:2px; background:var(--accent-purple-light); color:var(--primary-purple); border:1px solid rgba(79, 70, 229, 0.2); font-weight:600; padding:4px 10px; border-radius:999px; font-size:12px;">${s}</span>`).join('');
+        } else {
+          skillsDisplay.innerHTML = '<span class="text-xs text-muted">No skills listed yet.</span>';
         }
       }
     } catch(e) {
       console.error('Failed to fetch user_profile', e);
+      if (bioDisplay) bioDisplay.textContent = userData.bio || 'No bio provided yet.';
+      if (skillsDisplay) skillsDisplay.innerHTML = '<span class="text-xs text-muted">No skills listed yet.</span>';
     }
 
     const reviewsSnap = await getDocs(query(collection(firestore, "reviews"), where("targetUserId", "==", userData.id)));
@@ -2530,12 +2682,12 @@ function setupLogout() {
     if (autoRefreshTimer) { clearInterval(autoRefreshTimer); autoRefreshTimer = null; }
     if (chatPollTimer) { clearInterval(chatPollTimer); chatPollTimer = null; }
     if (messageSubscription) { 
-    if (typeof messageSubscription === 'function') messageSubscription();
-    else off(messageSubscription);
-    messageSubscription = null; 
-  }
+      if (typeof messageSubscription === 'function') messageSubscription();
+      else off(messageSubscription);
+      messageSubscription = null; 
+    }
     if (conversationsSubscription) { conversationsSubscription(); conversationsSubscription = null; }
-    sessionStorage.removeItem('active_section');
+    clearUserSessionDOM();
     history.pushState(null, '', '/');
     await signOut(auth);
   });

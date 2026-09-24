@@ -858,7 +858,7 @@
                     <!-- 3 Transaction Stat Cards -->
                     <div class="transaction-stats-grid mt-6">
                         <div class="trans-stat-card">
-                            <span class="stat-card-label">Total Earnings</span>
+                            <span class="stat-card-label">Total Activity</span>
                             <div class="stat-card-number" id="trans-total-earnings">₱0</div>
                         </div>
                         <div class="trans-stat-card">
@@ -1379,12 +1379,30 @@
     <dialog id="dialog-review" class="modal">
         <div class="modal-content">
             <div class="modal-header">
-                <h2>Rate Your Experience</h2>
+                <h2>Complete Job & Payment</h2>
                 <button type="button" class="dialog-close-btn">✕</button>
             </div>
             <form id="review-form">
+                <!-- Payment Summary Step -->
+                <div id="review-payment-summary" style="background: var(--bg-main); border: 1px solid var(--border-card); border-radius: 12px; padding: 1rem 1.25rem; margin-bottom: 1.25rem;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
+                        <span class="text-xs text-muted" style="text-transform: uppercase; font-weight: 700; letter-spacing: 0.5px;">Service Payment Summary</span>
+                        <span class="badge badge-approved" id="review-payment-status">Payment Release</span>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <div>
+                            <h3 id="review-payment-job" style="font-size: 1.05rem; margin: 0; font-weight: 600;">Job Title</h3>
+                            <p id="review-payment-recipient" class="text-xs text-muted" style="margin: 3px 0 0 0;">Pay to: Peer Freelancer</p>
+                        </div>
+                        <div id="review-payment-amount" style="font-size: 1.5rem; font-weight: 700; color: var(--color-green);">₱0</div>
+                    </div>
+                    <p class="text-xs text-muted mt-2" style="border-top: 1px dashed var(--border-card); padding-top: 0.5rem; margin-bottom: 0;">
+                        ✓ Completing this job confirms the deliverables were received and releases payment of <strong><span id="review-payment-confirm-amt">₱0</span></strong> to the applicant.
+                    </p>
+                </div>
+
                 <div class="form-group text-center">
-                    <label class="form-label">How was your experience?</label>
+                    <label class="form-label">How was your experience working together?</label>
                     <div class="star-rating" id="review-stars">
                         <span class="star filled" data-value="1">★</span>
                         <span class="star filled" data-value="2">★</span>
@@ -1396,11 +1414,11 @@
                 <div class="form-group">
                     <label class="form-label" for="review-comment">Write your feedback (optional)</label>
                     <textarea id="review-comment" class="form-control" rows="3"
-                        placeholder="Share your experience working with this peer..." required></textarea>
+                        placeholder="Share your experience working with this peer..."></textarea>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-outline dialog-close-btn">Cancel</button>
-                    <button type="submit" class="btn btn-purple">Submit Rating</button>
+                    <button type="submit" class="btn btn-purple" id="review-submit-btn">Confirm Payment & Complete</button>
                 </div>
             </form>
         </div>
