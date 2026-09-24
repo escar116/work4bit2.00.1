@@ -10,7 +10,7 @@ import { getDatabase, ref, push, onChildAdded, serverTimestamp, off, get } from 
 import { getFirestore, collection, addDoc, getDocs, query, where, serverTimestamp as firestoreTimestamp, setDoc, doc, getDoc } from 'firebase/firestore';
 import {
   connectorConfig, getUser, createUser, listHelpRequests, createHelpRequest,
-  listApplicationsByApplicant, listMyHelpRequestsWithApplications,
+  listApplicationsByApplicant, listMyHelpRequestsWithApplications, listApplicationsForMyRequests,
   createApplication, updateApplicationStatus, updateHelpRequestStatus,
   createConversation, listConversations,
   listConversationsRef,
@@ -1337,6 +1337,34 @@ async function selectConversation(convId) {
   const isPoster = conv.poster?.id === userData?.id;
   const otherUser = isPoster ? conv.applicant : conv.poster;
 
+  // Pre-resolve application price in background if missing
+  if (conv.application && (!conv.application.priceOffer || conv.application.priceOffer === 0)) {
+    (async () => {
+      try {
+        if (isPoster) {
+          const myJobsRes = await listMyHelpRequestsWithApplications(dc, { userId: userData.id }, SERVER_ONLY);
+          const myJobs = myJobsRes.data.helpRequests || [];
+          for (const j of myJobs) {
+            const matchedApp = (j.applications_on_helpRequest || []).find(a => a.id === conv.application.id);
+            if (matchedApp) {
+              conv.application.priceOffer = Number(matchedApp.priceOffer) || Number(j.budget) || 0;
+              break;
+            }
+          }
+        } else {
+          const myAppsRes = await listApplicationsByApplicant(dc, { userId: userData.id }, SERVER_ONLY);
+          const myApps = myAppsRes.data.applications || [];
+          const matchedApp = myApps.find(a => a.id === conv.application.id);
+          if (matchedApp) {
+            conv.application.priceOffer = Number(matchedApp.priceOffer) || Number(matchedApp.helpRequest?.budget) || 0;
+          }
+        }
+      } catch (e) {
+        console.warn('Pre-fetching conv priceOffer error:', e);
+      }
+    })();
+  }
+
   const chatHeader = $('#chat-header-content');
   chatHeader.innerHTML = `
     <div class="flex items-center gap-3">
@@ -1370,7 +1398,70 @@ async function selectConversation(convId) {
     reviewTarget = { conv, otherUser };
 
     const jobTitle = conv.application?.helpRequest?.title || 'Service Request';
-    const price = Number(conv.application?.priceOffer) || Number(conv.application?.helpRequest?.budget) || 0;
+    let price = Number(conv.application?.priceOffer) || Number(conv.application?.helpRequest?.budget) || 0;
+
+    // 1. Resolve from listMyHelpRequestsWithApplications (client view)
+    if (!price && conv.application?.id) {
+      try {
+        const myJobsRes = await listMyHelpRequestsWithApplications(dc, { userId: userData.id }, SERVER_ONLY);
+        const myJobs = myJobsRes.data.helpRequests || [];
+        for (const j of myJobs) {
+          const matchedApp = (j.applications_on_helpRequest || []).find(a => a.id === conv.application.id);
+          if (matchedApp) {
+            price = Number(matchedApp.priceOffer) || Number(j.budget) || 0;
+            if (conv.application) conv.application.priceOffer = price;
+            break;
+          }
+        }
+      } catch (err) {
+        console.warn('Could not resolve price from listMyHelpRequestsWithApplications', err);
+      }
+    }
+
+    // 2. Resolve from listApplicationsForMyRequests
+    if (!price && conv.application?.id) {
+      try {
+        const appsRes = await listApplicationsForMyRequests(dc, { userId: userData.id }, SERVER_ONLY);
+        const matched = (appsRes.data.applications || []).find(a => a.id === conv.application.id);
+        if (matched) {
+          price = Number(matched.priceOffer) || Number(matched.helpRequest?.budget) || 0;
+          if (conv.application) conv.application.priceOffer = price;
+        }
+      } catch (err) {
+        console.warn('Could not resolve price from listApplicationsForMyRequests', err);
+      }
+    }
+
+    // 3. Fallback to listHelpRequests
+    if (!price && conv.application?.helpRequest?.id) {
+      try {
+        const reqsRes = await listHelpRequests(dc, SERVER_ONLY);
+        const matchedReq = (reqsRes.data.helpRequests || []).find(r => r.id === conv.application.helpRequest.id);
+        if (matchedReq && matchedReq.budget) {
+          price = Number(matchedReq.budget) || 0;
+          if (conv.application) conv.application.priceOffer = price;
+        }
+      } catch (err) {}
+    }
+
+    // 4. Fallback to welcome message in Realtime Database chat
+    if (!price && convId) {
+      try {
+        const msgSnap = await get(ref(db, `conversations/${convId}/messages`));
+        if (msgSnap.exists()) {
+          const msgs = msgSnap.val();
+          for (const k in msgs) {
+            const mText = msgs[k].content || '';
+            const match = mText.match(/Proposed Rate:\s*₱?([\d,]+)/i);
+            if (match) {
+              price = Number(match[1].replace(/,/g, ''));
+              if (conv.application) conv.application.priceOffer = price;
+              break;
+            }
+          }
+        }
+      } catch (err) {}
+    }
 
     const jobEl = $('#review-payment-job');
     if (jobEl) jobEl.textContent = jobTitle;
