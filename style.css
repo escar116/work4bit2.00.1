@@ -361,6 +361,42 @@ button {
     text-align: center;
 }
 
+.info-message {
+    color: #38bdf8;
+    background: rgba(56, 189, 248, 0.12);
+    border: 1px solid rgba(56, 189, 248, 0.28);
+    padding: 0.75rem 1rem;
+    border-radius: 8px;
+    font-size: 0.85rem;
+    line-height: 1.45;
+    margin-bottom: 1rem;
+    text-align: left;
+}
+
+.success-message {
+    color: #4ade80;
+    background: rgba(74, 222, 128, 0.12);
+    border: 1px solid rgba(74, 222, 128, 0.28);
+    padding: 0.75rem 1rem;
+    border-radius: 8px;
+    font-size: 0.85rem;
+    line-height: 1.45;
+    margin-bottom: 1rem;
+    text-align: left;
+}
+
+body.light-theme .info-message {
+    color: #0369a1;
+    background: #e0f2fe;
+    border: 1px solid #bae6fd;
+}
+
+body.light-theme .success-message {
+    color: #15803d;
+    background: #dcfce7;
+    border: 1px solid #bbf7d0;
+}
+
 .file-dropzone {
     border: 2px dashed #cbd5e1;
     border-radius: 10px;

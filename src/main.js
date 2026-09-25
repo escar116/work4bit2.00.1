@@ -180,6 +180,7 @@ function navigateTo(section, pushState = true) {
 }
 
 function showAuth(section = 'landing') {
+  if (section === 'login') section = 'landing';
   if (autoRefreshTimer) { clearInterval(autoRefreshTimer); autoRefreshTimer = null; }
   if (chatPollTimer) { clearInterval(chatPollTimer); chatPollTimer = null; }
   if (messageSubscription) { 
@@ -308,7 +309,10 @@ function setupLanding() {
     const btn = $('#landing-login-btn');
     btn.disabled = true; btn.textContent = 'Signing in...';
     try {
-      await signInWithEmailAndPassword(auth, email, password);
+      const cred = await signInWithEmailAndPassword(auth, email, password);
+      if (cred?.user?.uid) {
+        setDoc(doc(firestore, "user_profiles", cred.user.uid), { authProvider: 'password' }, { merge: true }).catch(() => {});
+      }
     } catch (err) {
       errorEl.textContent = err.code === 'auth/invalid-credential' ? 'Invalid email or password.' : (err.message || 'Login failed.');
       show(errorEl);
@@ -328,6 +332,8 @@ function setupLanding() {
         await signOut(auth);
         errorEl.textContent = 'Account not found. Please click Sign Up to register.';
         show(errorEl);
+      } else {
+        setDoc(doc(firestore, "user_profiles", result.user.uid), { authProvider: 'google' }, { merge: true }).catch(() => {});
       }
     } catch (err) {
       errorEl.textContent = err.message || 'Google login failed.';
@@ -337,58 +343,13 @@ function setupLanding() {
 
   registerBtn?.addEventListener('click', (e) => { e.preventDefault(); showAuth('register'); });
   topRegisterBtn?.addEventListener('click', (e) => { e.preventDefault(); showAuth('register'); });
+  $('#landing-link-register')?.addEventListener('click', (e) => { e.preventDefault(); showAuth('register'); });
   topLoginBtn?.addEventListener('click', (e) => {
     e.preventDefault();
     $('#landing-login-email')?.focus();
   });
   forgotLink?.addEventListener('click', (e) => { e.preventDefault(); showAuth('forgot-password'); });
-  $('#login-link-home')?.addEventListener('click', (e) => { e.preventDefault(); showAuth('landing'); });
   $('#register-link-home')?.addEventListener('click', (e) => { e.preventDefault(); showAuth('landing'); });
-}
-
-// ── Login ────────────────────────────────────────────────────────────────────
-function setupLogin() {
-  const form = $('#login-form');
-  const googleBtn = $('#login-google-btn');
-  const errorEl = $('#login-error');
-
-  form?.addEventListener('submit', async (e) => {
-    e.preventDefault();
-    hide(errorEl);
-    const email = $('#login-email').value.trim();
-    const password = $('#login-password').value;
-    const btn = $('#login-submit-btn');
-    btn.disabled = true; btn.textContent = 'Logging in...';
-    try {
-      await signInWithEmailAndPassword(auth, email, password);
-    } catch (err) {
-      errorEl.textContent = err.code === 'auth/invalid-credential' ? 'Invalid email or password.' : (err.message || 'Login failed.');
-      show(errorEl);
-    } finally {
-      btn.disabled = false;
-      btn.textContent = 'Login';
-    }
-  });
-
-  googleBtn?.addEventListener('click', async (e) => {
-    e.preventDefault();
-    hide(errorEl);
-    try {
-      const result = await signInWithPopup(auth, googleProvider);
-      const res = await getUser(dc, { id: result.user.uid }, SERVER_ONLY);
-      if (!res.data.user) {
-        await signOut(auth);
-        errorEl.textContent = 'Account not found. Please register first.';
-        show(errorEl);
-      }
-    } catch (err) {
-      errorEl.textContent = err.message || 'Google login failed.';
-      show(errorEl);
-    }
-  });
-
-  $('#login-link-register')?.addEventListener('click', (e) => { e.preventDefault(); showAuth('register'); });
-  $('#login-link-forgot')?.addEventListener('click', (e) => { e.preventDefault(); showAuth('forgot-password'); });
 }
 
 // ── Register ─────────────────────────────────────────────────────────────────
@@ -523,10 +484,11 @@ function setupRegister() {
     btn.disabled = true; btn.textContent = 'Creating Account...';
 
     try {
-      let uid, email;
+      let uid, email, authProvider;
       if (googleUser) {
         uid = googleUser.uid;
         email = googleUser.email;
+        authProvider = 'google';
       } else {
         email = $('#register-email').value.trim();
         const password = $('#register-password').value;
@@ -545,6 +507,7 @@ function setupRegister() {
         }
         const cred = await createUserWithEmailAndPassword(auth, email, password);
         uid = cred.user.uid;
+        authProvider = 'password';
       }
 
       let certUrl = 'none';
@@ -560,6 +523,8 @@ function setupRegister() {
         gender: gender || null
       });
 
+      await setDoc(doc(firestore, "user_profiles", uid), { authProvider }, { merge: true });
+
       showAuth('pending');
     } catch (err) {
       errorEl.textContent = err.message || 'Registration failed.';
@@ -570,26 +535,76 @@ function setupRegister() {
     }
   });
 
-  $('#register-link-login')?.addEventListener('click', (e) => { e.preventDefault(); showAuth('login'); });
+  $('#register-link-login')?.addEventListener('click', (e) => { e.preventDefault(); showAuth('landing'); });
 }
 
 // ── Forgot Password ──────────────────────────────────────────────────────────
 function setupForgotPassword() {
   const form = $('#forgot-form');
+  const emailInput = $('#forgot-email');
+  const statusEl = $('#forgot-status-msg');
+  const btn = $('#forgot-submit-btn');
+
+  function showForgotMessage(htmlText, type = 'error') {
+    if (!statusEl) return;
+    statusEl.className = type === 'error' ? 'error-message' : (type === 'info' ? 'info-message' : 'success-message');
+    statusEl.innerHTML = htmlText;
+    show(statusEl);
+  }
+
   form?.addEventListener('submit', async (e) => {
     e.preventDefault();
-    const email = $('#forgot-email').value.trim();
-    const btn = $('#forgot-submit-btn');
+    hide(statusEl);
+    const email = emailInput?.value.trim().toLowerCase();
+    if (!email) return;
+
     btn.disabled = true;
+    btn.textContent = 'Checking account...';
+
     try {
+      // 1. Verify if account exists in the platform
+      const usersRes = await listAllUsers(dc, SERVER_ONLY);
+      const matchingUser = (usersRes?.data?.users || []).find(
+        u => u.email && u.email.trim().toLowerCase() === email
+      );
+
+      if (!matchingUser) {
+        showForgotMessage('Account does not exist. Please check your email or create a new account.', 'error');
+        return;
+      }
+
+      // 2. Check registration method (Google Sign-In vs Email/Password)
+      const profileDoc = await getDoc(doc(firestore, 'user_profiles', matchingUser.id));
+      const profileData = profileDoc.exists() ? profileDoc.data() : null;
+
+      if (profileData?.authProvider === 'google') {
+        showForgotMessage(
+          '<strong>Google Account:</strong> This account was created with Google Sign-In and does not have a separate password. Please sign in using the <strong>Sign in to Google</strong> button on the login page.',
+          'info'
+        );
+        return;
+      }
+
+      // 3. For email/password accounts, send password reset link
+      btn.textContent = 'Sending reset link...';
       await sendPasswordResetEmail(auth, email);
-    } catch { /* Ignore */ }
-    finally {
+      showForgotMessage(
+        `<strong>Password reset link sent!</strong> We've sent a link to <strong>${email}</strong>.<br><br>📬 <em>If you don't see it in your inbox, <strong>please check your Spam / Junk folder</strong>.</em>`,
+        'success'
+      );
+    } catch (err) {
+      showForgotMessage(err.message || 'Unable to send password reset link. Please try again.', 'error');
+    } finally {
       btn.disabled = false;
-      showToast('If an account exists, a reset link has been sent.');
+      btn.textContent = 'Send Reset Link';
     }
   });
-  $('#forgot-link-login')?.addEventListener('click', (e) => { e.preventDefault(); showAuth('login'); });
+
+  $('#forgot-link-login')?.addEventListener('click', (e) => {
+    e.preventDefault();
+    hide(statusEl);
+    showAuth('landing');
+  });
   $('#pending-logout-btn')?.addEventListener('click', (e) => { e.preventDefault(); signOut(auth); });
 }
 
@@ -3025,7 +3040,6 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   setupLanding();
-  setupLogin();
   setupRegister();
   setupForgotPassword();
   setupPasswordToggles();
