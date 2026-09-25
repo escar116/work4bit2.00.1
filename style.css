@@ -1705,9 +1705,13 @@ button {
 /* Dialogs */
 dialog.modal {
     position: fixed;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
+    top: 0;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    inset: 0;
+    margin: auto;
+    transform: none;
     background: var(--bg-card);
     color: var(--text-heading);
     border: 1px solid var(--border-card);
@@ -1715,6 +1719,9 @@ dialog.modal {
     padding: 0;
     max-width: 500px;
     width: 90%;
+    height: -moz-fit-content;
+    height: fit-content;
+    max-height: 90vh;
     box-shadow: var(--shadow-dialog);
     z-index: 1000;
 }
@@ -2302,20 +2309,29 @@ dialog::backdrop {
    16. CERTIFICATE PREVIEW MODAL (ADAPTIVE BORDER & SIZING)
    ========================================================================== */
 dialog#dialog-certificate.modal {
+    position: fixed;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    inset: 0;
+    margin: auto;
+    transform: none;
     max-width: 90vw;
     width: -moz-fit-content;
     width: fit-content;
-    max-height: 92vh;
+    height: -moz-fit-content;
+    height: fit-content;
+    max-height: 88vh;
     padding: 0;
     overflow: hidden;
-    margin: auto;
 }
 
 #dialog-certificate .cert-modal-content {
     display: flex;
     flex-direction: column;
     padding: 1.25rem 1.5rem;
-    max-height: 92vh;
+    max-height: 88vh;
     box-sizing: border-box;
     width: -moz-fit-content;
     width: fit-content;
@@ -2334,13 +2350,13 @@ dialog#dialog-certificate.modal {
     align-items: center;
     overflow: auto;
     max-width: 100%;
-    max-height: calc(88vh - 120px);
+    max-height: calc(84vh - 110px);
     border-radius: 8px;
 }
 
 #cert-preview-img {
     max-width: min(85vw, 850px);
-    max-height: calc(85vh - 120px);
+    max-height: calc(80vh - 110px);
     width: auto;
     height: auto;
     object-fit: contain;
