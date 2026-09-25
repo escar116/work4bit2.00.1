@@ -889,6 +889,37 @@ function setupDashboardLinks() {
 let allRequests = [];
 let requestFilters = { q: '', category: '', maxPrice: Infinity, sort: 'newest' };
 
+let currentServicesTab = 'offers'; // 'offers' | 'requests'
+
+function setServicesTab(tab) {
+  currentServicesTab = tab;
+  const isOffer = tab === 'offers';
+
+  $('#tab-service-offers')?.classList.toggle('active', isOffer);
+  $('#tab-service-requests')?.classList.toggle('active', !isOffer);
+
+  const sub = $('#services-header-subtitle');
+  if (sub) {
+    sub.textContent = isOffer
+      ? 'Standing campus services, printing, and equipment provided by fellow students (3D printing, laser cutting, ink printing, repair).'
+      : 'Tasks and projects posted by students in need of assistance or technical talent from campus peers.';
+  }
+
+  if (isOffer) {
+    $('#btn-post-offer')?.classList.add('btn-purple');
+    $('#btn-post-offer')?.classList.remove('btn-outline');
+    $('#btn-post-request')?.classList.remove('btn-purple');
+    $('#btn-post-request')?.classList.add('btn-outline');
+  } else {
+    $('#btn-post-request')?.classList.add('btn-purple');
+    $('#btn-post-request')?.classList.remove('btn-outline');
+    $('#btn-post-offer')?.classList.remove('btn-purple');
+    $('#btn-post-offer')?.classList.add('btn-outline');
+  }
+
+  renderServices(allRequests);
+}
+
 async function loadServices(isSilent = false) {
   const grid = $('#requests-grid');
   if (!isSilent) grid.innerHTML = '<div class="loader"></div>';
@@ -908,10 +939,31 @@ async function loadServices(isSilent = false) {
 function renderServices(requests, appliedIds = new Set()) {
   const grid = $('#requests-grid');
   const now = new Date();
-  let filtered = requests.filter(r => {
-    // Hide expired listings and listings exceeding the 100k platform cap
-    if (r.deadline && new Date(r.deadline + 'T23:59:59') < now) return false;
+
+  // Exclude mentoring requests from regular services marketplace
+  const marketplaceRequests = requests.filter(r => {
+    const isMentoring = r.category === 'MENTORING' || (r.title && r.title.toLowerCase().startsWith('mentoring:'));
+    return !isMentoring;
+  });
+
+  // Calculate counts for badges
+  const totalOffers = marketplaceRequests.filter(r => (r.urgency === 'OFFER' || r.urgency === 'STANDING') && Number(r.budget) <= 100000 && Number(r.budget) > 0).length;
+  const totalRequests = marketplaceRequests.filter(r => r.urgency !== 'OFFER' && r.urgency !== 'STANDING' && Number(r.budget) <= 100000 && Number(r.budget) > 0 && (!r.deadline || new Date(r.deadline + 'T23:59:59') >= now)).length;
+
+  if ($('#offers-count-badge')) $('#offers-count-badge').textContent = totalOffers;
+  if ($('#requests-count-badge')) $('#requests-count-badge').textContent = totalRequests;
+
+  let filtered = marketplaceRequests.filter(r => {
+    // Hide listings exceeding the 100k platform cap or non-positive
     if (Number(r.budget) > 100000 || Number(r.budget) <= 0) return false;
+
+    // Filter by tab: offers vs requests
+    const isOffer = r.urgency === 'OFFER' || r.urgency === 'STANDING';
+    if (currentServicesTab === 'offers' && !isOffer) return false;
+    if (currentServicesTab === 'requests' && isOffer) return false;
+
+    // Hide expired listings for one-time requests
+    if (!isOffer && r.deadline && new Date(r.deadline + 'T23:59:59') < now) return false;
 
     if (requestFilters.q) {
       const hay = `${r.title} ${r.description} ${r.category} ${r.requester?.fullName}`.toLowerCase();
@@ -925,32 +977,34 @@ function renderServices(requests, appliedIds = new Set()) {
   if (requestFilters.sort === 'price_asc') filtered.sort((a, b) => a.budget - b.budget);
   else if (requestFilters.sort === 'price_desc') filtered.sort((a, b) => b.budget - a.budget);
 
-  if ($('#requests-count')) $('#requests-count').textContent = `${filtered.length} service(s) found`;
+  if ($('#requests-count')) {
+    $('#requests-count').textContent = `${filtered.length} ${currentServicesTab === 'offers' ? 'service offer(s)' : 'service request(s)'} found`;
+  }
 
   grid.innerHTML = '';
   if (filtered.length === 0) {
-    grid.innerHTML = '<div class="empty-state text-center text-muted" style="grid-column: 1/-1; padding: 2rem;">No matching services found.</div>';
+    grid.innerHTML = `<div class="empty-state text-center text-muted" style="grid-column: 1/-1; padding: 2rem;">No ${currentServicesTab === 'offers' ? 'service offers' : 'service requests'} found matching your criteria.</div>`;
     return;
   }
 
   filtered.forEach(r => {
+    const isOffer = r.urgency === 'OFFER' || r.urgency === 'STANDING';
     const isMine = r.requester?.id === userData?.id;
     const hasApplied = appliedIds.has(r.id);
-    const isExpired = r.deadline ? new Date(r.deadline + 'T23:59:59') < new Date() : false;
+    const isExpired = !isOffer && r.deadline ? new Date(r.deadline + 'T23:59:59') < new Date() : false;
     const card = document.createElement('article');
     card.className = 'request-card';
-    const urgencyClass = r.urgency === 'Urgent' ? 'badge-urgent' : r.urgency === 'Low' ? 'badge-low' : 'badge-normal';
 
-    let btnText = 'Apply Now';
+    let btnText = isOffer ? 'Avail Service' : 'Apply Now';
     let btnClass = 'btn-purple';
     let btnDisabled = false;
 
     if (isMine) {
-      btnText = 'Your Post';
+      btnText = isOffer ? 'Your Offer' : 'Your Request';
       btnClass = 'btn-mine';
       btnDisabled = true;
     } else if (hasApplied) {
-      btnText = 'Applied';
+      btnText = isOffer ? 'Order Sent' : 'Applied';
       btnClass = 'btn-applied';
       btnDisabled = true;
     } else if (isExpired) {
@@ -959,27 +1013,41 @@ function renderServices(requests, appliedIds = new Set()) {
       btnDisabled = true;
     }
 
-    const deadlineBadge = r.deadline
-      ? (isExpired
-          ? `<span class="request-card-deadline" style="color: #ef4444; font-weight: 600;">📅 Due ${r.deadline} (Expired)</span>`
-          : `<span class="request-card-deadline">📅 Due ${r.deadline}</span>`)
-      : '';
+    const typeBadge = isOffer
+      ? `<span class="badge badge-standing">🛠️ SERVICE OFFER</span>`
+      : `<span class="badge badge-request">📌 SERVICE REQUEST</span>`;
+
+    const standingOrDeadline = isOffer
+      ? `<span class="request-card-deadline" style="color: #4ade80; font-weight: 600;">⚡ Standing Service (Always Open)</span>`
+      : (r.deadline
+          ? (isExpired
+              ? `<span class="request-card-deadline" style="color: #ef4444; font-weight: 600;">📅 Due ${r.deadline} (Expired)</span>`
+              : `<span class="request-card-deadline">📅 Due ${r.deadline}</span>`)
+          : '');
+
+    const urgencyBadge = isOffer
+      ? ''
+      : `<span class="${r.urgency === 'Urgent' ? 'badge-urgent' : r.urgency === 'Low' ? 'badge-low' : 'badge-normal'}">${r.urgency === 'Urgent' ? '🔥 ' : ''}${r.urgency || 'Normal'}</span>`;
 
     card.innerHTML = `
       <div class="request-card-header">
         <div class="avatar avatar-sm cursor-pointer" onclick="openViewProfileDialog('${r.requester?.id}')">${initials(r.requester?.fullName || 'S')}</div>
-        <span class="request-card-name cursor-pointer hover:underline" onclick="openViewProfileDialog('${r.requester?.id}')">${r.requester?.fullName || 'Student Client'}</span>
-        <span class="${urgencyClass}">${r.urgency === 'Urgent' ? '🔥 ' : ''}${r.urgency || 'Normal'}</span>
+        <div style="flex: 1; min-width: 0;">
+          <span class="request-card-name cursor-pointer hover:underline" onclick="openViewProfileDialog('${r.requester?.id}')">${r.requester?.fullName || (isOffer ? 'Student Provider' : 'Student Client')}</span>
+          <small class="text-muted block text-xs">${isOffer ? 'Service Provider' : 'Client in need'}</small>
+        </div>
+        ${typeBadge}
+        ${urgencyBadge}
       </div>
       <h3 class="request-card-title">${r.title}</h3>
       <p class="request-card-desc line-clamp-3">${r.description || 'No description provided.'}</p>
       <div class="request-card-meta">
         <span class="badge badge-normal">${r.category || 'General'}</span>
-        ${deadlineBadge}
+        ${standingOrDeadline}
       </div>
       <div class="request-card-footer">
         <div>
-          <small class="text-muted">Budget</small>
+          <small class="text-muted">${isOffer ? 'Starting Rate' : 'Budget'}</small>
           <div class="request-card-price">${peso(r.budget)}</div>
         </div>
         <button type="button" class="btn ${btnClass} btn-sm apply-btn" ${btnDisabled ? 'disabled' : ''}>
@@ -999,6 +1067,16 @@ function renderServices(requests, appliedIds = new Set()) {
 }
 
 function setupServiceFilters() {
+  $('#tab-service-offers')?.addEventListener('click', (e) => {
+    e.preventDefault();
+    setServicesTab('offers');
+  });
+
+  $('#tab-service-requests')?.addEventListener('click', (e) => {
+    e.preventDefault();
+    setServicesTab('requests');
+  });
+
   $('#filter-search')?.addEventListener('input', (e) => {
     requestFilters.q = e.target.value;
     renderServices(allRequests);
@@ -1031,29 +1109,100 @@ function setupServiceFilters() {
   });
 }
 
-// ── New Request Dialog ───────────────────────────────────────────────────────
+// ── New Listing Dialog (Service Offer vs Service Request) ────────────────────
+function setNewListingModalMode(mode = 'OFFER') {
+  const isOffer = mode === 'OFFER';
+  const typeInput = $('#nr-listing-type');
+  if (typeInput) typeInput.value = mode;
+
+  $('#modal-tab-offer')?.classList.toggle('active', isOffer);
+  $('#modal-tab-request')?.classList.toggle('active', !isOffer);
+
+  const titleHeader = $('#new-listing-modal-title');
+  const titleDesc = $('#new-listing-modal-desc');
+  const titleLabel = $('#nr-title-label');
+  const titleInput = $('#nr-title');
+  const descLabel = $('#nr-desc-label');
+  const descInput = $('#nr-description');
+  const budgetLabel = $('#nr-budget-label');
+  const budgetInput = $('#nr-budget');
+  const urgencyGroup = $('#nr-urgency-group');
+  const standingNoteGroup = $('#nr-standing-note-group');
+  const deadlineGroup = $('#nr-deadline-group');
+  const submitBtn = $('#new-request-submit');
+
+  if (isOffer) {
+    if (titleHeader) titleHeader.textContent = 'Post a Service Offer';
+    if (titleDesc) titleDesc.textContent = 'Offer your equipment (3D printing, laser cutting, paper printing) or skills. Standing services stay active continuously for multiple orders.';
+    if (titleLabel) titleLabel.textContent = 'Service Title *';
+    if (titleInput) titleInput.placeholder = 'e.g. 3D Printing & Prototyping (FDM / Resin)';
+    if (descLabel) descLabel.textContent = 'Service Description *';
+    if (descInput) descInput.placeholder = 'Describe your service, materials, printer specifications, turnaround time...';
+    if (budgetLabel) budgetLabel.textContent = 'Starting Price / Base Rate (₱) *';
+    if (budgetInput) budgetInput.placeholder = '150';
+    if (urgencyGroup) urgencyGroup.style.display = 'none';
+    if (standingNoteGroup) standingNoteGroup.style.display = 'block';
+    if (deadlineGroup) deadlineGroup.style.display = 'none';
+    if (submitBtn) submitBtn.textContent = 'Publish Service Offer';
+  } else {
+    if (titleHeader) titleHeader.textContent = 'Post a Service Request';
+    if (titleDesc) titleDesc.textContent = 'Describe a task, project, or problem where you need technical help or service from campus peers.';
+    if (titleLabel) titleLabel.textContent = 'Request / Task Title *';
+    if (titleInput) titleInput.placeholder = 'e.g. Help Debugging ESP32 FreeRTOS Code';
+    if (descLabel) descLabel.textContent = 'Task Description & Requirements *';
+    if (descInput) descInput.placeholder = 'Describe the job, tasks, deliverables, and expectations...';
+    if (budgetLabel) budgetLabel.textContent = 'Budget / Payment (₱) *';
+    if (budgetInput) budgetInput.placeholder = '800';
+    if (urgencyGroup) urgencyGroup.style.display = 'block';
+    if (standingNoteGroup) standingNoteGroup.style.display = 'none';
+    if (deadlineGroup) deadlineGroup.style.display = 'block';
+    if (submitBtn) submitBtn.textContent = 'Publish Service Request';
+  }
+}
+
 function setupNewRequestDialog() {
+  $('#btn-post-offer')?.addEventListener('click', (e) => {
+    e.preventDefault();
+    setNewListingModalMode('OFFER');
+    $('#dialog-new-request').showModal();
+  });
+
   $('#btn-post-request')?.addEventListener('click', (e) => {
     e.preventDefault();
+    setNewListingModalMode('REQUEST');
     const dl = $('#nr-deadline');
     if (dl) dl.min = new Date().toISOString().split('T')[0];
     $('#dialog-new-request').showModal();
+  });
+
+  $('#modal-tab-offer')?.addEventListener('click', (e) => {
+    e.preventDefault();
+    setNewListingModalMode('OFFER');
+  });
+
+  $('#modal-tab-request')?.addEventListener('click', (e) => {
+    e.preventDefault();
+    setNewListingModalMode('REQUEST');
   });
 
   $('#new-request-form')?.addEventListener('submit', async (e) => {
     e.preventDefault();
     const budget = Number($('#nr-budget').value);
     if (budget > 100000) {
-      showToast('Maximum budget allowed is ₱100,000.', 'error');
+      showToast('Maximum amount allowed is ₱100,000.', 'error');
       return;
     }
-    if (budget < 50) {
-      showToast('Minimum budget is ₱50.', 'error');
+    if (budget < 1) {
+      showToast('Minimum amount is ₱1.', 'error');
       return;
     }
 
-    const deadline = $('#nr-deadline').value || null;
-    if (deadline && new Date(deadline + 'T23:59:59') < new Date()) {
+    const mode = $('#nr-listing-type')?.value || 'OFFER';
+    const isOffer = mode === 'OFFER';
+    const urgency = isOffer ? 'OFFER' : ($('#nr-urgency').value || 'Normal');
+    const deadline = isOffer ? null : ($('#nr-deadline').value || null);
+
+    if (!isOffer && deadline && new Date(deadline + 'T23:59:59') < new Date()) {
       showToast('Deadline cannot be in the past.', 'error');
       return;
     }
@@ -1067,31 +1216,48 @@ function setupNewRequestDialog() {
         budget: budget,
         requesterId: userData.id,
         category: $('#nr-category').value || null,
-        urgency: $('#nr-urgency').value || null,
+        urgency: urgency,
         deadline: deadline
       });
-      showToast('Service published successfully!');
+      showToast(isOffer ? 'Service offer published! It will stay active for ongoing orders.' : 'Service request published successfully!');
       $('#dialog-new-request').close();
       e.target.reset();
+      setServicesTab(isOffer ? 'offers' : 'requests');
       loadServices();
       loadDashboard(true);
     } catch (err) {
-      showToast('Could not post service: ' + err.message, 'error');
+      showToast('Could not post: ' + err.message, 'error');
     } finally {
       btn.disabled = false;
-      btn.textContent = 'Publish Service';
+      btn.textContent = isOffer ? 'Publish Service Offer' : 'Publish Service Request';
     }
   });
 }
 
-// ── Apply Dialog ─────────────────────────────────────────────────────────────
+// ── Apply / Avail Dialog ─────────────────────────────────────────────────────
 let applyTarget = null;
 
 function openApplyDialog(request) {
   applyTarget = request;
-  $('#apply-job-title').textContent = request.title;
+  const isOffer = request.urgency === 'OFFER' || request.urgency === 'STANDING';
+
+  $('#apply-modal-title').textContent = isOffer ? 'Avail / Order Service' : 'Submit Your Application';
+  $('#apply-job-title').textContent = `${isOffer ? 'Service Offer' : 'Job Request'}: ${request.title}`;
+  $('#apply-amount-label').textContent = isOffer ? 'Your Proposed Budget / Rate (₱) *' : 'Proposed Rate (₱) *';
   $('#apply-amount').value = request.budget || '';
-  $('#apply-message').value = '';
+
+  const msgLabel = $('#apply-message-label');
+  const msgInput = $('#apply-message');
+  if (isOffer) {
+    if (msgLabel) msgLabel.textContent = 'Order Details & Scope *';
+    if (msgInput) msgInput.placeholder = 'Describe what you need printed/done, dimensions, materials, or project specifications...';
+  } else {
+    if (msgLabel) msgLabel.textContent = 'Cover Message & Proposal *';
+    if (msgInput) msgInput.placeholder = 'Introduce yourself and explain why you are a good fit for this job...';
+  }
+  if (msgInput) msgInput.value = '';
+
+  $('#apply-submit').textContent = isOffer ? 'Send Order Request' : 'Submit Application';
   $('#dialog-apply').showModal();
 }
 
@@ -1103,6 +1269,7 @@ function setupApplyDialog() {
       showToast('Proposed rate cannot exceed ₱100,000.', 'error');
       return;
     }
+    const isOffer = applyTarget?.urgency === 'OFFER' || applyTarget?.urgency === 'STANDING';
     const btn = $('#apply-submit');
     btn.disabled = true; btn.textContent = 'Submitting...';
     try {
@@ -1112,15 +1279,15 @@ function setupApplyDialog() {
         priceOffer: amount,
         message: $('#apply-message').value.trim()
       });
-      showToast(`Application sent! Proposed rate: ${peso(amount)}`);
+      showToast(isOffer ? `Order request sent! Proposed budget: ${peso(amount)}` : `Application sent! Proposed rate: ${peso(amount)}`);
       $('#dialog-apply').close();
       loadServices();
       loadDashboard(true);
     } catch (err) {
-      showToast('Could not apply: ' + err.message, 'error');
+      showToast('Could not submit: ' + err.message, 'error');
     } finally {
       btn.disabled = false;
-      btn.textContent = 'Submit Application';
+      btn.textContent = isOffer ? 'Send Order Request' : 'Submit Application';
     }
   });
 }
@@ -1149,22 +1316,34 @@ async function loadPostedJobs(isSilent = false) {
       return;
     }
     jobs.forEach(job => {
+      const isOffer = job.urgency === 'OFFER' || job.urgency === 'STANDING';
+      const typeBadge = isOffer
+        ? `<span class="badge badge-standing">Service Offer</span>`
+        : `<span class="badge badge-request">Service Request</span>`;
       const pending = (job.applications_on_helpRequest || []).filter(a => a.status === 'PENDING');
+      const countLabel = isOffer ? `${pending.length} order(s)` : `${pending.length} candidate(s)`;
       
       const jobEl = document.createElement('div');
       jobEl.className = 'job-card';
       jobEl.innerHTML = `
         <div class="job-card-header">
-          <h3>${job.title}</h3>
-          <span class="badge badge-normal">${peso(job.budget)}</span>
-          <span class="badge badge-pending">${pending.length} candidate(s)</span>
+          <div>
+            <h3 style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; margin-bottom: 0.25rem;">
+              ${job.title} ${typeBadge}
+            </h3>
+            <small class="text-muted">${isOffer ? '⚡ Standing Service (Ongoing)' : (job.deadline ? `📅 Due: ${job.deadline}` : '📌 One-Time Request')}</small>
+          </div>
+          <div style="display: flex; gap: 0.5rem; align-items: center;">
+            <span class="badge badge-normal">${peso(job.budget)} ${isOffer ? 'base' : ''}</span>
+            <span class="badge badge-pending">${countLabel}</span>
+          </div>
         </div>
         <div class="candidates-list"></div>
       `;
       const candList = jobEl.querySelector('.candidates-list');
       
       if (pending.length === 0) {
-        candList.innerHTML = `<div class="text-sm text-muted italic" style="padding: 1rem 0;">No applicants yet.</div>`;
+        candList.innerHTML = `<div class="text-sm text-muted italic" style="padding: 1rem 0;">No ${isOffer ? 'order requests' : 'applicants'} yet.</div>`;
       } else {
         pending.forEach(app => {
           const row = document.createElement('div');
@@ -1172,14 +1351,14 @@ async function loadPostedJobs(isSilent = false) {
           row.innerHTML = `
             <div class="avatar avatar-sm cursor-pointer" onclick="openViewProfileDialog('${app.applicant?.id}')">${initials(app.applicant?.fullName || '')}</div>
             <div class="candidate-info">
-              <strong class="cursor-pointer hover:underline" onclick="openViewProfileDialog('${app.applicant?.id}')">${app.applicant?.fullName || 'Applicant'}</strong>
+              <strong class="cursor-pointer hover:underline" onclick="openViewProfileDialog('${app.applicant?.id}')">${app.applicant?.fullName || 'Client / Applicant'}</strong>
               <small class="text-muted">${app.applicant?.studentId || ''}</small>
               <div class="candidate-message">"${app.message}"</div>
             </div>
             <div class="candidate-price">${peso(app.priceOffer)}</div>
             <div class="candidate-actions">
               <button type="button" class="btn btn-outline btn-sm reject-btn">Reject</button>
-              <button type="button" class="btn btn-purple btn-sm approve-btn">Approve</button>
+              <button type="button" class="btn btn-purple btn-sm approve-btn">${isOffer ? 'Accept Order' : 'Approve'}</button>
             </div>
           `;
           row.querySelector('.approve-btn').addEventListener('click', (e) => { e.preventDefault(); handleApprove(app, job); });
@@ -1934,6 +2113,16 @@ function setupReviewDialog() {
     try {
       // 1. Complete the job
       await completeJob(dc, { applicationId: reviewTarget.conv.application.id, helpRequestId: reviewTarget.conv.application.helpRequest.id });
+
+      // If this was a standing service offer (e.g. 3D printing, laser printing), keep the service listing OPEN for other students!
+      const helpReq = reviewTarget.conv?.application?.helpRequest;
+      if (helpReq && (helpReq.urgency === 'OFFER' || helpReq.urgency === 'STANDING')) {
+        try {
+          await updateHelpRequestStatus(dc, { id: helpReq.id, status: 'OPEN' });
+        } catch (statusErr) {
+          console.warn('Could not reset standing service status to OPEN:', statusErr);
+        }
+      }
       
       // 2. Submit the review
       const revData = {

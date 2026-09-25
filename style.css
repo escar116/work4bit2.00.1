@@ -1718,6 +1718,9 @@ body.light-theme .success-message {
 .badge-low { background: #f3f4f6; color: #6b7280; }
 .badge-pending { background: color-mix(in srgb, var(--status-pending) 15%, transparent); color: var(--status-pending); }
 .badge-approved { background: color-mix(in srgb, var(--status-completed) 15%, transparent); color: var(--status-completed); }
+.badge-offer { background: rgba(56, 189, 248, 0.15); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.3); }
+.badge-request { background: rgba(168, 85, 247, 0.15); color: #c084fc; border: 1px solid rgba(168, 85, 247, 0.3); }
+.badge-standing { background: rgba(34, 197, 94, 0.15); color: #4ade80; border: 1px solid rgba(34, 197, 94, 0.3); }
 
 /* Avatars */
 .avatar {

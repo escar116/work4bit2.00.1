@@ -638,13 +638,28 @@
                      5. SECTION: FIND SERVICES (SCREEN 7 REPLICA)
                      ========================================================================== -->
                 <section id="section-services" class="content-section hidden">
-                    <div class="page-header-flex" style="align-items: center;">
+                    <div class="page-header-flex" style="align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 1rem;">
                         <div>
-                            <h1 class="page-title">Services</h1>
-                            
+                            <h1 class="page-title">Services Marketplace</h1>
+                            <p class="text-muted text-sm mt-1" id="services-header-subtitle">Browse student service offers or post a service request.</p>
                         </div>
-                        <button type="button" id="btn-post-request" class="btn btn-purple">
-                            + Post a Service
+                        <div class="services-header-actions" style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+                            <button type="button" id="btn-post-offer" class="btn btn-purple">
+                                + Post a Service Offer
+                            </button>
+                            <button type="button" id="btn-post-request" class="btn btn-outline">
+                                + Post a Service Request
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Marketplace Navigation Tabs: Service Offers vs Service Requests -->
+                    <div class="tabs mt-4" id="services-marketplace-tabs">
+                        <button type="button" class="tab-btn active" id="tab-service-offers" data-services-tab="offers">
+                            🛠️ Service Offers <span class="badge badge-normal" id="offers-count-badge">0</span>
+                        </button>
+                        <button type="button" class="tab-btn" id="tab-service-requests" data-services-tab="requests">
+                            📌 Service Requests <span class="badge badge-normal" id="requests-count-badge">0</span>
                         </button>
                     </div>
 
@@ -1145,21 +1160,29 @@
          12. MODALS & DIALOGS
          ========================================================================== -->
 
-    <!-- New Request / Job Modal -->
+    <!-- New Listing Modal (Service Offer vs Service Request) -->
     <dialog id="dialog-new-request" class="modal">
         <div class="modal-content">
             <div class="modal-header">
-                <h2>Post a Service</h2>
+                <h2 id="new-listing-modal-title">Post a Service Offer</h2>
                 <button type="button" class="dialog-close-btn">✕</button>
             </div>
+            <p class="text-muted text-sm mb-3" id="new-listing-modal-desc">Offer your equipment (3D printing, laser cutting, paper printing) or skills. Standing services stay active continuously for multiple orders.</p>
+            
+            <!-- Type Switcher inside Modal -->
+            <div class="tabs mb-4" id="modal-type-tabs">
+                <button type="button" class="tab-btn active" id="modal-tab-offer" data-mode="OFFER">🛠️ Service Offer (Skills/Tools)</button>
+                <button type="button" class="tab-btn" id="modal-tab-request" data-mode="REQUEST">📌 Service Request (Need Help)</button>
+            </div>
+
             <form id="new-request-form">
+                <input type="hidden" id="nr-listing-type" value="OFFER">
                 <div class="form-group">
-                    <label class="form-label" for="nr-title">Job Title *</label>
-                    <input type="text" id="nr-title" class="form-control" placeholder="e.g. Logo Design for Student Org"
-                        required>
+                    <label class="form-label" for="nr-title" id="nr-title-label">Service Title *</label>
+                    <input type="text" id="nr-title" class="form-control" placeholder="e.g. 3D Printing & Prototyping (FDM / Resin)" required>
                 </div>
                 <div class="form-group">
-                    <label class="form-label" for="nr-description">Job Description *</label>
+                    <label class="form-label" for="nr-description" id="nr-desc-label">Service Description *</label>
                     <textarea id="nr-description" class="form-control" rows="4"
                         placeholder="Describe the job, tasks, and expectations..." required></textarea>
                 </div>
@@ -1230,7 +1253,7 @@
                             <option value="Other">Other</option>
                         </datalist>
                     </div>
-                    <div class="form-group flex-1">
+                    <div class="form-group flex-1" id="nr-urgency-group" style="display: none;">
                         <label class="form-label" for="nr-urgency">Urgency</label>
                         <select id="nr-urgency" class="form-control">
                             <option value="Normal">Normal</option>
@@ -1238,40 +1261,46 @@
                             <option value="Urgent">Urgent 🔥</option>
                         </select>
                     </div>
+                    <div class="form-group flex-1" id="nr-standing-note-group">
+                        <label class="form-label">Service Nature</label>
+                        <div class="form-control" style="background: rgba(255,255,255,0.03); color: #4ade80; font-weight: 600; display: flex; align-items: center; gap: 0.4rem;">
+                            <span>⚡</span> Standing (Always Open)
+                        </div>
+                    </div>
                 </div>
                 <div class="form-row">
                     <div class="form-group flex-1">
-                        <label class="form-label" for="nr-budget">Budget / Payment (₱) *</label>
-                        <input type="number" id="nr-budget" class="form-control" placeholder="500" min="50" max="100000" required>
+                        <label class="form-label" for="nr-budget" id="nr-budget-label">Starting Price / Base Rate (₱) *</label>
+                        <input type="number" id="nr-budget" class="form-control" placeholder="150" min="1" max="100000" required>
                     </div>
-                    <div class="form-group flex-1">
+                    <div class="form-group flex-1" id="nr-deadline-group" style="display: none;">
                         <label class="form-label" for="nr-deadline">Deadline</label>
                         <input type="date" id="nr-deadline" class="form-control">
                     </div>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-outline dialog-close-btn">Cancel</button>
-                    <button type="submit" id="new-request-submit" class="btn btn-purple">Publish Service</button>
+                    <button type="submit" id="new-request-submit" class="btn btn-purple">Publish Service Offer</button>
                 </div>
             </form>
         </div>
     </dialog>
 
-    <!-- Apply Modal -->
+    <!-- Apply / Avail Modal -->
     <dialog id="dialog-apply" class="modal">
         <div class="modal-content">
             <div class="modal-header">
-                <h2>Submit Your Application</h2>
+                <h2 id="apply-modal-title">Submit Your Application</h2>
                 <button type="button" class="dialog-close-btn">✕</button>
             </div>
             <p class="text-muted mb-4" id="apply-job-title">Job Title</p>
             <form id="apply-form">
                 <div class="form-group">
-                    <label class="form-label" for="apply-amount">Proposed Rate (₱) *</label>
+                    <label class="form-label" for="apply-amount" id="apply-amount-label">Proposed Rate (₱) *</label>
                     <input type="number" id="apply-amount" class="form-control" min="1" max="100000" required>
                 </div>
                 <div class="form-group">
-                    <label class="form-label" for="apply-message">Cover Message *</label>
+                    <label class="form-label" for="apply-message" id="apply-message-label">Cover Message *</label>
                     <textarea id="apply-message" class="form-control" rows="4"
                         placeholder="Introduce yourself and explain why you're a good fit for this job..."
                         required></textarea>
