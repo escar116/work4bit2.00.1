@@ -584,7 +584,7 @@ button {
 }
 
 .mobile-close-btn, .mobile-only, .mobile-top-bar {
-    display: none;
+    display: none !important;
 }
 
 /* ==========================================================================
@@ -1082,9 +1082,9 @@ button {
    ========================================================================== */
 .messages-layout {
     display: grid;
-    grid-template-columns: 300px 1fr;
+    grid-template-columns: minmax(220px, 280px) 1fr;
     height: calc(100vh - 170px);
-    min-height: 520px;
+    min-height: 400px;
     max-height: 800px;
     background: var(--bg-card);
     border: 1px solid var(--border-card);
@@ -1151,12 +1151,13 @@ button {
 .chat-header {
     display: flex;
     align-items: center;
-    gap: 1rem;
-    padding: 0.9rem 1.5rem;
+    gap: 0.75rem;
+    padding: 0.85rem 1.25rem;
     border-bottom: 1px solid var(--border-card);
     background: #ffffff;
     flex-shrink: 0;
     z-index: 10;
+    min-width: 0;
 }
 
 .chat-header-content {
@@ -1164,23 +1165,61 @@ button {
     align-items: center;
     justify-content: space-between;
     width: 100%;
+    min-width: 0;
+    gap: 0.75rem;
+}
+
+.chat-header-user-info {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    min-width: 0;
+    flex: 1 1 auto;
+}
+
+.chat-header-user-text {
+    min-width: 0;
+    flex: 1;
+    overflow: hidden;
+}
+
+.chat-header-user-text strong {
+    display: block;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    font-size: 0.95rem;
+    line-height: 1.3;
+}
+
+.chat-header-user-text small {
+    display: block;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    font-size: 0.8rem;
+    line-height: 1.3;
 }
 
 .chat-header-actions {
     display: flex;
     align-items: center;
-    gap: 0.5rem;
+    gap: 0.4rem;
+    flex-shrink: 0;
+    flex-wrap: nowrap;
 }
 
 .btn-terminate {
     background: var(--color-red-bg);
     color: var(--color-red);
     border: 1px solid #fecaca;
-    padding: 0.45rem 1rem;
+    padding: 0.4rem 0.85rem;
     border-radius: var(--radius-pill);
     font-weight: 600;
-    font-size: 0.82rem;
+    font-size: 0.8rem;
     transition: var(--transition);
+    white-space: nowrap;
+    line-height: 1.2;
 }
 
 .btn-terminate:hover { background: #fecaca; }
@@ -1188,11 +1227,13 @@ button {
 .btn-complete {
     background: var(--primary-purple);
     color: #ffffff;
-    padding: 0.45rem 1rem;
+    padding: 0.4rem 0.85rem;
     border-radius: var(--radius-pill);
     font-weight: 600;
-    font-size: 0.82rem;
+    font-size: 0.8rem;
     transition: var(--transition);
+    white-space: nowrap;
+    line-height: 1.2;
 }
 
 .btn-complete:hover { background: var(--primary-purple-hover); }
@@ -1765,6 +1806,15 @@ dialog::backdrop {
    14. RESPONSIVE BREAKPOINTS
    ========================================================================== */
 @media (max-width: 1024px) {
+    :root {
+        --sidebar-width: 210px;
+    }
+    .main-content {
+        padding: 1.25rem;
+    }
+    .messages-layout {
+        grid-template-columns: minmax(190px, 240px) 1fr;
+    }
     .dashboard-stats-grid { grid-template-columns: repeat(2, 1fr); }
     .dashboard-main-grid { grid-template-columns: 1fr; }
     .requests-layout { grid-template-columns: 1fr; }
@@ -1784,7 +1834,7 @@ dialog::backdrop {
     .sidebar-nav.sidebar-open { left: 0; }
     .main-content { margin-left: 0 !important; padding: 1.5rem; }
     .mobile-overlay { display: block; }
-    .mobile-close-btn, .mobile-only, .mobile-top-bar { display: flex; }
+    .mobile-close-btn, .mobile-only, .mobile-top-bar { display: flex !important; }
     .mobile-top-bar {
         align-items: center;
         gap: 1rem;
@@ -2195,3 +2245,178 @@ dialog::backdrop {
     scrollbar-width: thin;
     scrollbar-color: #cbd5e1 transparent;
 }
+
+/* ==========================================================================
+   15. PASSWORD VISIBILITY TOGGLE (ALL PASSWORD INPUTS)
+   ========================================================================== */
+.password-input-wrapper {
+    position: relative;
+    display: flex;
+    align-items: center;
+    width: 100%;
+}
+
+.password-input-wrapper .form-control,
+.password-input-wrapper input {
+    width: 100%;
+    padding-right: 2.75rem !important;
+}
+
+.password-toggle-btn {
+    position: absolute;
+    right: 0.75rem;
+    top: 50%;
+    transform: translateY(-50%);
+    background: transparent;
+    border: none;
+    padding: 0.3rem;
+    margin: 0;
+    cursor: pointer;
+    color: var(--text-muted);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 6px;
+    transition: color 0.15s ease, background-color 0.15s ease;
+    z-index: 2;
+    line-height: 1;
+}
+
+.password-toggle-btn:hover {
+    color: var(--primary-purple);
+    background-color: rgba(124, 108, 248, 0.08);
+}
+
+.password-toggle-btn:focus-visible {
+    outline: 2px solid var(--primary-purple);
+    outline-offset: 2px;
+}
+
+.password-toggle-btn .eye-icon {
+    display: block;
+    width: 18px;
+    height: 18px;
+}
+
+/* ==========================================================================
+   16. CERTIFICATE PREVIEW MODAL (ADAPTIVE BORDER & SIZING)
+   ========================================================================== */
+dialog#dialog-certificate.modal {
+    max-width: 90vw;
+    width: -moz-fit-content;
+    width: fit-content;
+    max-height: 92vh;
+    padding: 0;
+    overflow: hidden;
+    margin: auto;
+}
+
+#dialog-certificate .cert-modal-content {
+    display: flex;
+    flex-direction: column;
+    padding: 1.25rem 1.5rem;
+    max-height: 92vh;
+    box-sizing: border-box;
+    width: -moz-fit-content;
+    width: fit-content;
+    max-width: 90vw;
+}
+
+#dialog-certificate .modal-header {
+    width: 100%;
+    margin-bottom: 0.75rem;
+    flex-shrink: 0;
+}
+
+#dialog-certificate .cert-preview-wrapper {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    overflow: auto;
+    max-width: 100%;
+    max-height: calc(88vh - 120px);
+    border-radius: 8px;
+}
+
+#cert-preview-img {
+    max-width: min(85vw, 850px);
+    max-height: calc(85vh - 120px);
+    width: auto;
+    height: auto;
+    object-fit: contain;
+    border-radius: 8px;
+    border: 1px solid var(--border-card);
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.08);
+    display: block;
+    margin: 0 auto;
+}
+
+#dialog-certificate .modal-footer {
+    width: 100%;
+    margin-top: 0.75rem;
+    flex-shrink: 0;
+}
+
+/* ==========================================================================
+   17. SHORT VIEWPORTS & MOBILE LANDSCAPE ENHANCEMENTS
+   ========================================================================== */
+@media (max-height: 600px) {
+    .main-content {
+        padding: 0.75rem 1rem !important;
+    }
+    .page-header {
+        margin-bottom: 0.35rem !important;
+        padding-bottom: 0 !important;
+    }
+    .page-title {
+        font-size: 1.2rem !important;
+        margin-bottom: 0 !important;
+    }
+    .messages-layout {
+        height: calc(100vh - 85px) !important;
+        min-height: 240px !important;
+        max-height: none !important;
+    }
+    .conv-header {
+        padding: 0.5rem 0.75rem !important;
+        font-size: 0.85rem !important;
+    }
+    .conversation-item {
+        padding: 0.45rem 0.75rem !important;
+        gap: 0.5rem !important;
+    }
+    .conversation-item .avatar {
+        width: 32px !important;
+        height: 32px !important;
+        font-size: 0.75rem !important;
+    }
+    .chat-header {
+        padding: 0.4rem 0.75rem !important;
+        gap: 0.5rem !important;
+    }
+    .chat-header-actions .btn {
+        padding: 0.3rem 0.65rem !important;
+        font-size: 0.75rem !important;
+    }
+    .chat-messages {
+        padding: 0.6rem 0.75rem !important;
+        gap: 0.4rem !important;
+    }
+    .message-bubble {
+        padding: 0.45rem 0.75rem !important;
+        font-size: 0.82rem !important;
+    }
+    .chat-input-row {
+        padding: 0.4rem 0.75rem !important;
+        gap: 0.5rem !important;
+    }
+    .chat-input-row input {
+        padding: 0.4rem 0.75rem !important;
+        font-size: 0.85rem !important;
+    }
+    .chat-input-row button {
+        padding: 0.4rem 0.85rem !important;
+        font-size: 0.82rem !important;
+    }
+}
+

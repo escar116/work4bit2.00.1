@@ -1488,10 +1488,10 @@ async function selectConversation(convId) {
   const isCompleted = conv.application?.helpRequest?.status === 'COMPLETED';
   const chatHeader = $('#chat-header-content');
   chatHeader.innerHTML = `
-    <div class="flex items-center gap-3">
-      <div class="avatar avatar-sm cursor-pointer" onclick="openViewProfileDialog('${otherUser?.id}')">${initials(otherUser?.fullName || '')}</div>
-      <div>
-        <strong class="block cursor-pointer hover:underline" onclick="openViewProfileDialog('${otherUser?.id}')">${otherUser?.fullName || 'User'}</strong>
+    <div class="chat-header-user-info">
+      <div class="avatar avatar-sm cursor-pointer flex-shrink-0" onclick="openViewProfileDialog('${otherUser?.id}')">${initials(otherUser?.fullName || '')}</div>
+      <div class="chat-header-user-text">
+        <strong class="cursor-pointer hover:underline" onclick="openViewProfileDialog('${otherUser?.id}')">${otherUser?.fullName || 'User'}</strong>
         <small class="text-muted">${conv.application?.helpRequest?.title || ''}</small>
       </div>
     </div>
@@ -2604,7 +2604,7 @@ function renderAdminPending() {
 
   container.innerHTML = '';
   if (list.length === 0) {
-    container.innerHTML = '<div class="empty-state text-center text-muted" style="padding: 2rem;">Γ£à No pending student verifications.</div>';
+    container.innerHTML = '<div class="empty-state text-center text-muted" style="padding: 2rem;">No pending student verifications.</div>';
     return;
   }
 
@@ -2856,10 +2856,15 @@ function openApplicantDetails(user) {
     ${user.certificateUrl && user.certificateUrl !== 'none' ? `
       <div class="mt-4">
         <span class="text-xs text-muted font-bold block mb-1">STUDENT ID / CERTIFICATE PREVIEW</span>
-        <img src="${user.certificateUrl}" class="admin-cert-thumb" style="width: 100%; max-height: 240px; object-fit: contain; background: #000; border-radius: 8px;" alt="Student Document">
+        <img src="${user.certificateUrl}" class="admin-cert-thumb cert-open-preview" style="width: 100%; max-height: 240px; object-fit: contain; background: #000; border-radius: 8px; cursor: pointer;" title="Click to view full size" alt="Student Document">
       </div>
     ` : '<p class="text-muted text-sm mt-3">No certificate document uploaded.</p>'}
   `;
+
+  content.querySelector('.cert-open-preview')?.addEventListener('click', () => {
+    $('#cert-preview-img').src = user.certificateUrl;
+    $('#dialog-certificate').showModal();
+  });
 
   $('#dialog-applicant-details')?.showModal();
 }
@@ -2948,6 +2953,65 @@ function setupDialogCloseButtons() {
   });
 }
 
+// ── Universal Password Visibility Toggle ───────────────────────────────────────
+function setupPasswordToggles() {
+  const eyeSvg = `
+    <svg class="eye-icon eye-show" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/>
+      <circle cx="12" cy="12" r="3"/>
+    </svg>
+    <svg class="eye-icon eye-hide hidden" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M9.88 9.88a3 3 0 1 0 4.24 4.24"/>
+      <path d="M10.73 5.08A10.43 10.43 0 0 1 12 5c7 0 10 7 10 7a13.16 13.16 0 0 1-1.67 2.68"/>
+      <path d="M6.61 6.61A13.526 13.526 0 0 0 2 12s3 7 10 7a9.74 9.74 0 0 0 5.39-1.61"/>
+      <line x1="2" x2="22" y1="2" y2="22"/>
+    </svg>`;
+
+  // 1. Ensure any password input on the entire website has a wrapper and button
+  $$('input[type="password"], input[data-password-toggle]').forEach(input => {
+    let wrapper = input.closest('.password-input-wrapper');
+    if (!wrapper) {
+      wrapper = document.createElement('div');
+      wrapper.className = 'password-input-wrapper';
+      input.parentNode.insertBefore(wrapper, input);
+      wrapper.appendChild(input);
+    }
+    if (!wrapper.querySelector('.password-toggle-btn')) {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'password-toggle-btn';
+      btn.setAttribute('aria-label', 'Toggle password visibility');
+      btn.setAttribute('tabindex', '-1');
+      btn.innerHTML = eyeSvg;
+      wrapper.appendChild(btn);
+    }
+  });
+
+  // 2. Attach toggle behavior
+  $$('.password-toggle-btn').forEach(btn => {
+    if (btn.dataset.toggleBound) return;
+    btn.dataset.toggleBound = 'true';
+    btn.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      const wrapper = btn.closest('.password-input-wrapper');
+      if (!wrapper) return;
+      const input = wrapper.querySelector('input');
+      if (!input) return;
+      const isCurrentlyPassword = input.type === 'password';
+      input.type = isCurrentlyPassword ? 'text' : 'password';
+
+      const showIcon = btn.querySelector('.eye-show');
+      const hideIcon = btn.querySelector('.eye-hide');
+      if (showIcon && hideIcon) {
+        showIcon.classList.toggle('hidden', isCurrentlyPassword);
+        hideIcon.classList.toggle('hidden', !isCurrentlyPassword);
+      }
+      btn.setAttribute('aria-label', isCurrentlyPassword ? 'Hide password' : 'Show password');
+    });
+  });
+}
+
 // ── Initialization ───────────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', () => {
   window.addEventListener('popstate', (e) => {
@@ -2964,6 +3028,7 @@ document.addEventListener('DOMContentLoaded', () => {
   setupLogin();
   setupRegister();
   setupForgotPassword();
+  setupPasswordToggles();
   setupDashboardLinks();
   setupServiceFilters();
   setupNewRequestDialog();
