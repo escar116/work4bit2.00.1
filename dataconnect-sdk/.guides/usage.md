@@ -14,7 +14,7 @@ If a user is not using a supported framework, they can use the generated SDK dir
 Here's an example of how to use it with the first 5 operations:
 
 ```js
-import { createUser, updateUserStatus, createHelpRequest, createApplication, updateApplicationStatus, createConversation, createMessage, updateHelpRequestStatus, terminateJob, completeJob } from '@work4abit/dataconnect';
+import { createUser, updateUserStatus, createHelpRequest, createApplication, updateApplicationStatus, createConversation, updateHelpRequestStatus, terminateJob, completeJob, deleteUser } from '@work4abit/dataconnect';
 
 
 // Operation CreateUser:  For variables, look at type CreateUserVars in ../index.d.ts
@@ -35,9 +35,6 @@ const { data } = await UpdateApplicationStatus(dataConnect, updateApplicationSta
 // Operation CreateConversation:  For variables, look at type CreateConversationVars in ../index.d.ts
 const { data } = await CreateConversation(dataConnect, createConversationVars);
 
-// Operation CreateMessage:  For variables, look at type CreateMessageVars in ../index.d.ts
-const { data } = await CreateMessage(dataConnect, createMessageVars);
-
 // Operation UpdateHelpRequestStatus:  For variables, look at type UpdateHelpRequestStatusVars in ../index.d.ts
 const { data } = await UpdateHelpRequestStatus(dataConnect, updateHelpRequestStatusVars);
 
@@ -46,6 +43,9 @@ const { data } = await TerminateJob(dataConnect, terminateJobVars);
 
 // Operation CompleteJob:  For variables, look at type CompleteJobVars in ../index.d.ts
 const { data } = await CompleteJob(dataConnect, completeJobVars);
+
+// Operation DeleteUser:  For variables, look at type DeleteUserVars in ../index.d.ts
+const { data } = await DeleteUser(dataConnect, deleteUserVars);
 
 
 ```

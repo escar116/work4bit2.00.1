@@ -15,7 +15,6 @@ This README will guide you through the process of using the generated JavaScript
   - [*ListApplicationsForMyRequests*](#listapplicationsformyrequests)
   - [*ListMyHelpRequestsWithApplications*](#listmyhelprequestswithapplications)
   - [*ListConversations*](#listconversations)
-  - [*ListMessages*](#listmessages)
   - [*ListAllUsers*](#listallusers)
   - [*ListAllHelpRequestsAdmin*](#listallhelprequestsadmin)
   - [*ListAllApplicationsAdmin*](#listallapplicationsadmin)
@@ -27,11 +26,9 @@ This README will guide you through the process of using the generated JavaScript
   - [*CreateApplication*](#createapplication)
   - [*UpdateApplicationStatus*](#updateapplicationstatus)
   - [*CreateConversation*](#createconversation)
-  - [*CreateMessage*](#createmessage)
   - [*UpdateHelpRequestStatus*](#updatehelprequeststatus)
   - [*TerminateJob*](#terminatejob)
   - [*CompleteJob*](#completejob)
-  - [*CreateReview*](#createreview)
   - [*DeleteUser*](#deleteuser)
   - [*DeleteApplication*](#deleteapplication)
 
@@ -458,6 +455,9 @@ export interface ListApplicationsByApplicantData {
       id: UUIDString;
       title: string;
       budget: number;
+      urgency?: string | null;
+      deadline?: string | null;
+      category?: string | null;
       requester: {
         id: string;
         fullName: string;
@@ -586,6 +586,8 @@ export interface ListApplicationsForMyRequestsData {
     helpRequest: {
       id: UUIDString;
       title: string;
+      urgency?: string | null;
+      deadline?: string | null;
       requesterId: string;
     } & HelpRequest_Key;
   } & Application_Key)[];
@@ -702,6 +704,10 @@ export interface ListMyHelpRequestsWithApplicationsData {
     title: string;
     budget: number;
     status?: string | null;
+    urgency?: string | null;
+    deadline?: string | null;
+    category?: string | null;
+    description: string;
     applications_on_helpRequest: ({
       id: UUIDString;
       priceOffer: number;
@@ -836,9 +842,13 @@ export interface ListConversationsData {
     application: {
       id: UUIDString;
       status: string;
+      priceOffer: number;
+      message: string;
       helpRequest: {
         id: UUIDString;
         title: string;
+        budget: number;
+        urgency?: string | null;
         status?: string | null;
       } & HelpRequest_Key;
     } & Application_Key;
@@ -905,123 +915,6 @@ console.log(data.conversations);
 executeQuery(ref).then((response) => {
   const data = response.data;
   console.log(data.conversations);
-});
-```
-
-## ListMessages
-You can execute the `ListMessages` query using the following action shortcut function, or by calling `executeQuery()` after calling the following `QueryRef` function, both of which are defined in [dataconnect-sdk/index.d.ts](./index.d.ts):
-```typescript
-listMessages(vars: ListMessagesVariables, options?: ExecuteQueryOptions): QueryPromise<ListMessagesData, ListMessagesVariables>;
-
-interface ListMessagesRef {
-  ...
-  /* Allow users to create refs without passing in DataConnect */
-  (vars: ListMessagesVariables): QueryRef<ListMessagesData, ListMessagesVariables>;
-}
-export const listMessagesRef: ListMessagesRef;
-```
-You can also pass in a `DataConnect` instance to the action shortcut function or `QueryRef` function.
-```typescript
-listMessages(dc: DataConnect, vars: ListMessagesVariables, options?: ExecuteQueryOptions): QueryPromise<ListMessagesData, ListMessagesVariables>;
-
-interface ListMessagesRef {
-  ...
-  (dc: DataConnect, vars: ListMessagesVariables): QueryRef<ListMessagesData, ListMessagesVariables>;
-}
-export const listMessagesRef: ListMessagesRef;
-```
-
-If you need the name of the operation without creating a ref, you can retrieve the operation name by calling the `operationName` property on the listMessagesRef:
-```typescript
-const name = listMessagesRef.operationName;
-console.log(name);
-```
-
-### Variables
-The `ListMessages` query requires an argument of type `ListMessagesVariables`, which is defined in [dataconnect-sdk/index.d.ts](./index.d.ts). It has the following fields:
-
-```typescript
-export interface ListMessagesVariables {
-  conversationId: UUIDString;
-}
-```
-### Return Type
-Recall that executing the `ListMessages` query returns a `QueryPromise` that resolves to an object with a `data` property.
-
-The `data` property is an object of type `ListMessagesData`, which is defined in [dataconnect-sdk/index.d.ts](./index.d.ts). It has the following fields:
-```typescript
-export interface ListMessagesData {
-  messages: ({
-    id: UUIDString;
-    content: string;
-    createdAt: DateString;
-    sender: {
-      id: string;
-      fullName: string;
-    } & User_Key;
-  } & Message_Key)[];
-}
-```
-### Using `ListMessages`'s action shortcut function
-
-```typescript
-import { getDataConnect } from 'firebase/data-connect';
-import { connectorConfig, listMessages, ListMessagesVariables } from '@work4abit/dataconnect';
-
-// The `ListMessages` query requires an argument of type `ListMessagesVariables`:
-const listMessagesVars: ListMessagesVariables = {
-  conversationId: ..., 
-};
-
-// Call the `listMessages()` function to execute the query.
-// You can use the `await` keyword to wait for the promise to resolve.
-const { data } = await listMessages(listMessagesVars);
-// Variables can be defined inline as well.
-const { data } = await listMessages({ conversationId: ..., });
-
-// You can also pass in a `DataConnect` instance to the action shortcut function.
-const dataConnect = getDataConnect(connectorConfig);
-const { data } = await listMessages(dataConnect, listMessagesVars);
-
-console.log(data.messages);
-
-// Or, you can use the `Promise` API.
-listMessages(listMessagesVars).then((response) => {
-  const data = response.data;
-  console.log(data.messages);
-});
-```
-
-### Using `ListMessages`'s `QueryRef` function
-
-```typescript
-import { getDataConnect, executeQuery } from 'firebase/data-connect';
-import { connectorConfig, listMessagesRef, ListMessagesVariables } from '@work4abit/dataconnect';
-
-// The `ListMessages` query requires an argument of type `ListMessagesVariables`:
-const listMessagesVars: ListMessagesVariables = {
-  conversationId: ..., 
-};
-
-// Call the `listMessagesRef()` function to get a reference to the query.
-const ref = listMessagesRef(listMessagesVars);
-// Variables can be defined inline as well.
-const ref = listMessagesRef({ conversationId: ..., });
-
-// You can also pass in a `DataConnect` instance to the `QueryRef` function.
-const dataConnect = getDataConnect(connectorConfig);
-const ref = listMessagesRef(dataConnect, listMessagesVars);
-
-// Call `executeQuery()` on the reference to execute the query.
-// You can use the `await` keyword to wait for the promise to resolve.
-const { data } = await executeQuery(ref);
-
-console.log(data.messages);
-
-// Or, you can use the `Promise` API.
-executeQuery(ref).then((response) => {
-  const data = response.data;
-  console.log(data.messages);
 });
 ```
 
@@ -1168,14 +1061,9 @@ export interface ListAllHelpRequestsAdminData {
     title: string;
     budget: number;
     status?: string | null;
-    category?: string | null;
-    urgency?: string | null;
-    deadline?: string | null;
     requester: {
       id: string;
       fullName: string;
-      studentId?: string | null;
-      email: string;
     } & User_Key;
   } & HelpRequest_Key)[];
 }
@@ -1270,27 +1158,16 @@ The `data` property is an object of type `ListAllApplicationsAdminData`, which i
 export interface ListAllApplicationsAdminData {
   applications: ({
     id: UUIDString;
-    priceOffer: number;
     status: string;
-    message: string;
-    createdAt: DateString;
-    helpRequest: {
-      id: UUIDString;
-      title: string;
-      status?: string | null;
-      budget: number;
-    } & HelpRequest_Key;
+    priceOffer: number;
     applicant: {
       id: string;
       fullName: string;
-      studentId?: string | null;
-      email: string;
-      facultyReference?: string | null;
-      gender?: string | null;
-      preferredRole?: string | null;
-      certificateUrl: string;
-      verificationStatus: string;
     } & User_Key;
+    helpRequest: {
+      id: UUIDString;
+      title: string;
+    } & HelpRequest_Key;
   } & Application_Key)[];
 }
 ```
@@ -1390,25 +1267,19 @@ The `data` property is an object of type `GetUserProfileData`, which is defined 
 export interface GetUserProfileData {
   user?: {
     id: string;
+    email: string;
     fullName: string;
     studentId?: string | null;
-    facultyReference?: string | null;
-    preferredRole?: string | null;
-    gender?: string | null;
-    reviews_on_targetUser: ({
-      id: UUIDString;
-      rating: number;
-      comment: string;
-      reviewer: {
-        fullName: string;
-      };
-    } & Review_Key)[];
+    certificateUrl: string;
+    verificationStatus: string;
     applications_on_applicant: ({
+      id: UUIDString;
       status: string;
-    })[];
+    } & Application_Key)[];
     helpRequests_on_requester: ({
+      id: UUIDString;
       status?: string | null;
-    })[];
+    } & HelpRequest_Key)[];
   } & User_Key;
 }
 ```
@@ -2201,121 +2072,6 @@ executeMutation(ref).then((response) => {
 });
 ```
 
-## CreateMessage
-You can execute the `CreateMessage` mutation using the following action shortcut function, or by calling `executeMutation()` after calling the following `MutationRef` function, both of which are defined in [dataconnect-sdk/index.d.ts](./index.d.ts):
-```typescript
-createMessage(vars: CreateMessageVariables): MutationPromise<CreateMessageData, CreateMessageVariables>;
-
-interface CreateMessageRef {
-  ...
-  /* Allow users to create refs without passing in DataConnect */
-  (vars: CreateMessageVariables): MutationRef<CreateMessageData, CreateMessageVariables>;
-}
-export const createMessageRef: CreateMessageRef;
-```
-You can also pass in a `DataConnect` instance to the action shortcut function or `MutationRef` function.
-```typescript
-createMessage(dc: DataConnect, vars: CreateMessageVariables): MutationPromise<CreateMessageData, CreateMessageVariables>;
-
-interface CreateMessageRef {
-  ...
-  (dc: DataConnect, vars: CreateMessageVariables): MutationRef<CreateMessageData, CreateMessageVariables>;
-}
-export const createMessageRef: CreateMessageRef;
-```
-
-If you need the name of the operation without creating a ref, you can retrieve the operation name by calling the `operationName` property on the createMessageRef:
-```typescript
-const name = createMessageRef.operationName;
-console.log(name);
-```
-
-### Variables
-The `CreateMessage` mutation requires an argument of type `CreateMessageVariables`, which is defined in [dataconnect-sdk/index.d.ts](./index.d.ts). It has the following fields:
-
-```typescript
-export interface CreateMessageVariables {
-  conversationId: UUIDString;
-  senderId: string;
-  content: string;
-}
-```
-### Return Type
-Recall that executing the `CreateMessage` mutation returns a `MutationPromise` that resolves to an object with a `data` property.
-
-The `data` property is an object of type `CreateMessageData`, which is defined in [dataconnect-sdk/index.d.ts](./index.d.ts). It has the following fields:
-```typescript
-export interface CreateMessageData {
-  message_insert: Message_Key;
-}
-```
-### Using `CreateMessage`'s action shortcut function
-
-```typescript
-import { getDataConnect } from 'firebase/data-connect';
-import { connectorConfig, createMessage, CreateMessageVariables } from '@work4abit/dataconnect';
-
-// The `CreateMessage` mutation requires an argument of type `CreateMessageVariables`:
-const createMessageVars: CreateMessageVariables = {
-  conversationId: ..., 
-  senderId: ..., 
-  content: ..., 
-};
-
-// Call the `createMessage()` function to execute the mutation.
-// You can use the `await` keyword to wait for the promise to resolve.
-const { data } = await createMessage(createMessageVars);
-// Variables can be defined inline as well.
-const { data } = await createMessage({ conversationId: ..., senderId: ..., content: ..., });
-
-// You can also pass in a `DataConnect` instance to the action shortcut function.
-const dataConnect = getDataConnect(connectorConfig);
-const { data } = await createMessage(dataConnect, createMessageVars);
-
-console.log(data.message_insert);
-
-// Or, you can use the `Promise` API.
-createMessage(createMessageVars).then((response) => {
-  const data = response.data;
-  console.log(data.message_insert);
-});
-```
-
-### Using `CreateMessage`'s `MutationRef` function
-
-```typescript
-import { getDataConnect, executeMutation } from 'firebase/data-connect';
-import { connectorConfig, createMessageRef, CreateMessageVariables } from '@work4abit/dataconnect';
-
-// The `CreateMessage` mutation requires an argument of type `CreateMessageVariables`:
-const createMessageVars: CreateMessageVariables = {
-  conversationId: ..., 
-  senderId: ..., 
-  content: ..., 
-};
-
-// Call the `createMessageRef()` function to get a reference to the mutation.
-const ref = createMessageRef(createMessageVars);
-// Variables can be defined inline as well.
-const ref = createMessageRef({ conversationId: ..., senderId: ..., content: ..., });
-
-// You can also pass in a `DataConnect` instance to the `MutationRef` function.
-const dataConnect = getDataConnect(connectorConfig);
-const ref = createMessageRef(dataConnect, createMessageVars);
-
-// Call `executeMutation()` on the reference to execute the mutation.
-// You can use the `await` keyword to wait for the promise to resolve.
-const { data } = await executeMutation(ref);
-
-console.log(data.message_insert);
-
-// Or, you can use the `Promise` API.
-executeMutation(ref).then((response) => {
-  const data = response.data;
-  console.log(data.message_insert);
-});
-```
-
 ## UpdateHelpRequestStatus
 You can execute the `UpdateHelpRequestStatus` mutation using the following action shortcut function, or by calling `executeMutation()` after calling the following `MutationRef` function, both of which are defined in [dataconnect-sdk/index.d.ts](./index.d.ts):
 ```typescript
@@ -2659,124 +2415,6 @@ executeMutation(ref).then((response) => {
   const data = response.data;
   console.log(data.application_update);
   console.log(data.helpRequest_update);
-});
-```
-
-## CreateReview
-You can execute the `CreateReview` mutation using the following action shortcut function, or by calling `executeMutation()` after calling the following `MutationRef` function, both of which are defined in [dataconnect-sdk/index.d.ts](./index.d.ts):
-```typescript
-createReview(vars: CreateReviewVariables): MutationPromise<CreateReviewData, CreateReviewVariables>;
-
-interface CreateReviewRef {
-  ...
-  /* Allow users to create refs without passing in DataConnect */
-  (vars: CreateReviewVariables): MutationRef<CreateReviewData, CreateReviewVariables>;
-}
-export const createReviewRef: CreateReviewRef;
-```
-You can also pass in a `DataConnect` instance to the action shortcut function or `MutationRef` function.
-```typescript
-createReview(dc: DataConnect, vars: CreateReviewVariables): MutationPromise<CreateReviewData, CreateReviewVariables>;
-
-interface CreateReviewRef {
-  ...
-  (dc: DataConnect, vars: CreateReviewVariables): MutationRef<CreateReviewData, CreateReviewVariables>;
-}
-export const createReviewRef: CreateReviewRef;
-```
-
-If you need the name of the operation without creating a ref, you can retrieve the operation name by calling the `operationName` property on the createReviewRef:
-```typescript
-const name = createReviewRef.operationName;
-console.log(name);
-```
-
-### Variables
-The `CreateReview` mutation requires an argument of type `CreateReviewVariables`, which is defined in [dataconnect-sdk/index.d.ts](./index.d.ts). It has the following fields:
-
-```typescript
-export interface CreateReviewVariables {
-  rating: number;
-  comment: string;
-  reviewerId: string;
-  targetUserId: string;
-}
-```
-### Return Type
-Recall that executing the `CreateReview` mutation returns a `MutationPromise` that resolves to an object with a `data` property.
-
-The `data` property is an object of type `CreateReviewData`, which is defined in [dataconnect-sdk/index.d.ts](./index.d.ts). It has the following fields:
-```typescript
-export interface CreateReviewData {
-  review_insert: Review_Key;
-}
-```
-### Using `CreateReview`'s action shortcut function
-
-```typescript
-import { getDataConnect } from 'firebase/data-connect';
-import { connectorConfig, createReview, CreateReviewVariables } from '@work4abit/dataconnect';
-
-// The `CreateReview` mutation requires an argument of type `CreateReviewVariables`:
-const createReviewVars: CreateReviewVariables = {
-  rating: ..., 
-  comment: ..., 
-  reviewerId: ..., 
-  targetUserId: ..., 
-};
-
-// Call the `createReview()` function to execute the mutation.
-// You can use the `await` keyword to wait for the promise to resolve.
-const { data } = await createReview(createReviewVars);
-// Variables can be defined inline as well.
-const { data } = await createReview({ rating: ..., comment: ..., reviewerId: ..., targetUserId: ..., });
-
-// You can also pass in a `DataConnect` instance to the action shortcut function.
-const dataConnect = getDataConnect(connectorConfig);
-const { data } = await createReview(dataConnect, createReviewVars);
-
-console.log(data.review_insert);
-
-// Or, you can use the `Promise` API.
-createReview(createReviewVars).then((response) => {
-  const data = response.data;
-  console.log(data.review_insert);
-});
-```
-
-### Using `CreateReview`'s `MutationRef` function
-
-```typescript
-import { getDataConnect, executeMutation } from 'firebase/data-connect';
-import { connectorConfig, createReviewRef, CreateReviewVariables } from '@work4abit/dataconnect';
-
-// The `CreateReview` mutation requires an argument of type `CreateReviewVariables`:
-const createReviewVars: CreateReviewVariables = {
-  rating: ..., 
-  comment: ..., 
-  reviewerId: ..., 
-  targetUserId: ..., 
-};
-
-// Call the `createReviewRef()` function to get a reference to the mutation.
-const ref = createReviewRef(createReviewVars);
-// Variables can be defined inline as well.
-const ref = createReviewRef({ rating: ..., comment: ..., reviewerId: ..., targetUserId: ..., });
-
-// You can also pass in a `DataConnect` instance to the `MutationRef` function.
-const dataConnect = getDataConnect(connectorConfig);
-const ref = createReviewRef(dataConnect, createReviewVars);
-
-// Call `executeMutation()` on the reference to execute the mutation.
-// You can use the `await` keyword to wait for the promise to resolve.
-const { data } = await executeMutation(ref);
-
-console.log(data.review_insert);
-
-// Or, you can use the `Promise` API.
-executeMutation(ref).then((response) => {
-  const data = response.data;
-  console.log(data.review_insert);
 });
 ```
 

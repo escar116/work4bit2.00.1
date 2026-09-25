@@ -70,27 +70,6 @@ export interface CreateHelpRequestVariables {
   deadline?: string | null;
 }
 
-export interface CreateMessageData {
-  message_insert: Message_Key;
-}
-
-export interface CreateMessageVariables {
-  conversationId: UUIDString;
-  senderId: string;
-  content: string;
-}
-
-export interface CreateReviewData {
-  review_insert: Review_Key;
-}
-
-export interface CreateReviewVariables {
-  rating: number;
-  comment: string;
-  reviewerId: string;
-  targetUserId: string;
-}
-
 export interface CreateUserData {
   user_insert: User_Key;
 }
@@ -138,25 +117,19 @@ export interface GetUserData {
 export interface GetUserProfileData {
   user?: {
     id: string;
+    email: string;
     fullName: string;
     studentId?: string | null;
-    facultyReference?: string | null;
-    preferredRole?: string | null;
-    gender?: string | null;
-    reviews_on_targetUser: ({
-      id: UUIDString;
-      rating: number;
-      comment: string;
-      reviewer: {
-        fullName: string;
-      };
-    } & Review_Key)[];
+    certificateUrl: string;
+    verificationStatus: string;
     applications_on_applicant: ({
+      id: UUIDString;
       status: string;
-    })[];
+    } & Application_Key)[];
     helpRequests_on_requester: ({
+      id: UUIDString;
       status?: string | null;
-    })[];
+    } & HelpRequest_Key)[];
   } & User_Key;
 }
 
@@ -176,27 +149,16 @@ export interface HelpRequest_Key {
 export interface ListAllApplicationsAdminData {
   applications: ({
     id: UUIDString;
-    priceOffer: number;
     status: string;
-    message: string;
-    createdAt: DateString;
-    helpRequest: {
-      id: UUIDString;
-      title: string;
-      status?: string | null;
-      budget: number;
-    } & HelpRequest_Key;
+    priceOffer: number;
     applicant: {
       id: string;
       fullName: string;
-      studentId?: string | null;
-      email: string;
-      facultyReference?: string | null;
-      gender?: string | null;
-      preferredRole?: string | null;
-      certificateUrl: string;
-      verificationStatus: string;
     } & User_Key;
+    helpRequest: {
+      id: UUIDString;
+      title: string;
+    } & HelpRequest_Key;
   } & Application_Key)[];
 }
 
@@ -206,14 +168,9 @@ export interface ListAllHelpRequestsAdminData {
     title: string;
     budget: number;
     status?: string | null;
-    category?: string | null;
-    urgency?: string | null;
-    deadline?: string | null;
     requester: {
       id: string;
       fullName: string;
-      studentId?: string | null;
-      email: string;
     } & User_Key;
   } & HelpRequest_Key)[];
 }
@@ -243,6 +200,9 @@ export interface ListApplicationsByApplicantData {
       id: UUIDString;
       title: string;
       budget: number;
+      urgency?: string | null;
+      deadline?: string | null;
+      category?: string | null;
       requester: {
         id: string;
         fullName: string;
@@ -270,6 +230,8 @@ export interface ListApplicationsForMyRequestsData {
     helpRequest: {
       id: UUIDString;
       title: string;
+      urgency?: string | null;
+      deadline?: string | null;
       requesterId: string;
     } & HelpRequest_Key;
   } & Application_Key)[];
@@ -294,9 +256,13 @@ export interface ListConversationsData {
     application: {
       id: UUIDString;
       status: string;
+      priceOffer: number;
+      message: string;
       helpRequest: {
         id: UUIDString;
         title: string;
+        budget: number;
+        urgency?: string | null;
         status?: string | null;
       } & HelpRequest_Key;
     } & Application_Key;
@@ -327,28 +293,16 @@ export interface ListHelpRequestsData {
   } & HelpRequest_Key)[];
 }
 
-export interface ListMessagesData {
-  messages: ({
-    id: UUIDString;
-    content: string;
-    createdAt: DateString;
-    sender: {
-      id: string;
-      fullName: string;
-    } & User_Key;
-  } & Message_Key)[];
-}
-
-export interface ListMessagesVariables {
-  conversationId: UUIDString;
-}
-
 export interface ListMyHelpRequestsWithApplicationsData {
   helpRequests: ({
     id: UUIDString;
     title: string;
     budget: number;
     status?: string | null;
+    urgency?: string | null;
+    deadline?: string | null;
+    category?: string | null;
+    description: string;
     applications_on_helpRequest: ({
       id: UUIDString;
       priceOffer: number;
@@ -377,16 +331,6 @@ export interface ListPendingUsersData {
     certificateUrl: string;
     verificationStatus: string;
   } & User_Key)[];
-}
-
-export interface Message_Key {
-  id: UUIDString;
-  __typename?: 'Message_Key';
-}
-
-export interface Review_Key {
-  id: UUIDString;
-  __typename?: 'Review_Key';
 }
 
 export interface Service_Key {
@@ -508,18 +452,6 @@ export const createConversationRef: CreateConversationRef;
 export function createConversation(vars: CreateConversationVariables): MutationPromise<CreateConversationData, CreateConversationVariables>;
 export function createConversation(dc: DataConnect, vars: CreateConversationVariables): MutationPromise<CreateConversationData, CreateConversationVariables>;
 
-interface CreateMessageRef {
-  /* Allow users to create refs without passing in DataConnect */
-  (vars: CreateMessageVariables): MutationRef<CreateMessageData, CreateMessageVariables>;
-  /* Allow users to pass in custom DataConnect instances */
-  (dc: DataConnect, vars: CreateMessageVariables): MutationRef<CreateMessageData, CreateMessageVariables>;
-  operationName: string;
-}
-export const createMessageRef: CreateMessageRef;
-
-export function createMessage(vars: CreateMessageVariables): MutationPromise<CreateMessageData, CreateMessageVariables>;
-export function createMessage(dc: DataConnect, vars: CreateMessageVariables): MutationPromise<CreateMessageData, CreateMessageVariables>;
-
 interface UpdateHelpRequestStatusRef {
   /* Allow users to create refs without passing in DataConnect */
   (vars: UpdateHelpRequestStatusVariables): MutationRef<UpdateHelpRequestStatusData, UpdateHelpRequestStatusVariables>;
@@ -555,18 +487,6 @@ export const completeJobRef: CompleteJobRef;
 
 export function completeJob(vars: CompleteJobVariables): MutationPromise<CompleteJobData, CompleteJobVariables>;
 export function completeJob(dc: DataConnect, vars: CompleteJobVariables): MutationPromise<CompleteJobData, CompleteJobVariables>;
-
-interface CreateReviewRef {
-  /* Allow users to create refs without passing in DataConnect */
-  (vars: CreateReviewVariables): MutationRef<CreateReviewData, CreateReviewVariables>;
-  /* Allow users to pass in custom DataConnect instances */
-  (dc: DataConnect, vars: CreateReviewVariables): MutationRef<CreateReviewData, CreateReviewVariables>;
-  operationName: string;
-}
-export const createReviewRef: CreateReviewRef;
-
-export function createReview(vars: CreateReviewVariables): MutationPromise<CreateReviewData, CreateReviewVariables>;
-export function createReview(dc: DataConnect, vars: CreateReviewVariables): MutationPromise<CreateReviewData, CreateReviewVariables>;
 
 interface DeleteUserRef {
   /* Allow users to create refs without passing in DataConnect */
@@ -675,18 +595,6 @@ export const listConversationsRef: ListConversationsRef;
 
 export function listConversations(vars: ListConversationsVariables, options?: ExecuteQueryOptions): QueryPromise<ListConversationsData, ListConversationsVariables>;
 export function listConversations(dc: DataConnect, vars: ListConversationsVariables, options?: ExecuteQueryOptions): QueryPromise<ListConversationsData, ListConversationsVariables>;
-
-interface ListMessagesRef {
-  /* Allow users to create refs without passing in DataConnect */
-  (vars: ListMessagesVariables): QueryRef<ListMessagesData, ListMessagesVariables>;
-  /* Allow users to pass in custom DataConnect instances */
-  (dc: DataConnect, vars: ListMessagesVariables): QueryRef<ListMessagesData, ListMessagesVariables>;
-  operationName: string;
-}
-export const listMessagesRef: ListMessagesRef;
-
-export function listMessages(vars: ListMessagesVariables, options?: ExecuteQueryOptions): QueryPromise<ListMessagesData, ListMessagesVariables>;
-export function listMessages(dc: DataConnect, vars: ListMessagesVariables, options?: ExecuteQueryOptions): QueryPromise<ListMessagesData, ListMessagesVariables>;
 
 interface ListAllUsersRef {
   /* Allow users to create refs without passing in DataConnect */

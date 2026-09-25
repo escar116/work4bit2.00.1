@@ -891,6 +891,38 @@ let requestFilters = { q: '', category: '', maxPrice: Infinity, sort: 'newest' }
 
 let currentServicesTab = 'offers'; // 'offers' | 'requests'
 
+const knownStandingOfferIds = new Set();
+try {
+  const saved = JSON.parse(localStorage.getItem('standing_offer_ids') || '[]');
+  if (Array.isArray(saved)) saved.forEach(id => knownStandingOfferIds.add(id));
+} catch (e) {}
+
+function markAsStandingOffer(id) {
+  if (!id) return;
+  knownStandingOfferIds.add(id);
+  try {
+    localStorage.setItem('standing_offer_ids', JSON.stringify(Array.from(knownStandingOfferIds)));
+  } catch (e) {}
+}
+
+function isJobOffer(job) {
+  if (!job) return false;
+  if (job.urgency === 'OFFER' || job.urgency === 'STANDING') return true;
+  if (job.id && knownStandingOfferIds.has(job.id)) return true;
+  if (allRequests && allRequests.length > 0) {
+    const found = allRequests.find(r => r.id === job.id);
+    if (found && (found.urgency === 'OFFER' || found.urgency === 'STANDING')) return true;
+  }
+  // Heuristic for standing campus services with no deadline (e.g. 3D printing, laser cutting, repair)
+  if (job.deadline === null && !job.urgency && job.title) {
+    const lower = (job.title + ' ' + (job.category || '')).toLowerCase();
+    if (lower.includes('3d print') || lower.includes('laser') || lower.includes('printing') || lower.includes('repair') || lower.includes('pcb milling') || lower.includes('prototyp')) {
+      return true;
+    }
+  }
+  return false;
+}
+
 function setServicesTab(tab) {
   currentServicesTab = tab;
   const isOffer = tab === 'offers';
@@ -929,6 +961,53 @@ async function loadServices(isSilent = false) {
       userData?.id ? listApplicationsByApplicant(dc, { userId: userData.id }, SERVER_ONLY) : { data: { applications: [] } }
     ]);
     allRequests = reqRes.data.helpRequests || [];
+
+    // Cache any existing standing offers
+    allRequests.forEach(r => {
+      if (isJobOffer(r)) markAsStandingOffer(r.id);
+    });
+
+    // Auto-restore check: check if any standing offers were closed accidentally by previous bug
+    if (userData?.id) {
+      try {
+        const myJobsRes = await listMyHelpRequestsWithApplications(dc, { userId: userData.id }, SERVER_ONLY);
+        const myJobs = myJobsRes.data.helpRequests || [];
+        let hasRestored = false;
+        for (const j of myJobs) {
+          if (isJobOffer(j) && j.status === 'CLOSED') {
+            await updateHelpRequestStatus(dc, { id: j.id, status: 'OPEN' });
+            hasRestored = true;
+          }
+        }
+        if (hasRestored) {
+          const refreshed = await listHelpRequests(dc, SERVER_ONLY);
+          allRequests = refreshed.data.helpRequests || [];
+        }
+      } catch (err) {
+        console.warn('Auto-restore check error:', err);
+      }
+    }
+
+    // Also check all help requests if admin query available to restore standing offers
+    try {
+      const allAdminRes = await listAllHelpRequestsAdmin(dc, SERVER_ONLY);
+      const allAdminReqs = allAdminRes.data.helpRequests || [];
+      let reopenedCount = 0;
+      for (const req of allAdminReqs) {
+        if (req.status === 'CLOSED' && isJobOffer(req)) {
+          await updateHelpRequestStatus(dc, { id: req.id, status: 'OPEN' });
+          markAsStandingOffer(req.id);
+          reopenedCount++;
+        }
+      }
+      if (reopenedCount > 0) {
+        const refreshed = await listHelpRequests(dc, SERVER_ONLY);
+        allRequests = refreshed.data.helpRequests || [];
+      }
+    } catch (e) {
+      // Ignore if public admin query restricted
+    }
+
     const appliedIds = new Set((appRes.data.applications || []).map(a => a.helpRequest?.id));
     renderServices(allRequests, appliedIds);
   } catch (err) {
@@ -946,9 +1025,9 @@ function renderServices(requests, appliedIds = new Set()) {
     return !isMentoring;
   });
 
-  // Calculate counts for badges
-  const totalOffers = marketplaceRequests.filter(r => (r.urgency === 'OFFER' || r.urgency === 'STANDING') && Number(r.budget) <= 100000 && Number(r.budget) > 0).length;
-  const totalRequests = marketplaceRequests.filter(r => r.urgency !== 'OFFER' && r.urgency !== 'STANDING' && Number(r.budget) <= 100000 && Number(r.budget) > 0 && (!r.deadline || new Date(r.deadline + 'T23:59:59') >= now)).length;
+  // Calculate counts for badges using isJobOffer
+  const totalOffers = marketplaceRequests.filter(r => isJobOffer(r) && Number(r.budget) <= 100000 && Number(r.budget) > 0).length;
+  const totalRequests = marketplaceRequests.filter(r => !isJobOffer(r) && Number(r.budget) <= 100000 && Number(r.budget) > 0 && (!r.deadline || new Date(r.deadline + 'T23:59:59') >= now)).length;
 
   if ($('#offers-count-badge')) $('#offers-count-badge').textContent = totalOffers;
   if ($('#requests-count-badge')) $('#requests-count-badge').textContent = totalRequests;
@@ -958,7 +1037,7 @@ function renderServices(requests, appliedIds = new Set()) {
     if (Number(r.budget) > 100000 || Number(r.budget) <= 0) return false;
 
     // Filter by tab: offers vs requests
-    const isOffer = r.urgency === 'OFFER' || r.urgency === 'STANDING';
+    const isOffer = isJobOffer(r);
     if (currentServicesTab === 'offers' && !isOffer) return false;
     if (currentServicesTab === 'requests' && isOffer) return false;
 
@@ -988,7 +1067,7 @@ function renderServices(requests, appliedIds = new Set()) {
   }
 
   filtered.forEach(r => {
-    const isOffer = r.urgency === 'OFFER' || r.urgency === 'STANDING';
+    const isOffer = isJobOffer(r);
     const isMine = r.requester?.id === userData?.id;
     const hasApplied = appliedIds.has(r.id);
     const isExpired = !isOffer && r.deadline ? new Date(r.deadline + 'T23:59:59') < new Date() : false;
@@ -1013,10 +1092,6 @@ function renderServices(requests, appliedIds = new Set()) {
       btnDisabled = true;
     }
 
-    const typeBadge = isOffer
-      ? `<span class="badge badge-standing">🛠️ SERVICE OFFER</span>`
-      : `<span class="badge badge-request">📌 SERVICE REQUEST</span>`;
-
     const standingOrDeadline = isOffer
       ? `<span class="request-card-deadline" style="color: #4ade80; font-weight: 600;">⚡ Standing Service (Always Open)</span>`
       : (r.deadline
@@ -1025,19 +1100,20 @@ function renderServices(requests, appliedIds = new Set()) {
               : `<span class="request-card-deadline">📅 Due ${r.deadline}</span>`)
           : '');
 
-    const urgencyBadge = isOffer
-      ? ''
+    const rightBadge = isOffer
+      ? `<span class="badge badge-standing">⚡ Standing</span>`
       : `<span class="${r.urgency === 'Urgent' ? 'badge-urgent' : r.urgency === 'Low' ? 'badge-low' : 'badge-normal'}">${r.urgency === 'Urgent' ? '🔥 ' : ''}${r.urgency || 'Normal'}</span>`;
 
     card.innerHTML = `
       <div class="request-card-header">
-        <div class="avatar avatar-sm cursor-pointer" onclick="openViewProfileDialog('${r.requester?.id}')">${initials(r.requester?.fullName || 'S')}</div>
-        <div style="flex: 1; min-width: 0;">
-          <span class="request-card-name cursor-pointer hover:underline" onclick="openViewProfileDialog('${r.requester?.id}')">${r.requester?.fullName || (isOffer ? 'Student Provider' : 'Student Client')}</span>
-          <small class="text-muted block text-xs">${isOffer ? 'Service Provider' : 'Client in need'}</small>
+        <div class="avatar avatar-sm cursor-pointer flex-shrink-0" onclick="openViewProfileDialog('${r.requester?.id}')">${initials(r.requester?.fullName || 'S')}</div>
+        <div class="request-card-user">
+          <strong class="request-card-name cursor-pointer hover:underline" onclick="openViewProfileDialog('${r.requester?.id}')">${r.requester?.fullName || (isOffer ? 'Student Provider' : 'Student Client')}</strong>
+          <small class="text-muted text-xs" style="display: block; margin-top: 1px;">${isOffer ? '🛠️ Service Provider' : '📌 Client in need'}</small>
         </div>
-        ${typeBadge}
-        ${urgencyBadge}
+        <div class="request-card-badge">
+          ${rightBadge}
+        </div>
       </div>
       <h3 class="request-card-title">${r.title}</h3>
       <p class="request-card-desc line-clamp-3">${r.description || 'No description provided.'}</p>
@@ -1239,7 +1315,7 @@ let applyTarget = null;
 
 function openApplyDialog(request) {
   applyTarget = request;
-  const isOffer = request.urgency === 'OFFER' || request.urgency === 'STANDING';
+  const isOffer = isJobOffer(request);
 
   $('#apply-modal-title').textContent = isOffer ? 'Avail / Order Service' : 'Submit Your Application';
   $('#apply-job-title').textContent = `${isOffer ? 'Service Offer' : 'Job Request'}: ${request.title}`;
@@ -1269,7 +1345,7 @@ function setupApplyDialog() {
       showToast('Proposed rate cannot exceed ₱100,000.', 'error');
       return;
     }
-    const isOffer = applyTarget?.urgency === 'OFFER' || applyTarget?.urgency === 'STANDING';
+    const isOffer = isJobOffer(applyTarget);
     const btn = $('#apply-submit');
     btn.disabled = true; btn.textContent = 'Submitting...';
     try {
@@ -1306,22 +1382,39 @@ async function loadPostedJobs(isSilent = false) {
   if (!isSilent) container.innerHTML = '<div class="loader"></div>';
   try {
     const res = await listMyHelpRequestsWithApplications(dc, { userId: userData.id }, SERVER_ONLY);
-    const jobs = (res.data.helpRequests || []).filter(j => {
+    const allMyJobs = res.data.helpRequests || [];
+
+    // Auto-restore any of the user's standing offers that were closed accidentally by the previous bug
+    for (const j of allMyJobs) {
+      if (isJobOffer(j) && j.status === 'CLOSED') {
+        try {
+          await updateHelpRequestStatus(dc, { id: j.id, status: 'OPEN' });
+          markAsStandingOffer(j.id);
+          j.status = 'OPEN';
+        } catch (e) {
+          console.warn('Auto-reopen standing offer error:', e);
+        }
+      }
+    }
+
+    const jobs = allMyJobs.filter(j => {
       const isMentoring = j.category === 'MENTORING' || (j.title && j.title.toLowerCase().startsWith('mentoring:'));
       return (j.status === 'OPEN' || !j.status) && !isMentoring;
     });
+
     container.innerHTML = '';
     if (jobs.length === 0) {
-      container.innerHTML = '<div class="empty-state text-center text-muted" style="padding: 2rem;">You have not posted any open jobs.</div>';
+      container.innerHTML = '<div class="empty-state text-center text-muted" style="padding: 2rem;">You have not posted any open services or requests.</div>';
       return;
     }
     jobs.forEach(job => {
-      const isOffer = job.urgency === 'OFFER' || job.urgency === 'STANDING';
+      const isOffer = isJobOffer(job);
+      if (isOffer) markAsStandingOffer(job.id);
       const typeBadge = isOffer
-        ? `<span class="badge badge-standing">Service Offer</span>`
-        : `<span class="badge badge-request">Service Request</span>`;
+        ? `<span class="badge badge-standing">🛠️ Service Offer</span>`
+        : `<span class="badge badge-request">📌 Service Request</span>`;
       const pending = (job.applications_on_helpRequest || []).filter(a => a.status === 'PENDING');
-      const countLabel = isOffer ? `${pending.length} order(s)` : `${pending.length} candidate(s)`;
+      const countLabel = isOffer ? `${pending.length} order request(s)` : `${pending.length} candidate(s)`;
       
       const jobEl = document.createElement('div');
       jobEl.className = 'job-card';
@@ -1331,7 +1424,7 @@ async function loadPostedJobs(isSilent = false) {
             <h3 style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; margin-bottom: 0.25rem;">
               ${job.title} ${typeBadge}
             </h3>
-            <small class="text-muted">${isOffer ? '⚡ Standing Service (Ongoing)' : (job.deadline ? `📅 Due: ${job.deadline}` : '📌 One-Time Request')}</small>
+            <small class="text-muted">${isOffer ? '⚡ Standing Service (Always Open for Campus Orders)' : (job.deadline ? `📅 Due: ${job.deadline}` : '📌 One-Time Request')}</small>
           </div>
           <div style="display: flex; gap: 0.5rem; align-items: center;">
             <span class="badge badge-normal">${peso(job.budget)} ${isOffer ? 'base' : ''}</span>
@@ -1343,7 +1436,7 @@ async function loadPostedJobs(isSilent = false) {
       const candList = jobEl.querySelector('.candidates-list');
       
       if (pending.length === 0) {
-        candList.innerHTML = `<div class="text-sm text-muted italic" style="padding: 1rem 0;">No ${isOffer ? 'order requests' : 'applicants'} yet.</div>`;
+        candList.innerHTML = `<div class="text-sm text-muted italic" style="padding: 1rem 0;">No ${isOffer ? 'incoming orders' : 'applicants'} yet.</div>`;
       } else {
         pending.forEach(app => {
           const row = document.createElement('div');
@@ -1351,13 +1444,13 @@ async function loadPostedJobs(isSilent = false) {
           row.innerHTML = `
             <div class="avatar avatar-sm cursor-pointer" onclick="openViewProfileDialog('${app.applicant?.id}')">${initials(app.applicant?.fullName || '')}</div>
             <div class="candidate-info">
-              <strong class="cursor-pointer hover:underline" onclick="openViewProfileDialog('${app.applicant?.id}')">${app.applicant?.fullName || 'Client / Applicant'}</strong>
+              <strong class="cursor-pointer hover:underline" onclick="openViewProfileDialog('${app.applicant?.id}')">${app.applicant?.fullName || (isOffer ? 'Client' : 'Applicant')}</strong>
               <small class="text-muted">${app.applicant?.studentId || ''}</small>
-              <div class="candidate-message">"${app.message}"</div>
+              <div class="candidate-message"><strong>${isOffer ? 'Order Scope & Details:' : 'Proposal:'}</strong> "${app.message}"</div>
             </div>
             <div class="candidate-price">${peso(app.priceOffer)}</div>
             <div class="candidate-actions">
-              <button type="button" class="btn btn-outline btn-sm reject-btn">Reject</button>
+              <button type="button" class="btn btn-outline btn-sm reject-btn">Decline</button>
               <button type="button" class="btn btn-purple btn-sm approve-btn">${isOffer ? 'Accept Order' : 'Approve'}</button>
             </div>
           `;
@@ -1441,7 +1534,7 @@ async function loadMentoringRequests(isSilent = false) {
   }
 }
 
-  async function loadMyApplications(isSilent = false) {
+async function loadMyApplications(isSilent = false) {
   const container = $('#my-applications-list');
   if (!isSilent) container.innerHTML = '<div class="loader"></div>';
   try {
@@ -1449,19 +1542,32 @@ async function loadMentoringRequests(isSilent = false) {
     const apps = (res.data.applications || []).filter(a => a.status !== 'REJECTED');
     container.innerHTML = '';
     if (apps.length === 0) {
-      container.innerHTML = '<div class="empty-state text-center text-muted" style="padding: 2rem;">No applications submitted yet.</div>';
+      container.innerHTML = '<div class="empty-state text-center text-muted" style="padding: 2rem;">No applications or orders submitted yet.</div>';
       return;
     }
     apps.forEach(app => {
+      const isOffer = isJobOffer(app.helpRequest);
       const card = document.createElement('div');
       card.className = 'application-card';
       const statusClass = app.status === 'APPROVED' ? 'badge-approved' : app.status === 'COMPLETED' ? 'badge-normal' : 'badge-pending';
+      const statusText = app.status === 'APPROVED' 
+        ? (isOffer ? '✅ Order Accepted' : '✅ Application Accepted')
+        : app.status === 'COMPLETED' 
+          ? (isOffer ? '🎉 Order Completed' : '🎉 Job Completed')
+          : (isOffer ? '⏳ Order Pending' : '⏳ Application Pending');
+
       card.innerHTML = `
-        <div>
-          <h4>${app.helpRequest?.title || 'Job'}</h4>
-          <small class="text-muted">Your offer: ${peso(app.priceOffer)}</small>
+        <div style="flex: 1; min-width: 0;">
+          <div style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
+            <h4 style="margin: 0;">${app.helpRequest?.title || (isOffer ? 'Service Order' : 'Job Application')}</h4>
+            <span class="badge ${isOffer ? 'badge-standing' : 'badge-request'}">${isOffer ? '🛠️ Service Order' : '📌 Job Application'}</span>
+          </div>
+          <small class="text-muted" style="display: block; margin-top: 0.25rem;">
+            ${isOffer ? 'Proposed Budget / Order Rate' : 'Proposed Rate'}: <strong>${peso(app.priceOffer)}</strong>
+            ${app.helpRequest?.requester?.fullName ? ` &bull; Provider / Poster: ${app.helpRequest.requester.fullName}` : ''}
+          </small>
         </div>
-        <span class="badge ${statusClass}">${app.status === 'PENDING' ? '⏳ Pending' : app.status}</span>
+        <span class="badge ${statusClass}">${statusText}</span>
       `;
       container.appendChild(card);
     });
@@ -1472,8 +1578,17 @@ async function loadMentoringRequests(isSilent = false) {
 
 async function handleApprove(application, job) {
   try {
+    const isOffer = isJobOffer(job);
     await updateApplicationStatus(dc, { id: application.id, status: 'APPROVED' });
-    await updateHelpRequestStatus(dc, { id: job.id, status: 'CLOSED' });
+
+    // CRITICAL: Standing services remain OPEN on the marketplace so additional campus peers can place orders!
+    if (!isOffer) {
+      await updateHelpRequestStatus(dc, { id: job.id, status: 'CLOSED' });
+    } else {
+      await updateHelpRequestStatus(dc, { id: job.id, status: 'OPEN' });
+      markAsStandingOffer(job.id);
+    }
+
     const convRes = await createConversation(dc, {
       applicationId: application.id,
       posterId: userData.id,
@@ -1481,15 +1596,40 @@ async function handleApprove(application, job) {
     });
     const convId = convRes.data.conversation_insert?.id;
     if (convId) {
+      const initialText = isOffer
+        ? `📋 Service Order Accepted\n\nAgreed Budget: ${peso(application.priceOffer)}\nOrder Scope & Details: ${application.message}`
+        : `📋 Application Accepted\n\nProposed Rate: ${peso(application.priceOffer)}\nProposal: ${application.message}`;
+
       await push(ref(db, `conversations/${convId}/messages`), {
         senderId: application.applicant.id,
-        content: `📋 Application Offer Accepted\n\nProposed Rate: ${peso(application.priceOffer)}\nMessage: ${application.message}`,
+        content: initialText,
         timestamp: serverTimestamp()
       });
       activeConvId = convId;
       sessionStorage.setItem('active_conversation_id', convId);
+
+      // Pre-seed newly created conversation into memory to prevent stale chat view on immediate navigation
+      const newConvObj = {
+        id: convId,
+        poster: userData,
+        applicant: application.applicant,
+        application: {
+          id: application.id,
+          status: 'APPROVED',
+          priceOffer: Number(application.priceOffer),
+          message: application.message,
+          helpRequest: job
+        },
+        createdAt: new Date().toISOString()
+      };
+      const existingIdx = conversations.findIndex(c => c.id === convId);
+      if (existingIdx >= 0) {
+        conversations[existingIdx] = newConvObj;
+      } else {
+        conversations.unshift(newConvObj);
+      }
     }
-    showToast('Application approved! Chat created.');
+    showToast(isOffer ? 'Order accepted! Chat created.' : 'Application approved! Chat created.');
     navigateTo('messages');
   } catch (err) {
     showToast('Error: ' + err.message, 'error');
@@ -1515,9 +1655,15 @@ window.approveApplication = async function(appId, jobId) {
     if (app && job) {
       await handleApprove(app, job);
     } else {
+      const isOffer = job ? isJobOffer(job) : false;
       await updateApplicationStatus(dc, { id: appId, status: 'APPROVED' });
-      if (jobId) await updateHelpRequestStatus(dc, { id: jobId, status: 'CLOSED' });
-      showToast('Application approved!');
+      if (jobId && !isOffer) {
+        await updateHelpRequestStatus(dc, { id: jobId, status: 'CLOSED' });
+      } else if (jobId && isOffer) {
+        await updateHelpRequestStatus(dc, { id: jobId, status: 'OPEN' });
+        markAsStandingOffer(jobId);
+      }
+      showToast(isOffer ? 'Order accepted!' : 'Application approved!');
       loadApplications();
     }
   } catch (err) {
@@ -1568,9 +1714,15 @@ async function loadMessages(isSilent = false) {
   if (!isSilent && convList.children.length === 0) convList.innerHTML = '<div class="loader"></div>';
   try {
     const res = await listConversations(dc, { userId: userData.id }, SERVER_ONLY);
-    conversations = (res.data.conversations || []).filter(c =>
+    const fetched = (res.data.conversations || []).filter(c =>
       c.application?.status !== 'TERMINATED'
     );
+    // If activeConvId was just created and not yet in fetched, preserve it from local memory
+    const activeFromMemory = conversations.find(c => c.id === activeConvId);
+    if (activeFromMemory && !fetched.some(c => c.id === activeConvId)) {
+      fetched.unshift(activeFromMemory);
+    }
+    conversations = fetched;
     renderConversationList();
 
     if (!activeConvId) {
@@ -1680,13 +1832,21 @@ async function selectConversation(convId) {
   }
 
   const isCompleted = conv.application?.helpRequest?.status === 'COMPLETED';
+  const isOffer = isJobOffer(conv.application?.helpRequest);
+  const typeTag = isOffer
+    ? '<span class="badge badge-standing" style="font-size: 10px; padding: 2px 7px;">🛠️ Service Offer</span>'
+    : '<span class="badge badge-request" style="font-size: 10px; padding: 2px 7px;">📌 Job Request</span>';
+
   const chatHeader = $('#chat-header-content');
   chatHeader.innerHTML = `
     <div class="chat-header-user-info">
       <div class="avatar avatar-sm cursor-pointer flex-shrink-0" onclick="openViewProfileDialog('${otherUser?.id}')">${initials(otherUser?.fullName || '')}</div>
       <div class="chat-header-user-text">
         <strong class="cursor-pointer hover:underline" onclick="openViewProfileDialog('${otherUser?.id}')">${otherUser?.fullName || 'User'}</strong>
-        <small class="text-muted">${conv.application?.helpRequest?.title || ''}</small>
+        <div style="display: flex; align-items: center; gap: 0.4rem; margin-top: 2px; flex-wrap: wrap;">
+          <small class="text-muted">${conv.application?.helpRequest?.title || ''}</small>
+          ${typeTag}
+        </div>
       </div>
     </div>
     <div class="chat-header-actions">

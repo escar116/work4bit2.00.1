@@ -55,6 +55,9 @@ query ListApplicationsByApplicant($userId: String!) @auth(level: PUBLIC) {
       id
       title
       budget
+      urgency
+      deadline
+      category
       requester {
         id
         fullName
@@ -78,6 +81,8 @@ query ListApplicationsForMyRequests($userId: String!) @auth(level: PUBLIC) {
     helpRequest {
       id
       title
+      urgency
+      deadline
       requesterId
     }
   }
@@ -89,6 +94,10 @@ query ListMyHelpRequestsWithApplications($userId: String!) @auth(level: PUBLIC) 
     title
     budget
     status
+    urgency
+    deadline
+    category
+    description
     applications_on_helpRequest {
       id
       priceOffer
@@ -118,9 +127,13 @@ query ListConversations($userId: String!) @auth(level: PUBLIC) {
     application {
       id
       status
+      priceOffer
+      message
       helpRequest {
         id
         title
+        budget
+        urgency
         status
       }
     }

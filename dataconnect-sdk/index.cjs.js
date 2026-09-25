@@ -91,20 +91,6 @@ exports.createConversation = function createConversation(dcOrVars, vars) {
 }
 ;
 
-const createMessageRef = (dcOrVars, vars) => {
-  const { dc: dcInstance, vars: inputVars} = validateArgs(connectorConfig, dcOrVars, vars, true);
-  dcInstance._useGeneratedSdk();
-  return mutationRef(dcInstance, 'CreateMessage', inputVars);
-}
-createMessageRef.operationName = 'CreateMessage';
-exports.createMessageRef = createMessageRef;
-
-exports.createMessage = function createMessage(dcOrVars, vars) {
-  const { dc: dcInstance, vars: inputVars } = validateArgs(connectorConfig, dcOrVars, vars, true);
-  return executeMutation(createMessageRef(dcInstance, inputVars));
-}
-;
-
 const updateHelpRequestStatusRef = (dcOrVars, vars) => {
   const { dc: dcInstance, vars: inputVars} = validateArgs(connectorConfig, dcOrVars, vars, true);
   dcInstance._useGeneratedSdk();
@@ -144,20 +130,6 @@ exports.completeJobRef = completeJobRef;
 exports.completeJob = function completeJob(dcOrVars, vars) {
   const { dc: dcInstance, vars: inputVars } = validateArgs(connectorConfig, dcOrVars, vars, true);
   return executeMutation(completeJobRef(dcInstance, inputVars));
-}
-;
-
-const createReviewRef = (dcOrVars, vars) => {
-  const { dc: dcInstance, vars: inputVars} = validateArgs(connectorConfig, dcOrVars, vars, true);
-  dcInstance._useGeneratedSdk();
-  return mutationRef(dcInstance, 'CreateReview', inputVars);
-}
-createReviewRef.operationName = 'CreateReview';
-exports.createReviewRef = createReviewRef;
-
-exports.createReview = function createReview(dcOrVars, vars) {
-  const { dc: dcInstance, vars: inputVars } = validateArgs(connectorConfig, dcOrVars, vars, true);
-  return executeMutation(createReviewRef(dcInstance, inputVars));
 }
 ;
 
@@ -291,21 +263,6 @@ exports.listConversations = function listConversations(dcOrVars, varsOrOptions, 
   
   const { dc: dcInstance, vars: inputVars, options: inputOpts } = validateArgsWithOptions(connectorConfig, dcOrVars, varsOrOptions, options, true, true);
   return executeQuery(listConversationsRef(dcInstance, inputVars), inputOpts && { fetchPolicy: inputOpts.fetchPolicy });
-}
-;
-
-const listMessagesRef = (dcOrVars, vars) => {
-  const { dc: dcInstance, vars: inputVars} = validateArgs(connectorConfig, dcOrVars, vars, true);
-  dcInstance._useGeneratedSdk();
-  return queryRef(dcInstance, 'ListMessages', inputVars);
-}
-listMessagesRef.operationName = 'ListMessages';
-exports.listMessagesRef = listMessagesRef;
-
-exports.listMessages = function listMessages(dcOrVars, varsOrOptions, options) {
-  
-  const { dc: dcInstance, vars: inputVars, options: inputOpts } = validateArgsWithOptions(connectorConfig, dcOrVars, varsOrOptions, options, true, true);
-  return executeQuery(listMessagesRef(dcInstance, inputVars), inputOpts && { fetchPolicy: inputOpts.fetchPolicy });
 }
 ;
 

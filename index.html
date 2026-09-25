@@ -638,29 +638,33 @@
                      5. SECTION: FIND SERVICES (SCREEN 7 REPLICA)
                      ========================================================================== -->
                 <section id="section-services" class="content-section hidden">
-                    <div class="page-header-flex" style="align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 1rem;">
-                        <div>
-                            <h1 class="page-title">Services Marketplace</h1>
-                            <p class="text-muted text-sm mt-1" id="services-header-subtitle">Browse student service offers or post a service request.</p>
+                    <div class="services-header-wrapper mb-4">
+                        <div class="services-header-top">
+                            <div class="services-header-info">
+                                <h1 class="page-title">Services Marketplace</h1>
+                                <p class="text-muted text-sm mt-1" id="services-header-subtitle">Standing campus services, printing, and equipment provided by fellow students (3D printing, laser cutting, ink printing, repair).</p>
+                            </div>
+                            <div class="services-header-actions">
+                                <button type="button" id="btn-post-offer" class="btn btn-purple">
+                                    <span>🛠️</span> + Post a Service Offer
+                                </button>
+                                <button type="button" id="btn-post-request" class="btn btn-outline">
+                                    <span>📌</span> + Post a Service Request
+                                </button>
+                            </div>
                         </div>
-                        <div class="services-header-actions" style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
-                            <button type="button" id="btn-post-offer" class="btn btn-purple">
-                                + Post a Service Offer
-                            </button>
-                            <button type="button" id="btn-post-request" class="btn btn-outline">
-                                + Post a Service Request
-                            </button>
-                        </div>
-                    </div>
 
-                    <!-- Marketplace Navigation Tabs: Service Offers vs Service Requests -->
-                    <div class="tabs mt-4" id="services-marketplace-tabs">
-                        <button type="button" class="tab-btn active" id="tab-service-offers" data-services-tab="offers">
-                            🛠️ Service Offers <span class="badge badge-normal" id="offers-count-badge">0</span>
-                        </button>
-                        <button type="button" class="tab-btn" id="tab-service-requests" data-services-tab="requests">
-                            📌 Service Requests <span class="badge badge-normal" id="requests-count-badge">0</span>
-                        </button>
+                        <!-- Segmented Marketplace Navigation Tabs: Service Offers vs Service Requests -->
+                        <div class="marketplace-tabs-container mt-3" id="services-marketplace-tabs">
+                            <button type="button" class="marketplace-tab-btn active" id="tab-service-offers" data-services-tab="offers">
+                                <span>🛠️ Service Offers</span>
+                                <span class="tab-count-pill" id="offers-count-badge">0</span>
+                            </button>
+                            <button type="button" class="marketplace-tab-btn" id="tab-service-requests" data-services-tab="requests">
+                                <span>📌 Service Requests</span>
+                                <span class="tab-count-pill" id="requests-count-badge">0</span>
+                            </button>
+                        </div>
                     </div>
 
                     <div class="requests-layout">
