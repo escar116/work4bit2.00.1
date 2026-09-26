@@ -1897,10 +1897,33 @@ dialog::backdrop {
     gap: 0.4rem;
     font-size: 1.75rem;
     cursor: pointer;
+    align-items: center;
 }
 
 .star { color: #e5e7eb; }
 .star.filled { color: #f59e0b; }
+
+.star-btn {
+    background: transparent;
+    border: none;
+    padding: 0 4px;
+    font-size: 1.75rem;
+    line-height: 1;
+    cursor: pointer;
+    color: #e5e7eb;
+    border-radius: 6px;
+    transition: color 0.15s ease, transform 0.15s ease;
+}
+.star-btn.filled {
+    color: #f59e0b;
+}
+.star-btn:hover {
+    transform: scale(1.18);
+}
+.star-btn:focus-visible {
+    outline: 2px solid var(--primary-purple);
+    outline-offset: 4px;
+}
 
 /* Toast */
 .toast-container {

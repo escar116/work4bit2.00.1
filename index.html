@@ -812,7 +812,7 @@
 
                     <div class="tabs">
                         <button type="button" class="tab-btn active" data-tab="posted">Posted Services</button>
-                        <button type="button" class="tab-btn" data-tab="applied">My Applications</button>
+                        <button type="button" class="tab-btn" data-tab="applied">My Orders & Applications</button>
                         <button type="button" class="tab-btn" data-tab="mentoring">Mentoring Requests</button>
                     </div>
 
@@ -1416,7 +1416,7 @@
     <dialog id="dialog-review" class="modal">
         <div class="modal-content">
             <div class="modal-header">
-                <h2>Complete Job & Payment</h2>
+                <h2 id="review-modal-title">Complete Job & Payment</h2>
                 <button type="button" class="dialog-close-btn">✕</button>
             </div>
             <form id="review-form">
@@ -1433,19 +1433,19 @@
                         </div>
                         <div id="review-payment-amount" style="font-size: 1.5rem; font-weight: 700; color: var(--color-green);">₱0</div>
                     </div>
-                    <p class="text-xs text-muted mt-2" style="border-top: 1px dashed var(--border-card); padding-top: 0.5rem; margin-bottom: 0;">
+                    <p id="review-payment-note" class="text-xs text-muted mt-2" style="border-top: 1px dashed var(--border-card); padding-top: 0.5rem; margin-bottom: 0;">
                         ✓ Completing this job confirms the deliverables were received and releases payment of <strong><span id="review-payment-confirm-amt">₱0</span></strong> to the applicant.
                     </p>
                 </div>
 
                 <div class="form-group text-center">
-                    <label class="form-label">How was your experience working together?</label>
-                    <div class="star-rating" id="review-stars">
-                        <span class="star filled" data-value="1">★</span>
-                        <span class="star filled" data-value="2">★</span>
-                        <span class="star filled" data-value="3">★</span>
-                        <span class="star filled" data-value="4">★</span>
-                        <span class="star filled" data-value="5">★</span>
+                    <label class="form-label" id="review-stars-label">How was your experience working together?</label>
+                    <div class="star-rating" id="review-stars" role="radiogroup" aria-labelledby="review-stars-label">
+                        <button type="button" class="star star-btn filled" role="radio" aria-checked="false" aria-label="1 star" data-value="1" tabindex="0">★</button>
+                        <button type="button" class="star star-btn filled" role="radio" aria-checked="false" aria-label="2 stars" data-value="2" tabindex="-1">★</button>
+                        <button type="button" class="star star-btn filled" role="radio" aria-checked="false" aria-label="3 stars" data-value="3" tabindex="-1">★</button>
+                        <button type="button" class="star star-btn filled" role="radio" aria-checked="false" aria-label="4 stars" data-value="4" tabindex="-1">★</button>
+                        <button type="button" class="star star-btn filled" role="radio" aria-checked="true" aria-label="5 stars" data-value="5" tabindex="0">★</button>
                     </div>
                 </div>
                 <div class="form-group">

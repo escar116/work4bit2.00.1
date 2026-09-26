@@ -631,19 +631,46 @@ async function loadDashboard(isSilent = false) {
     const allUsers = usersRes.data.users || [];
 
     const activeApps = applications.filter(a => a.status === 'PENDING' || a.status === 'APPROVED').length;
-    const posterCompleted = myPostedJobs.filter(j => j.status === 'COMPLETED').length;
-    const completedJobs = applications.filter(a => a.status === 'COMPLETED').length + posterCompleted;
-    
-    // Total Transactions (Earnings from freelance + Spending from hiring)
-    const totalEarnings = applications
-      .filter(a => a.status === 'COMPLETED')
-      .reduce((sum, a) => sum + (Number(a.priceOffer) || 0), 0);
-    const totalSpent = myPostedJobs
-      .filter(j => j.status === 'COMPLETED')
-      .reduce((sum, j) => {
-        const approvedApp = (j.applications_on_helpRequest || []).find(a => a.status === 'COMPLETED');
-        return sum + (approvedApp ? (Number(approvedApp.priceOffer) || 0) : 0);
-      }, 0);
+    let completedJobs = applications.filter(a => a.status === 'COMPLETED').length;
+    myPostedJobs.forEach(j => {
+      const completedApps = (j.applications_on_helpRequest || []).filter(a => a.status === 'COMPLETED');
+      if (completedApps.length > 0) {
+        completedJobs += completedApps.length;
+      } else if (!isJobOffer(j) && j.status === 'COMPLETED') {
+        completedJobs += 1;
+      }
+    });
+
+    // Total Transactions (Role-aware earnings and spendings)
+    let totalEarnings = 0;
+    let totalSpent = 0;
+
+    applications.forEach(a => {
+      if (a.status === 'COMPLETED') {
+        const isOffer = isJobOffer(a.helpRequest);
+        const amt = Number(a.priceOffer) || 0;
+        if (isOffer) {
+          totalSpent += amt;
+        } else {
+          totalEarnings += amt;
+        }
+      }
+    });
+
+    myPostedJobs.forEach(j => {
+      const isOffer = isJobOffer(j);
+      const apps = j.applications_on_helpRequest || [];
+      apps.forEach(a => {
+        if (a.status === 'COMPLETED') {
+          const amt = Number(a.priceOffer) || Number(j.budget) || 0;
+          if (isOffer) {
+            totalEarnings += amt;
+          } else {
+            totalSpent += amt;
+          }
+        }
+      });
+    });
 
     $('#stat-applied').textContent = activeApps;
     $('#stat-completed').textContent = completedJobs;
@@ -907,18 +934,30 @@ function markAsStandingOffer(id) {
 
 function isJobOffer(job) {
   if (!job) return false;
-  if (job.urgency === 'OFFER' || job.urgency === 'STANDING') return true;
+  const urg = (job.urgency || '').toUpperCase();
+  if (urg === 'OFFER' || urg === 'STANDING') return true;
   if (job.id && knownStandingOfferIds.has(job.id)) return true;
   if (allRequests && allRequests.length > 0) {
     const found = allRequests.find(r => r.id === job.id);
-    if (found && (found.urgency === 'OFFER' || found.urgency === 'STANDING')) return true;
-  }
-  // Heuristic for standing campus services with no deadline (e.g. 3D printing, laser cutting, repair)
-  if (job.deadline === null && !job.urgency && job.title) {
-    const lower = (job.title + ' ' + (job.category || '')).toLowerCase();
-    if (lower.includes('3d print') || lower.includes('laser') || lower.includes('printing') || lower.includes('repair') || lower.includes('pcb milling') || lower.includes('prototyp')) {
-      return true;
+    if (found) {
+      const fUrg = (found.urgency || '').toUpperCase();
+      if (fUrg === 'OFFER' || fUrg === 'STANDING') return true;
     }
+  }
+  // Heuristic for standing campus services with no deadline (or empty)
+  const hasNoDeadline = !job.deadline || job.deadline === '' || job.deadline === null;
+  const lower = `${job.title || ''} ${job.description || ''} ${job.category || ''}`.toLowerCase();
+  if (hasNoDeadline && (
+    lower.includes('3d print') ||
+    lower.includes('laser') ||
+    lower.includes('printing') ||
+    lower.includes('repair') ||
+    lower.includes('pcb milling') ||
+    lower.includes('prototyp') ||
+    lower.includes('standing offer') ||
+    lower.includes('standing service')
+  )) {
+    return true;
   }
   return false;
 }
@@ -1559,12 +1598,12 @@ async function loadMyApplications(isSilent = false) {
       card.innerHTML = `
         <div style="flex: 1; min-width: 0;">
           <div style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
-            <h4 style="margin: 0;">${app.helpRequest?.title || (isOffer ? 'Service Order' : 'Job Application')}</h4>
-            <span class="badge ${isOffer ? 'badge-standing' : 'badge-request'}">${isOffer ? '🛠️ Service Order' : '📌 Job Application'}</span>
+            <h4 style="margin: 0;">${app.helpRequest?.title || (isOffer ? 'Service Order' : 'Service Request')}</h4>
+            <span class="badge ${isOffer ? 'badge-standing' : 'badge-request'}">${isOffer ? '🛠️ Service Order' : '📌 Service Request'}</span>
           </div>
           <small class="text-muted" style="display: block; margin-top: 0.25rem;">
-            ${isOffer ? 'Proposed Budget / Order Rate' : 'Proposed Rate'}: <strong>${peso(app.priceOffer)}</strong>
-            ${app.helpRequest?.requester?.fullName ? ` &bull; Provider / Poster: ${app.helpRequest.requester.fullName}` : ''}
+            ${isOffer ? 'Agreed Rate / Budget' : 'Proposed Rate'}: <strong>${peso(app.priceOffer)}</strong>
+            ${app.helpRequest?.requester?.fullName ? ` &bull; ${isOffer ? 'Service Provider' : 'Client / Requester'}: ${app.helpRequest.requester.fullName}` : ''}
           </small>
         </div>
         <span class="badge ${statusClass}">${statusText}</span>
@@ -1708,6 +1747,7 @@ function setupApplicationTabs() {
 // ── Messages & Realtime Chat Engine ──────────────────────────────────────────
 let conversations = [];
 let reviewTarget = null;
+let activeSubscriptionConvId = null;
 
 async function loadMessages(isSilent = false) {
   const convList = $('#conversations-list');
@@ -1783,7 +1823,7 @@ function renderConversationList() {
 }
 
 async function selectConversation(convId) {
-  const isNewSelection = (activeConvId !== convId) || !messageSubscription;
+  const isNewSelection = (activeSubscriptionConvId !== convId) || !messageSubscription;
   if (isNewSelection) {
     renderedMsgIds.clear();
     pendingTempMessages = [];
@@ -1831,11 +1871,12 @@ async function selectConversation(convId) {
     })();
   }
 
-  const isCompleted = conv.application?.helpRequest?.status === 'COMPLETED';
+  const isCompleted = conv.application?.helpRequest?.status === 'COMPLETED' || conv.application?.status === 'COMPLETED';
   const isOffer = isJobOffer(conv.application?.helpRequest);
+  const isClient = (!isOffer && isPoster) || (isOffer && !isPoster);
   const typeTag = isOffer
     ? '<span class="badge badge-standing" style="font-size: 10px; padding: 2px 7px;">🛠️ Service Offer</span>'
-    : '<span class="badge badge-request" style="font-size: 10px; padding: 2px 7px;">📌 Job Request</span>';
+    : '<span class="badge badge-request" style="font-size: 10px; padding: 2px 7px;">📌 Service Request</span>';
 
   const chatHeader = $('#chat-header-content');
   chatHeader.innerHTML = `
@@ -1853,7 +1894,7 @@ async function selectConversation(convId) {
       ${isCompleted 
         ? '<span class="badge badge-approved" style="padding: 4px 10px; font-size: 12px;">Completed</span>'
         : `<button type="button" class="btn btn-terminate" id="btn-terminate">Terminate</button>
-           ${isPoster ? '<button type="button" class="btn btn-complete" id="btn-complete">Complete</button>' : ''}`
+           <button type="button" class="btn btn-complete" id="btn-complete">Complete</button>`
       }
     </div>
   `;
@@ -1865,6 +1906,7 @@ async function selectConversation(convId) {
       await terminateJob(dc, { applicationId: conv.application.id, helpRequestId: conv.application.helpRequest.id });
       showToast('Job terminated.');
       activeConvId = null;
+      activeSubscriptionConvId = null;
       sessionStorage.removeItem('active_conversation_id');
       loadMessages();
     } catch (err) {
@@ -1874,9 +1916,9 @@ async function selectConversation(convId) {
 
   $('#btn-complete')?.addEventListener('click', async (e) => {
     e.preventDefault();
-    reviewTarget = { conv, otherUser };
+    reviewTarget = { conv, otherUser, isOffer, isPoster, isClient };
 
-    const jobTitle = conv.application?.helpRequest?.title || 'Service Request';
+    const jobTitle = conv.application?.helpRequest?.title || (isOffer ? 'Standing Service Offer' : 'Service Request');
     let price = Number(conv.application?.priceOffer) || Number(conv.application?.helpRequest?.budget) || 0;
 
     // 1. Resolve from listMyHelpRequestsWithApplications (client view)
@@ -1931,7 +1973,7 @@ async function selectConversation(convId) {
           const msgs = msgSnap.val();
           for (const k in msgs) {
             const mText = msgs[k].content || '';
-            const match = mText.match(/Proposed Rate:\s*₱?([\d,]+)/i);
+            const match = mText.match(/(?:Proposed Rate|Agreed Budget):\s*₱?([\d,]+)/i);
             if (match) {
               price = Number(match[1].replace(/,/g, ''));
               if (conv.application) conv.application.priceOffer = price;
@@ -1942,14 +1984,36 @@ async function selectConversation(convId) {
       } catch (err) {}
     }
 
+    const modalTitleEl = $('#review-modal-title');
+    if (modalTitleEl) {
+      modalTitleEl.textContent = isClient ? 'Complete & Release Payment' : 'Confirm Order Completion';
+    }
+    const payStatusEl = $('#review-payment-status');
+    if (payStatusEl) {
+      payStatusEl.textContent = isClient ? 'Payment Release' : 'Settlement Summary';
+    }
     const jobEl = $('#review-payment-job');
     if (jobEl) jobEl.textContent = jobTitle;
     const recEl = $('#review-payment-recipient');
-    if (recEl) recEl.textContent = `Pay to: ${otherUser.fullName}`;
+    if (recEl) {
+      recEl.textContent = isClient 
+        ? `Pay to Provider: ${otherUser.fullName}`
+        : `Client: ${otherUser.fullName} (You: Provider)`;
+    }
     const amtEl = $('#review-payment-amount');
     if (amtEl) amtEl.textContent = peso(price);
     const confAmtEl = $('#review-payment-confirm-amt');
     if (confAmtEl) confAmtEl.textContent = peso(price);
+    const noteEl = $('#review-payment-note');
+    if (noteEl) {
+      noteEl.innerHTML = isClient
+        ? `✓ Completing this order confirms deliverables were received and releases payment of <strong><span id="review-payment-confirm-amt">${peso(price)}</span></strong> to ${otherUser.fullName}.`
+        : `✓ Confirming completion certifies that deliverables were fulfilled for ${otherUser.fullName}. Your earnings of <strong><span id="review-payment-confirm-amt">${peso(price)}</span></strong> will be settled.`;
+    }
+    const submitBtn = $('#review-submit-btn');
+    if (submitBtn) {
+      submitBtn.textContent = isClient ? 'Confirm Payment & Complete' : 'Confirm Delivery & Complete';
+    }
 
     const commentEl = $('#review-comment');
     if (commentEl) commentEl.value = '';
@@ -1962,6 +2026,7 @@ async function selectConversation(convId) {
       off(messageSubscription);
       messageSubscription = null;
     }
+    activeSubscriptionConvId = convId;
     try {
       const msgArea = $('#chat-messages');
       if (msgArea) msgArea.innerHTML = '';
@@ -2091,33 +2156,65 @@ async function loadTransactions() {
 
     const txList = [];
 
-    // 1. Applicant earnings (freelancer work)
+    // 1. Applicant applications/orders
     apps.forEach(a => {
-      txList.push({
-        id: a.id,
-        title: a.helpRequest?.title || 'Service Request',
-        counterpart: a.helpRequest?.requester?.fullName ? `Client: ${a.helpRequest.requester.fullName}` : 'Freelance Service',
-        amount: Number(a.priceOffer) || 0,
-        status: a.status,
-        type: 'EARNING',
-        date: a.createdAt ? new Date(a.createdAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }) : 'Recently'
-      });
-    });
+      const isOffer = isJobOffer(a.helpRequest);
+      const counterpartName = a.helpRequest?.requester?.fullName || 'Peer';
 
-    // 2. Client payments (hired peer services)
-    myPosts.forEach(p => {
-      const appsOnJob = p.applications_on_helpRequest || [];
-      appsOnJob.forEach(a => {
-        // Show applications that have been approved or completed
+      if (isOffer) {
+        // Applicant ordered a standing service -> USER IS CLIENT (Paying)
         txList.push({
           id: a.id,
-          title: p.title || 'Posted Service',
-          counterpart: a.applicant?.fullName ? `Paid to: ${a.applicant.fullName}` : 'Applicant Payment',
-          amount: Number(a.priceOffer) || Number(p.budget) || 0,
+          title: a.helpRequest?.title || 'Standing Service Order',
+          counterpart: `Paid to Provider: ${counterpartName}`,
+          amount: Number(a.priceOffer) || Number(a.helpRequest?.budget) || 0,
           status: a.status,
           type: 'PAYMENT',
-          date: 'Recently'
+          date: a.createdAt ? new Date(a.createdAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }) : 'Recently'
         });
+      } else {
+        // Applicant applied to a freelance request -> USER IS FREELANCER (Earning)
+        txList.push({
+          id: a.id,
+          title: a.helpRequest?.title || 'Job Proposal',
+          counterpart: `Client: ${counterpartName}`,
+          amount: Number(a.priceOffer) || 0,
+          status: a.status,
+          type: 'EARNING',
+          date: a.createdAt ? new Date(a.createdAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }) : 'Recently'
+        });
+      }
+    });
+
+    // 2. Poster postings (myPosts)
+    myPosts.forEach(p => {
+      const isOffer = isJobOffer(p);
+      const appsOnJob = p.applications_on_helpRequest || [];
+      appsOnJob.forEach(a => {
+        const clientOrFreelancer = a.applicant?.fullName || 'Peer';
+        if (isOffer) {
+          // Poster offered a standing service -> USER IS PROVIDER (Earning)
+          txList.push({
+            id: a.id,
+            title: p.title || 'Standing Service Offer',
+            counterpart: `Client: ${clientOrFreelancer}`,
+            amount: Number(a.priceOffer) || Number(p.budget) || 0,
+            status: a.status,
+            type: 'EARNING',
+            date: a.createdAt ? new Date(a.createdAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }) : 'Recently'
+          });
+        } else {
+          // Poster requested a freelance job -> USER IS CLIENT (Paying)
+          txList.push({
+            id: a.id,
+            title: p.title || 'Service Request',
+            counterpart: `Paid to Provider: ${clientOrFreelancer}`,
+            amount: Number(a.priceOffer) || Number(p.budget) || 0,
+            status: a.status,
+            type: 'PAYMENT',
+            date: a.createdAt ? new Date(a.createdAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }) : 'Recently'
+          });
+        }
       });
     });
 
@@ -2204,10 +2301,10 @@ function renderTransactionsTable(filter = 'all') {
       statusLabel = 'Completed';
       statusBadgeClass = 'badge-approved';
     } else if (item.status === 'APPROVED') {
-      statusLabel = 'Payment Pending';
+      statusLabel = isEarning ? 'Payment Pending' : 'Payment Scheduled';
       statusBadgeClass = 'badge-pending';
     } else if (item.status === 'PENDING') {
-      statusLabel = 'Pending Approval';
+      statusLabel = isEarning ? 'Order Pending' : 'Pending Approval';
       statusBadgeClass = 'badge-pending';
     } else if (item.status === 'TERMINATED') {
       statusLabel = 'Terminated';
@@ -2256,59 +2353,129 @@ function setupInlineRatingForm() {
 // ── Review Dialog ────────────────────────────────────────────────────────────
 function setupReviewDialog() {
   let selectedRating = 5;
-  $$('#review-stars .star').forEach(star => {
-    star.addEventListener('click', () => {
-      selectedRating = Number(star.dataset.value);
-      $$('#review-stars .star').forEach((s, i) => {
-        s.classList.toggle('filled', i < selectedRating);
-      });
+  const starButtons = $$('#review-stars .star-btn');
+
+  function updateStars(val) {
+    selectedRating = Math.max(1, Math.min(5, val));
+    starButtons.forEach((btn, idx) => {
+      const starVal = idx + 1;
+      const isFilled = starVal <= selectedRating;
+      btn.classList.toggle('filled', isFilled);
+      btn.setAttribute('aria-checked', starVal === selectedRating ? 'true' : 'false');
+      btn.setAttribute('tabindex', starVal === selectedRating ? '0' : '-1');
+    });
+  }
+
+  starButtons.forEach((btn, idx) => {
+    btn.addEventListener('click', () => {
+      updateStars(Number(btn.dataset.value));
+    });
+
+    btn.addEventListener('keydown', (e) => {
+      let nextRating = selectedRating;
+      if (e.key === 'ArrowRight' || e.key === 'ArrowUp') {
+        e.preventDefault();
+        nextRating = Math.min(5, selectedRating + 1);
+      } else if (e.key === 'ArrowLeft' || e.key === 'ArrowDown') {
+        e.preventDefault();
+        nextRating = Math.max(1, selectedRating - 1);
+      } else if (e.key === 'Home') {
+        e.preventDefault();
+        nextRating = 1;
+      } else if (e.key === 'End') {
+        e.preventDefault();
+        nextRating = 5;
+      } else if (e.key === ' ' || e.key === 'Enter') {
+        e.preventDefault();
+        nextRating = Number(btn.dataset.value);
+      } else {
+        return;
+      }
+      updateStars(nextRating);
+      const targetBtn = starButtons[nextRating - 1];
+      if (targetBtn) targetBtn.focus();
     });
   });
 
   $('#review-form')?.addEventListener('submit', async (e) => {
     e.preventDefault();
     if (!selectedRating || !reviewTarget) return;
-    const submitBtn = e.target.querySelector('button[type="submit"]');
+    const submitBtn = $('#review-submit-btn') || e.target.querySelector('button[type="submit"]');
     if (submitBtn) { submitBtn.disabled = true; submitBtn.textContent = 'Processing...'; }
     try {
-      // 1. Complete the job
-      await completeJob(dc, { applicationId: reviewTarget.conv.application.id, helpRequestId: reviewTarget.conv.application.helpRequest.id });
-
-      // If this was a standing service offer (e.g. 3D printing, laser printing), keep the service listing OPEN for other students!
       const helpReq = reviewTarget.conv?.application?.helpRequest;
-      if (helpReq && (helpReq.urgency === 'OFFER' || helpReq.urgency === 'STANDING')) {
+      const isOffer = isJobOffer(helpReq);
+
+      // 1. Complete the job / order
+      if (isOffer) {
+        // Individual order completion - keep the standing offer open!
+        await updateApplicationStatus(dc, { id: reviewTarget.conv.application.id, status: 'COMPLETED' });
         try {
           await updateHelpRequestStatus(dc, { id: helpReq.id, status: 'OPEN' });
+          markAsStandingOffer(helpReq.id);
         } catch (statusErr) {
           console.warn('Could not reset standing service status to OPEN:', statusErr);
         }
+      } else {
+        // One-time request completion
+        await completeJob(dc, { applicationId: reviewTarget.conv.application.id, helpRequestId: helpReq.id });
       }
-      
-      // 2. Submit the review
+
+      if (reviewTarget.conv.application) {
+        reviewTarget.conv.application.status = 'COMPLETED';
+      }
+
+      // 2. Submit the review to Firestore
       const revData = {
-          rating: selectedRating,
-          comment: document.getElementById('review-comment').value.trim(),
-          reviewerId: userData.id,
-          reviewerName: userData.fullName,
-          targetUserId: reviewTarget.otherUser.id,
-          createdAt: firestoreTimestamp()
-        };
+        rating: selectedRating,
+        comment: document.getElementById('review-comment').value.trim(),
+        reviewerId: userData.id,
+        reviewerName: userData.fullName || 'Peer',
+        targetUserId: reviewTarget.otherUser.id,
+        createdAt: firestoreTimestamp()
+      };
       await addDoc(collection(firestore, "reviews"), revData);
-      
-      showToast('Payment confirmed and job completed!');
+
+      const actionSuccessMsg = isOffer 
+        ? (reviewTarget.isClient ? 'Payment confirmed and order completed!' : 'Order marked as completed!')
+        : 'Payment confirmed and job completed!';
+      showToast(actionSuccessMsg);
       $('#dialog-review').close();
-      
-      // 3. Clear chat UI & refresh
+
+      // 3. Post completion confirmation in Realtime Database chat
+      try {
+        const ratingStars = '★'.repeat(selectedRating) + '☆'.repeat(5 - selectedRating);
+        const completionText = isOffer
+          ? (reviewTarget.isClient
+              ? `✅ Deliverables Received & Payment Released!\nRating given: ${ratingStars} (${selectedRating}/5)`
+              : `✅ Order Fulfilled & Completed!\nRating given: ${ratingStars} (${selectedRating}/5)`)
+          : `✅ Job Completed & Payment Released!\nRating given: ${ratingStars} (${selectedRating}/5)`;
+
+        await push(ref(db, `conversations/${reviewTarget.conv.id}/messages`), {
+          senderId: userData.id,
+          content: completionText + (revData.comment ? `\n\n"${revData.comment}"` : ''),
+          timestamp: serverTimestamp()
+        });
+      } catch (chatErr) {
+        console.warn('Could not send completion message to chat:', chatErr);
+      }
+
+      // 4. Reset selection and refresh UI
       activeConvId = null;
+      activeSubscriptionConvId = null;
       sessionStorage.removeItem('active_conversation_id');
       $('#messages-container')?.classList.remove('chat-open');
       loadMessages();
       loadDashboard(true);
       if (activeSection === 'transactions') loadTransactions();
+      if (activeSection === 'applications') loadApplications();
     } catch (err) {
       showToast('Error: ' + err.message, 'error');
     } finally {
-      if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = 'Confirm Payment & Complete'; }
+      if (submitBtn) {
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'Confirm Payment & Complete';
+      }
     }
   });
 }
