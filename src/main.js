@@ -6,7 +6,7 @@ import {
   signOut, sendPasswordResetEmail
 } from 'firebase/auth';
 import { getDataConnect, subscribe } from 'firebase/data-connect';
-import { getDatabase, ref, push, onChildAdded, serverTimestamp, off, get } from 'firebase/database';
+import { getDatabase, ref, push, onChildAdded, serverTimestamp, off, get, query as databaseQuery, limitToLast } from 'firebase/database';
 import { getFirestore, collection, addDoc, getDocs, query, where, serverTimestamp as firestoreTimestamp, setDoc, doc, getDoc } from 'firebase/firestore';
 import {
   connectorConfig, getUser, createUser, listHelpRequests, createHelpRequest,
@@ -257,6 +257,8 @@ function clearUserSessionDOM() {
   activeConvId = null;
   reviewTarget = null;
   conversations = [];
+  lastConversationsDigest = '';
+  activeAppliedIds = new Set();
 }
 
 onAuthStateChanged(auth, async (user) => {
@@ -875,10 +877,11 @@ async function loadDashboard(isSilent = false) {
       recentMsgEl.innerHTML = '<div class="empty-state text-center text-muted" style="padding: 1rem;">No active chats yet.</div>';
     } else {
       recentMsgEl.innerHTML = '';
+      await sortConversationsByActivity(conversations);
       conversations.slice(0, 2).forEach(conv => {
         const isPoster = conv.poster?.id === userData?.id;
         const otherUser = isPoster ? conv.applicant : conv.poster;
-        const isCompleted = conv.application?.helpRequest?.status === 'COMPLETED';
+        const isCompleted = isConversationCompleted(conv);
         const row = document.createElement('div');
         row.className = 'message-row-item';
         row.innerHTML = `
@@ -914,6 +917,7 @@ function setupDashboardLinks() {
 
 // ── Find Services ────────────────────────────────────────────────────────────
 let allRequests = [];
+let activeAppliedIds = new Set();
 let requestFilters = { q: '', category: '', maxPrice: Infinity, sort: 'newest' };
 
 let currentServicesTab = 'offers'; // 'offers' | 'requests'
@@ -1047,14 +1051,17 @@ async function loadServices(isSilent = false) {
       // Ignore if public admin query restricted
     }
 
-    const appliedIds = new Set((appRes.data.applications || []).map(a => a.helpRequest?.id));
-    renderServices(allRequests, appliedIds);
+    activeAppliedIds = new Set((appRes.data.applications || [])
+      .filter(a => !isJobOffer(a.helpRequest) || ['PENDING', 'APPROVED'].includes(a.status))
+      .map(a => a.helpRequest?.id)
+      .filter(Boolean));
+    renderServices(allRequests);
   } catch (err) {
     if (!isSilent) console.error("loadServices error:", err); grid.innerHTML = '<div class="empty-state">Error loading services.</div>';
   }
 }
 
-function renderServices(requests, appliedIds = new Set()) {
+function renderServices(requests) {
   const grid = $('#requests-grid');
   const now = new Date();
 
@@ -1108,7 +1115,7 @@ function renderServices(requests, appliedIds = new Set()) {
   filtered.forEach(r => {
     const isOffer = isJobOffer(r);
     const isMine = r.requester?.id === userData?.id;
-    const hasApplied = appliedIds.has(r.id);
+    const hasApplied = activeAppliedIds.has(r.id);
     const isExpired = !isOffer && r.deadline ? new Date(r.deadline + 'T23:59:59') < new Date() : false;
     const card = document.createElement('article');
     card.className = 'request-card';
@@ -1749,6 +1756,35 @@ let conversations = [];
 let reviewTarget = null;
 let activeSubscriptionConvId = null;
 
+const isConversationCompleted = (conv) =>
+  conv.application?.status === 'COMPLETED' || conv.application?.helpRequest?.status === 'COMPLETED';
+
+async function sortConversationsByActivity(items) {
+  await Promise.all(items.map(async (conv) => {
+    const createdAt = Date.parse(conv.createdAt || '') || 0;
+    try {
+      const latest = await get(databaseQuery(ref(db, `conversations/${conv.id}/messages`), limitToLast(1)));
+      const message = latest.exists() ? Object.values(latest.val())[0] : null;
+      const messageTime = Number(message?.timestamp);
+      conv.lastActivityAt = Number.isFinite(messageTime) && messageTime > 0 ? messageTime : createdAt;
+    } catch (err) {
+      conv.lastActivityAt = conv.lastActivityAt || createdAt;
+      console.warn('Could not load latest message date:', err);
+    }
+  }));
+  items.sort((a, b) => b.lastActivityAt - a.lastActivityAt || b.id.localeCompare(a.id));
+  return items;
+}
+
+function touchConversationActivity(convId, timestamp) {
+  const conv = conversations.find(c => c.id === convId);
+  const time = Number(timestamp);
+  if (!conv || !Number.isFinite(time) || time <= (conv.lastActivityAt || 0)) return;
+  conv.lastActivityAt = time;
+  conversations.sort((a, b) => b.lastActivityAt - a.lastActivityAt || b.id.localeCompare(a.id));
+  renderConversationList();
+}
+
 async function loadMessages(isSilent = false) {
   const convList = $('#conversations-list');
   if (!isSilent && convList.children.length === 0) convList.innerHTML = '<div class="loader"></div>';
@@ -1762,7 +1798,7 @@ async function loadMessages(isSilent = false) {
     if (activeFromMemory && !fetched.some(c => c.id === activeConvId)) {
       fetched.unshift(activeFromMemory);
     }
-    conversations = fetched;
+    conversations = await sortConversationsByActivity(fetched);
     renderConversationList();
 
     if (!activeConvId) {
@@ -1776,8 +1812,7 @@ async function loadMessages(isSilent = false) {
       if (activeConvId && conversations.some(c => c.id === activeConvId)) {
         selectConversation(activeConvId);
       } else {
-        // Prioritize open/in-progress conversations over completed ones
-        const defaultConv = conversations.find(c => c.application?.helpRequest?.status !== 'COMPLETED') || conversations[0];
+        const defaultConv = conversations[0];
         selectConversation(defaultConv.id);
       }
     } else {
@@ -1792,7 +1827,7 @@ async function loadMessages(isSilent = false) {
 
 function renderConversationList() {
   const convList = $('#conversations-list');
-  const digest = conversations.map(c => c.id).join(',') + '|' + activeConvId;
+  const digest = conversations.map(c => `${c.id}:${c.lastActivityAt || 0}:${c.application?.status}:${c.application?.helpRequest?.status}`).join(',') + '|' + activeConvId;
   if (digest === lastConversationsDigest && convList.children.length > 0) return;
   lastConversationsDigest = digest;
 
@@ -1804,7 +1839,9 @@ function renderConversationList() {
   conversations.forEach(conv => {
     const isPoster = conv.poster?.id === userData?.id;
     const otherName = isPoster ? conv.applicant?.fullName : conv.poster?.fullName;
-    const isCompleted = conv.application?.helpRequest?.status === 'COMPLETED';
+    const isCompleted = isConversationCompleted(conv);
+    const activityDate = conv.lastActivityAt ? new Date(conv.lastActivityAt) : null;
+    const dateText = activityDate ? activityDate.toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) : '';
     const item = document.createElement('div');
     item.className = `conversation-item ${conv.id === activeConvId ? 'active' : ''}`;
     item.innerHTML = `
@@ -1814,7 +1851,10 @@ function renderConversationList() {
           <strong class="truncate block">${otherName || 'User'}</strong>
           ${isCompleted ? '<span class="badge badge-approved" style="font-size: 9px; padding: 1px 5px; flex-shrink: 0;">Completed</span>' : ''}
         </div>
-        <small class="text-muted truncate block">${conv.application?.helpRequest?.title || ''}</small>
+        <div class="conversation-meta">
+          <small class="text-muted truncate block">${conv.application?.helpRequest?.title || ''}</small>
+          <time class="text-muted" datetime="${activityDate ? activityDate.toISOString() : ''}" title="${activityDate ? activityDate.toLocaleString() : ''}">${dateText}</time>
+        </div>
       </div>
     `;
     item.addEventListener('click', (e) => { e.preventDefault(); selectConversation(conv.id); });
@@ -2037,6 +2077,7 @@ async function selectConversation(convId) {
         const msg = snapshot.val();
         msg.id = snapshot.key;
         renderIncomingMessages([msg]);
+        touchConversationActivity(convId, msg.timestamp);
       });
     } catch (err) {
       console.warn('Subscription fallback to SERVER_ONLY polling:', err);
@@ -2111,11 +2152,13 @@ function setupChat() {
 
     sendBtn.disabled = true;
     try {
-      await push(ref(db, `conversations/${activeConvId}/messages`), {
+      const sendingConvId = activeConvId;
+      await push(ref(db, `conversations/${sendingConvId}/messages`), {
         senderId: userData.id,
         content: content,
         timestamp: serverTimestamp()
       });
+      touchConversationActivity(sendingConvId, Date.now());
     } catch (err) {
       showToast('Error sending message: ' + err.message, 'error');
       tempDiv.remove();
@@ -2147,12 +2190,18 @@ async function loadTransactions() {
   const tbody = $('#transactions-tbody');
   tbody.innerHTML = '<tr><td colspan="4" class="text-center"><div class="loader"></div></td></tr>';
   try {
-    const [appRes, myPostRes] = await Promise.all([
+    const [appRes, myPostRes, posterAppRes] = await Promise.all([
       listApplicationsByApplicant(dc, { userId: userData.id }, SERVER_ONLY),
-      listMyHelpRequestsWithApplications(dc, { userId: userData.id }, SERVER_ONLY)
+      listMyHelpRequestsWithApplications(dc, { userId: userData.id }, SERVER_ONLY),
+      listApplicationsForMyRequests(dc, { userId: userData.id }, SERVER_ONLY)
     ]);
     const apps = appRes.data.applications || [];
     const myPosts = myPostRes.data.helpRequests || [];
+    const posterApplicationDates = new Map((posterAppRes.data.applications || []).map(a => [a.id, a.createdAt]));
+    const submittedDate = (app) => {
+      const value = app.createdAt || posterApplicationDates.get(app.id);
+      return value ? new Date(value).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }) : 'Unknown';
+    };
 
     const txList = [];
 
@@ -2170,7 +2219,7 @@ async function loadTransactions() {
           amount: Number(a.priceOffer) || Number(a.helpRequest?.budget) || 0,
           status: a.status,
           type: 'PAYMENT',
-          date: a.createdAt ? new Date(a.createdAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }) : 'Recently'
+          date: submittedDate(a)
         });
       } else {
         // Applicant applied to a freelance request -> USER IS FREELANCER (Earning)
@@ -2181,7 +2230,7 @@ async function loadTransactions() {
           amount: Number(a.priceOffer) || 0,
           status: a.status,
           type: 'EARNING',
-          date: a.createdAt ? new Date(a.createdAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }) : 'Recently'
+          date: submittedDate(a)
         });
       }
     });
@@ -2201,7 +2250,7 @@ async function loadTransactions() {
             amount: Number(a.priceOffer) || Number(p.budget) || 0,
             status: a.status,
             type: 'EARNING',
-            date: a.createdAt ? new Date(a.createdAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }) : 'Recently'
+            date: submittedDate(a)
           });
         } else {
           // Poster requested a freelance job -> USER IS CLIENT (Paying)
@@ -2212,7 +2261,7 @@ async function loadTransactions() {
             amount: Number(a.priceOffer) || Number(p.budget) || 0,
             status: a.status,
             type: 'PAYMENT',
-            date: a.createdAt ? new Date(a.createdAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }) : 'Recently'
+            date: submittedDate(a)
           });
         }
       });
@@ -2227,8 +2276,8 @@ async function loadTransactions() {
     const completedPayments = txList.filter(t => t.type === 'PAYMENT' && t.status === 'COMPLETED').reduce((sum, t) => sum + t.amount, 0);
     const pendingPayments = txList.filter(t => t.type === 'PAYMENT' && (t.status === 'PENDING' || t.status === 'APPROVED')).reduce((sum, t) => sum + t.amount, 0);
 
-    const totalEarned = completedEarnings + pendingEarnings;
-    const totalSpent = completedPayments + pendingPayments;
+    const totalEarned = completedEarnings;
+    const totalSpent = completedPayments;
 
     // Update stat cards
     const totalEl = $('#trans-total-earnings');

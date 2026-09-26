@@ -1275,6 +1275,22 @@ body.light-theme .success-message {
     border-left: 3px solid var(--primary-purple);
 }
 
+.conversation-meta {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+}
+
+.conversation-meta small {
+    min-width: 0;
+}
+
+.conversation-meta time {
+    flex-shrink: 0;
+    font-size: 0.7rem;
+}
+
 /* Dedicated flex container ensuring input is pinned to bottom */
 .chat-panel {
     display: flex;
