@@ -21,6 +21,14 @@ import {
 import { summarizeDashboard } from './dashboard-stats.js';
 import { renderDashboard } from './dashboard-view.js';
 import { setupWorkspace } from './workspace.js';
+import {
+  logUserAction,
+  getUserLogs,
+  clearUserLogs,
+  exportLogsAsJson,
+  seedInitialLogsIfEmpty
+} from './activity-logger.js';
+import { renderLogsSection } from './logs-view.js';
 
 // -- Firebase Config  ------------------------------------------------------------
 const firebaseConfig = {
@@ -57,9 +65,10 @@ let currentUser = null;
 let googleUser = null;
 
 
+const devPreview = new URLSearchParams(window.location.search).get('dev_preview');
 let userData = null;
 let workspace = null;
-const VALID_SECTIONS = ['dashboard', 'services', 'mentoring', 'applications', 'messages', 'transactions', 'ratings', 'profile', 'admin'];
+const VALID_SECTIONS = ['dashboard', 'services', 'mentoring', 'applications', 'messages', 'transactions', 'logs', 'ratings', 'profile', 'admin'];
 const initialPath = window.location.pathname.replace(/^\/|\/$/g, '');
 let activeSection = VALID_SECTIONS.includes(initialPath) ? initialPath : (sessionStorage.getItem('active_section') || 'dashboard');
 if (VALID_SECTIONS.includes(initialPath)) {
@@ -407,6 +416,7 @@ function navigateTo(section, pushState = true) {
   else if (section === 'applications') loadApplications();
   else if (section === 'messages') loadMessages();
   else if (section === 'transactions') loadTransactions();
+  else if (section === 'logs') loadActivityLogs();
   else if (section === 'ratings') loadRatings();
   else if (section === 'profile') loadProfile();
   else if (section === 'admin') loadAdmin();
@@ -511,7 +521,10 @@ function clearUserSessionDOM() {
   }
 }
 
+
+
 onAuthStateChanged(auth, async (user) => {
+  if (!user && devPreview) return;
   if (user) {
     if (userData && userData.id !== user.uid) {
       clearUserSessionDOM();
@@ -1075,6 +1088,10 @@ function setServicesTab(tab) {
 
 async function loadServices(isSilent = false) {
   const grid = $('#requests-grid');
+  if (devPreview && allRequests.length > 0) {
+    renderServices(allRequests);
+    return;
+  }
   if (!isSilent) grid.innerHTML = '<div class="loader"></div>';
   try {
     const [reqRes, appRes] = await Promise.all([
@@ -1415,6 +1432,7 @@ function renderServices(requests) {
           } catch (err) {}
         }
         showToast(`Deleted ${itemName}.`);
+        logUserAction(isOffer ? 'Deleted Service Offer' : 'Deleted Service Request', `Removed ${itemName} "${r.title || ''}"`, 'Services', 'info');
         loadServices();
         loadDashboard(true);
         if (activeSection === 'applications') loadApplications();
@@ -1436,6 +1454,7 @@ function renderServices(requests) {
           }
         }
         showToast(`Cancelled ${itemName}.`);
+        logUserAction(isOffer ? 'Cancelled Order Request' : 'Cancelled Application', `Withdrew ${itemName}`, 'Applications', 'info');
         loadServices();
         loadDashboard(true);
         if (activeSection === 'applications') loadApplications();
@@ -1528,6 +1547,37 @@ function setupServiceFilters() {
 
   const primarySearch = $('#marketplace-search-primary');
   const clearSearchBtn = $('#btn-search-clear');
+  const filterDrawer = $('#marketplace-filter-drawer');
+  const toggleFiltersBtn = $('#btn-toggle-filters');
+  const filterActiveBadge = $('#filter-active-count');
+
+  function updateFilterBadge() {
+    let count = 0;
+    if (requestFilters.category && requestFilters.category.trim()) count++;
+    if (requestFilters.sort && requestFilters.sort !== 'newest') count++;
+    if (requestFilters.maxPrice && requestFilters.maxPrice !== Infinity) count++;
+
+    if (filterActiveBadge) {
+      if (count > 0) {
+        filterActiveBadge.textContent = `(${count})`;
+        filterActiveBadge.classList.remove('hidden');
+        toggleFiltersBtn?.classList.add('has-active');
+      } else {
+        filterActiveBadge.classList.add('hidden');
+        toggleFiltersBtn?.classList.remove('has-active');
+      }
+    }
+  }
+
+  toggleFiltersBtn?.addEventListener('click', (e) => {
+    e.preventDefault();
+    if (filterDrawer) {
+      const isHidden = filterDrawer.classList.contains('hidden');
+      filterDrawer.classList.toggle('hidden', !isHidden);
+      toggleFiltersBtn.classList.toggle('active', isHidden);
+      toggleFiltersBtn.setAttribute('aria-expanded', isHidden ? 'true' : 'false');
+    }
+  });
 
   primarySearch?.addEventListener('input', (e) => {
     requestFilters.q = e.target.value;
@@ -1548,16 +1598,19 @@ function setupServiceFilters() {
 
   $('#filter-category')?.addEventListener('input', (e) => {
     requestFilters.category = e.target.value;
+    updateFilterBadge();
     renderServices(allRequests);
   });
 
   $('#filter-sort')?.addEventListener('change', (e) => {
     requestFilters.sort = e.target.value;
+    updateFilterBadge();
     renderServices(allRequests);
   });
 
   $('#filter-budget')?.addEventListener('input', (e) => {
     requestFilters.maxPrice = e.target.value ? Number(e.target.value) : Infinity;
+    updateFilterBadge();
     renderServices(allRequests);
   });
 
@@ -1569,7 +1622,9 @@ function setupServiceFilters() {
     if ($('#filter-category')) $('#filter-category').value = '';
     if ($('#filter-sort')) $('#filter-sort').value = 'newest';
     if ($('#filter-budget')) $('#filter-budget').value = '';
+    updateFilterBadge();
     renderServices(allRequests);
+    logUserAction('Reset Marketplace Filters', 'Cleared active search filters and keywords', 'Search', 'info');
   });
 }
 
@@ -1735,6 +1790,7 @@ function setupNewRequestDialog() {
         }
 
         showToast(isOffer ? 'Service offer updated!' : 'Service request updated!');
+        logUserAction(isOffer ? 'Updated Service Offer' : 'Updated Service Request', `"${title}" · Rate: ₱${Number(budget).toLocaleString()} · ${category}`, 'Services', 'info');
         editingListing = null;
         $('#dialog-new-request').close();
         e.target.reset();
@@ -1763,6 +1819,7 @@ function setupNewRequestDialog() {
         deadline: deadline
       });
       showToast(isOffer ? 'Service offer published! It will stay active for ongoing orders.' : 'Service request published successfully!');
+      logUserAction(isOffer ? 'Published Service Offer' : 'Published Service Request', `"${title}" · Rate: ₱${Number(budget).toLocaleString()} · ${category}`, 'Services', 'success');
       $('#dialog-new-request').close();
       e.target.reset();
       setServicesTab(isOffer ? 'offers' : 'requests');
@@ -1823,6 +1880,7 @@ function setupApplyDialog() {
         message: $('#apply-message').value.trim()
       });
       showToast(isOffer ? `Order request sent! Proposed budget: ${peso(amount)}` : `Application sent! Proposed rate: ${peso(amount)}`);
+      logUserAction(isOffer ? 'Placed Service Order' : 'Submitted Proposal', `Proposed rate: ${peso(amount)} for "${applyingRequest?.title || 'Listing'}"`, 'Applications', 'pending');
       $('#dialog-apply').close();
       loadServices();
       loadDashboard(true);
@@ -2145,6 +2203,7 @@ async function handleApprove(application, job) {
       }
     }
     showToast(isOffer ? 'Order accepted! Chat created.' : 'Application approved! Chat created.');
+    logUserAction(isOffer ? 'Accepted Customer Order' : 'Approved Student Application', `Order active for messaging and delivery`, 'Applications', 'success');
     navigateTo('messages');
   } catch (err) {
     showToast('Error: ' + err.message, 'error');
@@ -2155,6 +2214,7 @@ async function handleReject(application) {
   try {
     await updateApplicationStatus(dc, { id: application.id, status: 'REJECTED' });
     showToast('Application rejected.');
+    logUserAction('Declined Proposal', 'Turned down candidate application', 'Applications', 'rejected');
     loadApplications();
   } catch (err) {
     showToast('Error: ' + err.message, 'error');
@@ -2941,6 +3001,57 @@ function setupTransactionTabs() {
       btn.classList.add('active');
       renderTransactionsTable(btn.dataset.filter);
     });
+  });
+}
+
+// -- Activity Logs & Audit Trail ------------------------------------------------------------
+let activeLogsCategory = 'all';
+let logsSearchQuery = '';
+
+function loadActivityLogs() {
+  const container = $('#logs-container');
+  if (!container) return;
+
+  const uid = currentUser?.uid || 'guest';
+  const appsList = Array.from(userApplicationsByRequestId?.values() || []);
+  seedInitialLogsIfEmpty(uid, userData, allRequests, appsList);
+  const logs = getUserLogs(uid);
+
+  container.innerHTML = renderLogsSection(logs, activeLogsCategory, logsSearchQuery);
+  attachLogsEvents();
+}
+
+function attachLogsEvents() {
+  const searchInput = $('#logs-search-input');
+  searchInput?.addEventListener('input', (e) => {
+    logsSearchQuery = e.target.value;
+    loadActivityLogs();
+  });
+
+  $('#btn-clear-logs-search')?.addEventListener('click', () => {
+    logsSearchQuery = '';
+    loadActivityLogs();
+  });
+
+  $$('.logs-pill-btn[data-log-cat]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      activeLogsCategory = btn.dataset.logCat;
+      loadActivityLogs();
+    });
+  });
+
+  $('#btn-export-logs')?.addEventListener('click', () => {
+    const uid = currentUser?.uid || 'guest';
+    exportLogsAsJson(uid, userData?.fullName || 'student');
+    showToast('Activity log exported successfully.', 'success');
+  });
+
+  $('#btn-clear-logs')?.addEventListener('click', () => {
+    if (confirm('Are you sure you want to clear your local activity history?')) {
+      clearUserLogs(currentUser?.uid);
+      loadActivityLogs();
+      showToast('Activity logs cleared.', 'info');
+    }
   });
 }
 
@@ -4344,6 +4455,27 @@ document.addEventListener('DOMContentLoaded', () => {
     e.preventDefault();
     navigateTo('profile');
   });
+
+  if (devPreview) {
+    currentUser = { uid: 'dev_student_1', email: 'dev.student@university.edu', displayName: 'Charles B.' };
+    userData = {
+      id: 'dev_student_1',
+      fullName: 'Charles B.',
+      studentId: '2023-10482',
+      email: 'dev.student@university.edu',
+      facultyReference: 'Engr. Liza Fernandez',
+      verificationStatus: 'verified',
+      role: 'Offer My Skills'
+    };
+    allRequests = [
+      { id: 'req_1', title: '3D Printing of Enclosure Case (ABS/PLA)', category: '3D Design', budget: 450, type: 'OFFER', tags: ['STANDING_OFFER'], requester: { fullName: 'Charles B.' }, createdAt: new Date(Date.now() - 3600000*24).toISOString() },
+      { id: 'req_2', title: 'Circuit Schematic & PCB Layout Review', category: 'PCB & Hardware Design', budget: 1200, type: 'OFFER', tags: ['STANDING_OFFER'], requester: { fullName: 'Engr. Noel V.' }, createdAt: new Date(Date.now() - 3600000*48).toISOString() },
+      { id: 'req_3', title: 'Need Arduino Firmware for Water Monitoring IoT', category: 'Embedded Systems', budget: 2500, type: 'REQUEST', requester: { fullName: 'Maria Santos' }, createdAt: new Date(Date.now() - 3600000*12).toISOString() },
+      { id: 'req_4', title: 'Laser Cutting Acrylic Chassis Plates', category: 'CAD & 3D Modeling', budget: 650, type: 'OFFER', tags: ['STANDING_OFFER'], requester: { fullName: 'Tech Lab Guild' }, createdAt: new Date(Date.now() - 3600000*72).toISOString() }
+    ];
+    showApp();
+    navigateTo(devPreview);
+  }
 });
 
 

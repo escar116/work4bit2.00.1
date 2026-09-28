@@ -435,6 +435,17 @@
                     </svg>
                     <span class="nav-btn-label">Transactions</span>
                 </button>
+                <button type="button" class="nav-btn" data-target="logs" title="Activity Logs">
+                    <svg class="nav-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                        stroke-width="2">
+                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                        <polyline points="14 2 14 8 20 8"></polyline>
+                        <line x1="16" y1="13" x2="8" y2="13"></line>
+                        <line x1="16" y1="17" x2="8" y2="17"></line>
+                        <polyline points="10 9 9 9 8 9"></polyline>
+                    </svg>
+                    <span class="nav-btn-label">Logs</span>
+                </button>
                 <button type="button" class="nav-btn" data-target="profile" title="Profile">
                     <svg class="nav-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
                         stroke-width="2">
@@ -571,118 +582,134 @@
                         </div>
                     </div>
 
-                    <div class="requests-layout">
-                        <!-- Filter Sidebar Panel -->
-                        <aside class="filter-panel">
-                            <h3 class="filter-heading mb-3">Filters</h3>
-
-                            <div class="form-group">
-                                <label class="form-label" for="filter-category">Category</label>
-                                <input list="filter-category-options" id="filter-category" class="form-control" placeholder="All Categories & Skills">
-<datalist id="filter-category-options">
-                                    <option value="3D Design">3D Design</option>
-                                    <option value="AI & Data">AI & Data</option>
-                                    <option value="Altium Designer">Altium Designer</option>
-                                    <option value="App Development">App Development</option>
-                                    <option value="Arduino IDE">Arduino IDE</option>
-                                    <option value="AutoCAD">AutoCAD</option>
-                                    <option value="Backend Development">Backend Development</option>
-                                    <option value="Blender">Blender</option>
-                                    <option value="C">C</option>
-                                    <option value="C#">C#</option>
-                                    <option value="C++">C++</option>
-                                    <option value="CAD & 3D Modeling">CAD & 3D Modeling</option>
-                                    <option value="Calculus">Calculus</option>
-                                    <option value="Canva">Canva</option>
-                                    <option value="Chemistry">Chemistry</option>
-                                    <option value="CSS">CSS</option>
-                                    <option value="Data Analysis">Data Analysis</option>
-                                    <option value="Docker">Docker</option>
-                                    <option value="Electronics & Circuit Design">Electronics & Circuit Design</option>
-                                    <option value="Embedded Systems">Embedded Systems</option>
-                                    <option value="Figma">Figma</option>
-                                    <option value="Flutter">Flutter</option>
-                                    <option value="Frontend Development">Frontend Development</option>
-                                    <option value="Full Stack Development">Full Stack Development</option>
-                                    <option value="Fusion 360">Fusion 360</option>
-                                    <option value="Git">Git</option>
-                                    <option value="Go">Go</option>
-                                    <option value="Graphic Design">Graphic Design</option>
-                                    <option value="History">History</option>
-                                    <option value="HTML">HTML</option>
-                                    <option value="IoT">IoT</option>
-                                    <option value="Java">Java</option>
-                                    <option value="JavaScript">JavaScript</option>
-                                    <option value="KiCad">KiCad</option>
-                                    <option value="Logic">Logic</option>
-                                    <option value="Microsoft Excel">Microsoft Excel</option>
-                                    <option value="Microsoft PowerPoint">Microsoft PowerPoint</option>
-                                    <option value="Multisim">Multisim</option>
-                                    <option value="Node.js">Node.js</option>
-                                    <option value="PCB & Hardware Design">PCB & Hardware Design</option>
-                                    <option value="Photoshop">Photoshop</option>
-                                    <option value="PHP">PHP</option>
-                                    <option value="Programming">Programming</option>
-                                    <option value="Proteus">Proteus</option>
-                                    <option value="Python">Python</option>
-                                    <option value="Quality Assurance">Quality Assurance</option>
-                                    <option value="Raspberry Pi">Raspberry Pi</option>
-                                    <option value="React">React</option>
-                                    <option value="React Native">React Native</option>
-                                    <option value="Rust">Rust</option>
-                                    <option value="Software Development">Software Development</option>
-                                    <option value="Soldering & Prototyping">Soldering & Prototyping</option>
-                                    <option value="SolidWorks">SolidWorks</option>
-                                    <option value="SQL">SQL</option>
-                                    <option value="Technical Documentation">Technical Documentation</option>
-                                    <option value="Terminal">Terminal</option>
-                                    <option value="TypeScript">TypeScript</option>
-                                    <option value="UI/UX Design">UI/UX Design</option>
-                                    <option value="Webpage Development">Webpage Development</option>
-                                    <option value="Other">Other</option>
-                                </datalist>
+                    <!-- Combined Search & Filter Bar (Matching media_1790608311299.png) -->
+                    <div class="marketplace-search-combined-wrap mb-4">
+                        <div class="marketplace-search-combined-bar">
+                            <!-- Left: Search input section -->
+                            <div class="search-input-section">
+                                <svg class="search-bar-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <circle cx="11" cy="11" r="8"></circle>
+                                    <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                                </svg>
+                                <input type="text" id="marketplace-search-primary" class="marketplace-search-input" placeholder="Search posts">
+                                <button type="button" id="btn-search-clear" class="marketplace-search-clear hidden" title="Clear search">✕</button>
                             </div>
 
-                            <div class="form-group">
-                                <label class="form-label" for="filter-sort">Sort By</label>
-                                <select id="filter-sort" class="form-control">
-                                    <option value="newest">Newest First</option>
-                                    <option value="oldest">Oldest First</option>
-                                    <option value="budget-high">Budget: High to Low</option>
-                                    <option value="budget-low">Budget: Low to High</option>
-                                </select>
-                            </div>
+                            <!-- Subtle Vertical Divider -->
+                            <div class="search-bar-divider" aria-hidden="true"></div>
 
-                            <div class="form-group">
-                                <label class="form-label mb-2" for="filter-budget">Max Budget</label>
-                                <div style="position: relative;">
-                                    <span style="position: absolute; left: 12px; top: 50%; transform: translateY(-50%); font-weight: 600; color: var(--text-muted);">₱</span>
-                                    <input type="number" id="filter-budget" class="form-control" placeholder="No limit" min="0" style="padding-left: 28px;">
-                                </div>
-                            </div>
-
-
-                        </aside>
-
-                        <!-- Request Cards Grid with Prominent Search Bar -->
-                        <div style="flex-grow: 1; min-width: 0;">
-                            <!-- Prominent Marketplace Search Bar -->
-                            <div class="marketplace-search-bar-wrap mb-3">
-                                <div class="marketplace-search-box">
-                                    <svg class="marketplace-search-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                        <circle cx="11" cy="11" r="8"></circle>
-                                        <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                            <!-- Right: Filter section -->
+                            <div class="search-filter-section">
+                                <button type="button" id="btn-toggle-filters" class="btn-combined-filter" aria-expanded="false" title="Toggle Filters">
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                        <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon>
                                     </svg>
-                                    <input type="text" id="marketplace-search-primary" class="marketplace-search-input" placeholder="Search service offers (e.g. 3D printing, laser cutting, circuit design, repairs)...">
-                                    <button type="button" id="btn-search-clear" class="marketplace-search-clear hidden" title="Clear search">✕</button>
-                                </div>
-                            </div>
-
-                            <div id="requests-count" class="text-sm text-muted mb-3"></div>
-                            <div class="requests-grid" id="requests-grid">
-                                <div class="loader"></div>
+                                    <span class="filter-btn-text">Filters</span>
+                                    <span id="filter-active-count" class="filter-count-badge hidden">(0)</span>
+                                </button>
+                                <button type="button" id="btn-reset-filters" class="btn-combined-reset" title="Reset all filters">
+                                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                                        <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path>
+                                        <path d="M3 3v5h5"></path>
+                                    </svg>
+                                </button>
                             </div>
                         </div>
+
+                        <!-- Collapsible Filter Drawer right below the combined bar -->
+                        <div id="marketplace-filter-drawer" class="marketplace-filter-drawer hidden">
+                            <div class="filter-drawer-grid">
+                                <div class="form-group mb-0">
+                                    <label class="form-label" for="filter-category">Category or Skill</label>
+                                    <input list="filter-category-options" id="filter-category" class="form-control" placeholder="All Categories & Skills">
+                                    <datalist id="filter-category-options">
+                                        <option value="3D Design">3D Design</option>
+                                        <option value="AI & Data">AI & Data</option>
+                                        <option value="Altium Designer">Altium Designer</option>
+                                        <option value="App Development">App Development</option>
+                                        <option value="Arduino IDE">Arduino IDE</option>
+                                        <option value="AutoCAD">AutoCAD</option>
+                                        <option value="Backend Development">Backend Development</option>
+                                        <option value="Blender">Blender</option>
+                                        <option value="C">C</option>
+                                        <option value="C#">C#</option>
+                                        <option value="C++">C++</option>
+                                        <option value="CAD & 3D Modeling">CAD & 3D Modeling</option>
+                                        <option value="Calculus">Calculus</option>
+                                        <option value="Canva">Canva</option>
+                                        <option value="Chemistry">Chemistry</option>
+                                        <option value="CSS">CSS</option>
+                                        <option value="Data Analysis">Data Analysis</option>
+                                        <option value="Docker">Docker</option>
+                                        <option value="Electronics & Circuit Design">Electronics & Circuit Design</option>
+                                        <option value="Embedded Systems">Embedded Systems</option>
+                                        <option value="Figma">Figma</option>
+                                        <option value="Flutter">Flutter</option>
+                                        <option value="Frontend Development">Frontend Development</option>
+                                        <option value="Full Stack Development">Full Stack Development</option>
+                                        <option value="Fusion 360">Fusion 360</option>
+                                        <option value="Git">Git</option>
+                                        <option value="Go">Go</option>
+                                        <option value="Graphic Design">Graphic Design</option>
+                                        <option value="History">History</option>
+                                        <option value="HTML">HTML</option>
+                                        <option value="IoT">IoT</option>
+                                        <option value="Java">Java</option>
+                                        <option value="JavaScript">JavaScript</option>
+                                        <option value="KiCad">KiCad</option>
+                                        <option value="Logic">Logic</option>
+                                        <option value="Microsoft Excel">Microsoft Excel</option>
+                                        <option value="Microsoft PowerPoint">Microsoft PowerPoint</option>
+                                        <option value="Multisim">Multisim</option>
+                                        <option value="Node.js">Node.js</option>
+                                        <option value="PCB & Hardware Design">PCB & Hardware Design</option>
+                                        <option value="Photoshop">Photoshop</option>
+                                        <option value="PHP">PHP</option>
+                                        <option value="Programming">Programming</option>
+                                        <option value="Proteus">Proteus</option>
+                                        <option value="Python">Python</option>
+                                        <option value="Quality Assurance">Quality Assurance</option>
+                                        <option value="Raspberry Pi">Raspberry Pi</option>
+                                        <option value="React">React</option>
+                                        <option value="React Native">React Native</option>
+                                        <option value="Rust">Rust</option>
+                                        <option value="Software Development">Software Development</option>
+                                        <option value="Soldering & Prototyping">Soldering & Prototyping</option>
+                                        <option value="SolidWorks">SolidWorks</option>
+                                        <option value="SQL">SQL</option>
+                                        <option value="Technical Documentation">Technical Documentation</option>
+                                        <option value="Terminal">Terminal</option>
+                                        <option value="TypeScript">TypeScript</option>
+                                        <option value="UI/UX Design">UI/UX Design</option>
+                                        <option value="Webpage Development">Webpage Development</option>
+                                        <option value="Other">Other</option>
+                                    </datalist>
+                                </div>
+
+                                <div class="form-group mb-0">
+                                    <label class="form-label" for="filter-sort">Sort By</label>
+                                    <select id="filter-sort" class="form-control">
+                                        <option value="newest">Newest First</option>
+                                        <option value="oldest">Oldest First</option>
+                                        <option value="budget-high">Budget: High to Low</option>
+                                        <option value="budget-low">Budget: Low to High</option>
+                                    </select>
+                                </div>
+
+                                <div class="form-group mb-0">
+                                    <label class="form-label" for="filter-budget">Max Budget</label>
+                                    <div style="position: relative;">
+                                        <span style="position: absolute; left: 12px; top: 50%; transform: translateY(-50%); font-weight: 600; color: var(--text-muted);">₱</span>
+                                        <input type="number" id="filter-budget" class="form-control" placeholder="No limit" min="0" style="padding-left: 28px;">
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div id="requests-count" class="text-sm text-muted mb-3"></div>
+                    <div class="requests-grid" id="requests-grid">
+                        <div class="loader"></div>
                     </div>
                 </section>
 
@@ -850,6 +877,33 @@
                 </section>
 
 
+
+                <!-- ==========================================================================
+                     7b. SECTION: ACTIVITY LOGS & AUDIT TRAIL
+                     ========================================================================== -->
+                <section id="section-logs" class="content-section hidden">
+                    <div class="logs-header-wrapper mb-4">
+                        <div class="logs-header-top">
+                            <div>
+                                <h1 class="page-title">Activity Logs & Audit Trail</h1>
+                                <p class="text-muted text-sm mt-1">Real-time audit history of marketplace listings, proposals, order completions, messages, and profile updates.</p>
+                            </div>
+                            <div class="logs-header-actions">
+                                <button type="button" id="btn-export-logs" class="btn btn-outline" title="Export logs as JSON">
+                                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+                                    <span>Export Audit Log</span>
+                                </button>
+                                <button type="button" id="btn-clear-logs" class="btn btn-outline-danger" title="Clear your local action logs">
+                                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+                                    <span>Clear Logs</span>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    <div id="logs-container">
+                        <!-- Rendered dynamically by renderLogsSection in src/logs-view.js -->
+                    </div>
+                </section>
 
                 <!-- ==========================================================================
                      10. SECTION: PROFILE & PORTFOLIO
