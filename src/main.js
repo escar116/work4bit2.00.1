@@ -2815,13 +2815,8 @@ function renderIncomingMessages(messages) {
       div.dataset.msgId = msg.id;
       const timeStr = formatMessageTime(msg.timestamp);
       const attachHtml = msg.attachment ? renderAttachmentHtml(msg.attachment) : '';
-      div.innerHTML = `
-        <div class="message-bubble">
-          ${attachHtml}
-          ${msg.content ? `<div>${escapeHtml(msg.content)}</div>` : ''}
-        </div>
-        ${timeStr ? `<time class="message-time">${timeStr}</time>` : ''}
-      `;
+      const content = typeof msg.content === 'string' ? msg.content.trim() : '';
+      div.innerHTML = `<div class="message-bubble">${attachHtml}${content ? `<div class="message-text">${escapeHtml(content)}</div>` : ''}</div>${timeStr ? `<time class="message-time">${timeStr}</time>` : ''}`;
       msgArea.appendChild(div);
     }
   });
@@ -2909,13 +2904,7 @@ function setupChat() {
     tempDiv.dataset.temp = 'true';
     const attachHtml = attachmentToSend ? renderAttachmentHtml(attachmentToSend) : '';
     const timeStr = formatMessageTime(Date.now());
-    tempDiv.innerHTML = `
-      <div class="message-bubble">
-        ${attachHtml}
-        ${content ? `<div>${escapeHtml(content)}</div>` : ''}
-      </div>
-      <time class="message-time">${timeStr}</time>
-    `;
+    tempDiv.innerHTML = `<div class="message-bubble">${attachHtml}${content ? `<div class="message-text">${escapeHtml(content)}</div>` : ''}</div><time class="message-time">${timeStr}</time>`;
     msgArea.appendChild(tempDiv);
     msgArea.scrollTop = msgArea.scrollHeight;
 

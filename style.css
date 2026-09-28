@@ -1702,12 +1702,18 @@ body.light-theme .success-message {
 }
 
 .message-bubble {
+    display: block;
     width: fit-content;
     max-width: 100%;
     min-width: 0;
     padding: 0.8rem 1.15rem;
     font-size: 0.9rem;
     line-height: 1.5;
+    white-space: normal;
+    overflow-wrap: anywhere;
+}
+
+.message-text {
     white-space: pre-wrap;
     overflow-wrap: anywhere;
 }
@@ -2302,6 +2308,14 @@ dialog::backdrop {
         width: 240px;
     }
     .sidebar-nav.sidebar-open { left: 0; }
+    .sidebar-nav .notification-dropdown {
+        position: fixed;
+        top: 5rem;
+        left: 8px;
+        right: 8px;
+        width: auto;
+        max-width: none;
+    }
     .main-content { margin-left: 0 !important; padding: 1.5rem; }
     .mobile-overlay { display: block; }
     .mobile-close-btn, .mobile-only, .mobile-top-bar { display: flex !important; }
@@ -3069,6 +3083,12 @@ dialog#dialog-certificate.modal {
     box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
     z-index: 1000;
     overflow: hidden;
+}
+
+.sidebar-nav .notification-dropdown {
+    left: 0;
+    right: auto;
+    max-width: min(320px, calc(100vw - 16px));
 }
 
 .notification-dropdown-header {
