@@ -2819,8 +2819,8 @@ function renderIncomingMessages(messages) {
         <div class="message-bubble">
           ${attachHtml}
           ${msg.content ? `<div>${escapeHtml(msg.content)}</div>` : ''}
-          ${timeStr ? `<div class="message-time">${timeStr}</div>` : ''}
         </div>
+        ${timeStr ? `<time class="message-time">${timeStr}</time>` : ''}
       `;
       msgArea.appendChild(div);
     }
@@ -2913,8 +2913,8 @@ function setupChat() {
       <div class="message-bubble">
         ${attachHtml}
         ${content ? `<div>${escapeHtml(content)}</div>` : ''}
-        <div class="message-time">${timeStr}</div>
       </div>
+      <time class="message-time">${timeStr}</time>
     `;
     msgArea.appendChild(tempDiv);
     msgArea.scrollTop = msgArea.scrollHeight;
