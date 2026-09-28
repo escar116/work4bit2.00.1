@@ -11,10 +11,10 @@ const validDate = value => {
 };
 
 function summarizeGroup(records, listings, isOffer, now, mentoring) {
-  const selected = records.filter(row => row.mentoring === mentoring);
+  const selected = records.filter(row => mentoring === null || row.mentoring === mentoring);
   const completed = selected.filter(row => row.status === 'COMPLETED');
   const total = predicate => completed.filter(predicate).reduce((sum, row) => sum + (row.amount ?? 0), 0);
-  const relevantListings = listings.filter(post => isMentoring(post) === mentoring);
+  const relevantListings = listings.filter(post => mentoring === null || isMentoring(post) === mentoring);
   const openListings = relevantListings.filter(post => String(post.status || 'OPEN').toUpperCase() === 'OPEN' && (isOffer(post) || !post.deadline || new Date(`${post.deadline}T23:59:59`) >= now));
   const statuses = ['PENDING', 'APPROVED', 'COMPLETED', 'REJECTED', 'CANCELLED', 'TERMINATED', ...new Set(selected.map(row => row.status))];
   const months = Array.from({ length: 6 }, (_, index) => {
@@ -35,6 +35,7 @@ function summarizeGroup(records, listings, isOffer, now, mentoring) {
     completed: completed.length,
     active,
     pending,
+    pendingReceived: selected.filter(row => row.status === 'PENDING' && row.side === 'received').length,
     sent: selected.filter(row => row.side === 'submitted').length,
     received: selected.filter(row => row.side === 'received').length,
     total: selected.length,
@@ -83,6 +84,8 @@ export function summarizeDashboard(submitted = [], received = [], listings = [],
 
   const rows = [...records.values()];
   return {
+    all: summarizeGroup(rows, listings, isOffer, now, null),
+    updatedAt: now,
     student: summarizeGroup(rows, listings, isOffer, now, false),
     mentoring: summarizeGroup(rows, listings, isOffer, now, true),
     totalApplications: rows.length,

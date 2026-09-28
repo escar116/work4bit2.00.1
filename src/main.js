@@ -892,17 +892,18 @@ function handleWorkspaceSearch(term) {
 }
 
 // -- Dashboard (Dynamic Live Statistical Data)  ------------------------------------------------------------
+let dashboardScope = 'all';
+let dashboardPeriod = 6;
 async function loadDashboard(isSilent = false) {
   const welcomeEl = $('#dashboard-welcome');
   if (welcomeEl) {
-    const firstName = (userData?.fullName || 'Student').split(' ')[0];
-    welcomeEl.textContent = `Welcome back, ${firstName}!`;
+    welcomeEl.textContent = 'Dashboard';
   }
 
   const container = $('#dashboard-analytics-content');
   if (!container) return;
 
-  if (!isSilent && !container.querySelector('.analytics-metrics')) {
+  if (!isSilent && !container.querySelector('.db-board')) {
     container.innerHTML = `
       <div class="text-center text-muted" style="padding: 3rem 0;">
         <div class="loader" style="margin: 0 auto 1rem;"></div>
@@ -947,7 +948,23 @@ async function loadDashboard(isSilent = false) {
     });
 
     const stats = summarizeDashboard(submitted, received, listings, isJobOffer);
-    container.innerHTML = renderDashboard(stats, reviewResult);
+    const paintDashboard = () => {
+      container.innerHTML = renderDashboard(stats, reviewResult, dashboardScope, dashboardPeriod, (userData?.fullName || 'Student').split(' ')[0]);
+      container.querySelectorAll('[data-dashboard-scope], [data-dashboard-months]').forEach(button => {
+        button.addEventListener('click', () => {
+          const scope = button.dataset.dashboardScope;
+          if (scope) dashboardScope = scope;
+          else dashboardPeriod = Number(button.dataset.dashboardMonths);
+          paintDashboard();
+          container.querySelector(scope ? `[data-dashboard-scope="${scope}"]` : `[data-dashboard-months="${dashboardPeriod}"]`)?.focus({ preventScroll: true });
+        });
+      });
+      container.querySelector('a[href="/applications"]')?.addEventListener('click', event => {
+        event.preventDefault();
+        navigateTo('applications');
+      });
+    };
+    paintDashboard();
 
     if (workspace) {
       workspace.updateUser();

@@ -1,73 +1,52 @@
 const money = value => new Intl.NumberFormat('en-PH', { style: 'currency', currency: 'PHP', maximumFractionDigits: 2 }).format(value);
-const escape = value => String(value).replace(/[&<>"']/g, character => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[character]);
-const metric = (label, value, caption, tone = '') => `<article class="analytics-metric ${tone}"><p>${label}</p><strong>${value}</strong><small>${caption}</small></article>`;
+const esc = value => String(value).replace(/[&<>"']/g, character => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[character]);
+const colors = ['#6554e8', '#23a6a0', '#e6aa36', '#a1a9bd', '#df7393', '#739deb', '#8792a5'];
+const metric = (label, value, note, icon) => `<article class="db-kpi"><span class="db-icon" aria-hidden="true">${icon}</span><strong>${value}</strong><h3>${label}</h3><p>${note}</p></article>`;
+const heading = (title, note) => `<div><h3>${title}</h3><p class="db-note">${note}</p></div>`;
 
-function activityChart(stats, kind) {
-  const maximum = Math.max(1, ...stats.months.flatMap(month => [month.sent, month.received]));
-  const label = kind === 'mentoring' ? 'Mentoring applications' : 'Student service applications';
-  return `<section class="analytics-panel analytics-activity"><div class="analytics-panel-heading"><div><h3>Engagement activity</h3><p>Applications by month · last six calendar months</p></div><div class="chart-legend"><span>● Sent</span><span>● Received</span></div></div>
-    <div class="activity-chart" role="img" aria-label="${label}. ${stats.months.map(month => `${month.label}: ${month.sent} sent, ${month.received} received`).join('. ')}">
-      ${stats.months.map(month => `<div class="activity-month"><div class="activity-bars"><div class="activity-column"><span>${month.sent}</span><i style="height:${month.sent / maximum * 115}px"></i></div><div class="activity-column received"><span>${month.received}</span><i style="height:${month.received / maximum * 115}px"></i></div></div><small>${escape(month.label)}</small></div>`).join('')}
-    </div><p class="analytics-note">${stats.months.every(month => !month.sent && !month.received) ? 'No application activity recorded in this period. ' : ''}${stats.unknownDates ? `${stats.unknownDates} records without dates are excluded. ` : ''}Counts applications, not payments.</p>
+function trendChart(stats, period) {
+  const months = stats.months.slice(-period);
+  const max = Math.max(4, ...months.flatMap(m => [m.sent, m.received]));
+  const ceiling = Math.ceil(max / 4) * 4;
+  const x = index => 46 + index * 628 / (months.length - 1);
+  const y = count => 206 - count / ceiling * 170;
+  const line = key => months.map((m, i) => `${x(i)},${y(m[key])}`).join(' ');
+  return `<section class="db-panel db-trend"><div class="db-panel-head">${heading('Activity trend', 'Applications sent and received · by creation month')}<div class="db-segment db-period" aria-label="Chart period">${[3, 6].map(n => `<button type="button" data-dashboard-months="${n}" aria-pressed="${period === n}">${n} months</button>`).join('')}</div></div>
+    <div class="db-legend"><span><i style="background:#6554e8"></i>Sent</span><span><i style="background:#23a6a0"></i>Received</span></div>
+    <svg class="db-line-chart" viewBox="0 0 710 244" role="img" aria-label="${esc(months.map(m => `${m.label}: ${m.sent} sent, ${m.received} received`).join('. '))}">
+      ${Array.from({length:5}, (_, i) => { const value = ceiling * i / 4; return `<line x1="46" x2="674" y1="${y(value)}" y2="${y(value)}" class="db-grid-line"/><text x="32" y="${y(value) + 4}" text-anchor="end">${value}</text>`; }).join('')}
+      <polygon points="46,206 ${line('sent')} 674,206" fill="#6554e8" opacity="0.07"/>
+      ${[['sent','#6554e8'],['received','#23a6a0']].map(([key,color]) => `<polyline points="${line(key)}" fill="none" stroke="${color}" stroke-width="2.5" stroke-linejoin="round" ${key === 'received' ? 'stroke-dasharray="6 4"' : ''}/>${months.map((m,i) => `<circle cx="${x(i)}" cy="${y(m[key])}" r="4" fill="${color}" stroke="white" stroke-width="1.5"><title>${esc(m.label)} · ${key}: ${m[key]}</title></circle>`).join('')}`).join('')}
+      ${months.map((m,i) => `<text x="${x(i)}" y="233" text-anchor="middle">${esc(m.label)}</text>`).join('')}
+    </svg><p class="db-note db-chart-foot">${months.every(m => !m.sent && !m.received) ? 'No applications in this period. ' : ''}${stats.unknownDates ? `${stats.unknownDates} undated records excluded. ` : ''}Counts applications; financial totals below use completed engagements.</p>
   </section>`;
 }
 
-function outcomesChart(stats) {
-  const parts = [
-    ['Completed', stats.outcomes.completed, 'completed'],
-    ['In progress', stats.outcomes.active, 'active'],
-    ['Awaiting decision', stats.outcomes.pending, 'pending'],
-    ['Closed', stats.outcomes.closed, 'closed'],
-  ];
-  const maximum = Math.max(1, ...parts.map(([, count]) => count));
-  return `<section class="analytics-panel"><div class="analytics-panel-heading"><div><h3>Engagement outcomes</h3><p>${stats.total} unique application${stats.total === 1 ? '' : 's'} · all time</p></div></div>
-    <div class="outcome-chart" role="img" aria-label="${parts.map(([label, count]) => `${label}: ${count}`).join('. ')}">${parts.map(([label, count, tone]) => `<div class="outcome-row"><div class="outcome-label"><span>${label}</span><strong>${count}</strong></div><div class="outcome-track"><i class="${tone}" style="width:${count / maximum * 100}%"></i></div></div>`).join('')}</div>
-    <div class="analytics-table-wrap"><table class="analytics-table"><thead><tr><th scope="col">Status</th><th scope="col">Count</th></tr></thead><tbody>${stats.statuses.map(row => `<tr><th scope="row">${escape(row.status.toLowerCase().replaceAll('_', ' '))}</th><td>${row.count}</td></tr>`).join('')}</tbody><tfoot><tr><th scope="row">Total</th><td>${stats.total}</td></tr></tfoot></table></div>
-  </section>`;
+function outcomeChart(stats) {
+  const rows = stats.statuses.filter(row => row.count > 0);
+  let start = 0;
+  const stops = rows.map((row,i) => { const end = start + row.count / stats.total * 100; const stop = `${colors[i % colors.length]} ${start}% ${end}%`; start = end; return stop; });
+  return `<section class="db-panel db-outcomes"><div class="db-panel-head">${heading('Engagement status', 'All-time application outcomes')}</div><div class="db-donut-layout"><div class="db-donut" style="background:${stops.length ? `conic-gradient(${stops.join(',')})` : 'var(--border-light, #e2e8f0)'}" role="img" aria-label="${esc(rows.length ? rows.map(r => `${r.status}: ${r.count}`).join(', ') : 'No engagements yet')}"><div><strong>${stats.total}</strong><span>engagements</span></div></div><div class="db-status-legend">${rows.length ? rows.map((row,i) => `<div><span><i style="background:${colors[i % colors.length]}"></i>${esc(row.status.toLowerCase().replaceAll('_',' '))}</span><strong>${row.count} <small>${Math.round(row.count / stats.total * 100)}%</small></strong></div>`).join('') : '<p class="db-note">Your engagement breakdown will appear here after your first application.</p>'}</div></div></section>`;
 }
 
-function section(title, description, stats, mentoring = false) {
-  const activityCaption = mentoring ? 'Mentoring requests and proposals' : 'Peer services and one-time requests';
-  return `<section class="dashboard-analytics-section ${mentoring ? 'mentoring' : 'student'}" aria-labelledby="${mentoring ? 'mentoring' : 'student'}-analytics-title">
-    <div class="analytics-section-heading"><div><span class="analytics-eyebrow">${mentoring ? 'Learning & guidance' : 'Campus marketplace'}</span><h2 id="${mentoring ? 'mentoring' : 'student'}-analytics-title">${title}</h2><p>${description}</p></div><span class="analytics-period">All-time totals · activity chart: 6 months</span></div>
-    <div class="analytics-metrics analytics-metrics-four">
-      ${metric(mentoring ? 'Mentor earnings' : 'Service earnings', money(stats.earned), 'Completed engagements')}
-      ${metric(mentoring ? 'Mentoring spend' : 'Service spend', money(stats.spent), 'Completed engagements')}
-      ${metric('Completed', stats.completed, 'Finished engagements', 'metric-positive')}
-      ${metric('In progress', stats.active, 'Accepted or ongoing', 'metric-active')}
-      ${metric(mentoring ? 'Proposals sent' : 'Requests sent', stats.sent, mentoring ? 'You asked for guidance' : 'You applied for posted help')}
-      ${metric(mentoring ? 'Proposals received' : 'Applications received', stats.received, mentoring ? 'Learners requested your help' : 'Others applied to your listings')}
-      ${metric('Awaiting decision', stats.pending, 'Pending applications')}
-      ${mentoring
-        ? metric('Mentoring interactions', stats.total, 'Requests and proposals')
-        : metric('Open listings', stats.openOffers + stats.openRequests, `${stats.openOffers} offers · ${stats.openRequests} requests`)}
-    </div>
-    ${stats.unknownAmounts ? `<p class="analytics-warning">${stats.unknownAmounts} completed ${mentoring ? 'mentoring' : 'service'} engagement${stats.unknownAmounts === 1 ? '' : 's'} has no valid amount and is excluded from financial totals.</p>` : ''}
-    <div class="analytics-grid analytics-grid-graphs">${activityChart(stats, mentoring ? 'mentoring' : 'student')}${outcomesChart(stats)}
-      ${mentoring
-        ? `<section class="analytics-panel"><div class="analytics-panel-heading"><div><h3>Your mentoring role</h3><p>How mentoring activity is split by your role</p></div></div>
-          <div class="outcome-chart" role="img" aria-label="Mentoring roles. ${stats.sent} mentorship requests sent. ${stats.received} proposals received.">
-            <div class="outcome-row"><div class="outcome-label"><span>Learner · requests sent</span><strong>${stats.sent}</strong></div><div class="outcome-track"><i style="width:${stats.total ? stats.sent / stats.total * 100 : 0}%"></i></div></div>
-            <div class="outcome-row"><div class="outcome-label"><span>Mentor · proposals received</span><strong>${stats.received}</strong></div><div class="outcome-track"><i class="active" style="width:${stats.total ? stats.received / stats.total * 100 : 0}%"></i></div></div>
-          </div><dl class="analytics-totals"><div><dt>Completed mentoring</dt><dd>${stats.completed}</dd></div><div><dt>In progress</dt><dd>${stats.active}</dd></div></dl>
-          <p class="analytics-note">Mentoring engagements are identified by the MENTORING category or legacy “Mentoring:” title.</p>
-        </section>`
-        : `<section class="analytics-panel"><div class="analytics-panel-heading"><div><h3>Service marketplace activity</h3><p>${activityCaption}</p></div></div>
-          <dl class="analytics-totals"><div><dt>Open service offers</dt><dd>${stats.openOffers}</dd></div><div><dt>Open service requests</dt><dd>${stats.openRequests}</dd></div><div><dt>All listings</dt><dd>${stats.listings}</dd></div><div><dt>Total engagements</dt><dd>${stats.total}</dd></div></dl>
-          <p class="analytics-note">Student services exclude mentoring requests. Expired requests are excluded from open counts.</p>
-        </section>`}
-    </div>
-  </section>`;
+function comparison(stats) {
+  const max = Math.max(1, stats.student.earned, stats.student.spent, stats.mentoring.earned, stats.mentoring.spent);
+  return `<section class="db-panel"><div class="db-panel-head">${heading('Student services & mentoring', 'Completed amounts · all work types · all time')}</div><div class="db-legend"><span><i style="background:#6554e8"></i>Earned</span><span><i style="background:#23a6a0"></i>Spent</span></div><div class="db-comparison">${[['Student services',stats.student],['Mentoring',stats.mentoring]].map(([label,s]) => `<div><div class="db-comparison-label"><h4>${label}</h4><span>${s.completed} completed</span></div>${[['Earned',s.earned,'#6554e8'],['Spent',s.spent,'#23a6a0']].map(([type,value,color]) => `<div class="db-money-row"><span>${type}</span><div><i style="width:${value / max * 100}%;background:${color}"></i></div><strong>${money(value)}</strong></div>`).join('')}</div>`).join('')}</div>${stats.all.unknownAmounts ? `<p class="db-note">${stats.all.unknownAmounts} completed records with missing amounts are excluded.</p>` : ''}</section>`;
 }
 
-export function renderDashboard(stats, reviewResult) {
-  const reviews = reviewResult?.status === 'fulfilled'
-    ? reviewResult.value.docs.map(doc => Number(doc.data().rating)).filter(value => Number.isFinite(value) && value >= 1 && value <= 5)
-    : null;
-  const rating = reviews?.length ? (reviews.reduce((sum, value) => sum + value, 0) / reviews.length).toFixed(1) : null;
-  return `<div class="dashboard-analytics-overview">
-    <div class="analytics-overview-heading"><div><span class="analytics-eyebrow">Your activity at a glance</span><h2>Work summary</h2><p>${stats.totalApplications} unique application${stats.totalApplications === 1 ? '' : 's'} across student services and mentoring</p></div><div class="analytics-profile-rating"><span>Overall profile rating</span><strong>${reviews === null ? 'Unavailable' : rating ? `${rating} <small>/ 5</small>` : '—'}</strong><small>${reviews === null ? 'Reviews could not be loaded' : reviews.length ? `${reviews.length} review${reviews.length === 1 ? '' : 's'} across all work types` : 'No reviews yet'}</small></div></div>
-    ${section('Student services', 'Track one-time student requests and ongoing peer service offers separately from mentoring.', stats.student)}
-    ${section('Mentoring', 'See your learner requests, mentor proposals, and completed guidance engagements.', stats.mentoring, true)}
+export function renderDashboard(stats, reviewResult, scope = 'all', period = 6, name = 'Student') {
+  const selected = stats[scope] || stats.all;
+  const reviews = reviewResult?.status === 'fulfilled' ? reviewResult.value.docs.map(doc => Number(doc.data().rating)).filter(n => Number.isFinite(n) && n >= 1 && n <= 5) : null;
+  const rating = reviews?.length ? (reviews.reduce((sum,n) => sum + n,0) / reviews.length).toFixed(1) : '—';
+  const date = stats.updatedAt.toLocaleDateString('en-PH', {weekday:'long',month:'long',day:'numeric',year:'numeric'});
+  return `<div class="db-board">
+    <div class="db-banner"><div><span class="db-eyebrow">YOUR CAMPUS ACTIVITY</span><h2>Welcome back, ${esc(name)}!</h2><p>Here's an overview of your work and learning.</p></div><div class="db-banner-date"><strong>${esc(date)}</strong><span>Updated ${esc(stats.updatedAt.toLocaleTimeString('en-PH',{hour:'2-digit',minute:'2-digit'}))}</span></div></div>
+    <div class="db-toolbar"><div class="db-segment" aria-label="Dashboard category">${[['all','Overview'],['student','Student services'],['mentoring','Mentoring']].map(([key,label]) => `<button type="button" data-dashboard-scope="${key}" aria-pressed="${scope === key}">${label}</button>`).join('')}</div><span class="db-note">All-time totals · chart period selectable</span></div>
+    <div class="db-attention ${selected.pendingReceived ? 'has-pending' : ''}"><span aria-hidden="true">${selected.pendingReceived ? '◷' : '✓'}</span><div><strong>${selected.pendingReceived ? `${selected.pendingReceived} incoming application${selected.pendingReceived === 1 ? '' : 's'} awaiting your decision` : 'No incoming applications awaiting your decision'}</strong><p>${selected.pending - selected.pendingReceived} sent applications awaiting a response · ${selected.active} engagements in progress</p></div><a href="/applications">View applications <span aria-hidden="true">→</span></a></div>
+    ${selected.unknownAmounts ? `<p class="analytics-warning">${selected.unknownAmounts} completed engagements have no valid amount and are excluded from earnings and spending.</p>` : ''}
+    <div class="db-kpis">${metric('Total earned',money(selected.earned),'Completed engagements','₱')}${metric('Total spent',money(selected.spent),'Completed engagements','↗')}${metric('Completed',selected.completed,'Finished engagements','✓')}${metric('In progress',selected.active,'Accepted applications','↔')}${metric('Pending',selected.pending,'Sent and received','◷')}</div>
+    <div class="db-main-charts">${trendChart(selected,period)}${outcomeChart(selected)}</div>
+    <div class="db-support"><article><span>Applications sent</span><strong>${selected.sent}</strong><small>${scope === 'mentoring' ? 'Requests for guidance' : 'Applications and order requests'}</small></article><article><span>Applications received</span><strong>${selected.received}</strong><small>Requests from other students</small></article><article><span>${scope === 'mentoring' ? 'Mentoring engagements' : 'Open service listings'}</span><strong>${scope === 'mentoring' ? selected.total : stats.student.openOffers + stats.student.openRequests}</strong><small>${scope === 'mentoring' ? 'As a learner or mentor' : `${stats.student.openOffers} offers · ${stats.student.openRequests} requests`}</small></article><article><span>Overall profile rating</span><strong>${reviews === null ? 'Unavailable' : rating}${reviews?.length ? ' <small>/ 5</small>' : ''}</strong><small>${reviews === null ? 'Reviews could not be loaded' : `${reviews.length} reviews across all work types`}</small></article></div>
+    <div class="db-bottom">${comparison(stats)}<section class="db-panel"><div class="db-panel-head">${heading('Feedback received','Profile reviews · all work types')}</div>${reviews === null ? '<p class="db-note">Review data is unavailable. Refresh to try again.</p>' : `<div class="db-reviews">${[5,4,3,2,1].map(star => {const count = reviews.filter(n => Math.round(n) === star).length; return `<div><span>${star} <span aria-hidden="true">★</span></span><progress max="${Math.max(1,reviews.length)}" value="${count}" aria-label="${star} stars: ${count} reviews"></progress><strong>${count}</strong></div>`;}).join('')}</div>${!reviews.length ? '<p class="db-note">No reviews yet.</p>' : ''}`}</section></div>
   </div>`;
 }
