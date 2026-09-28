@@ -817,15 +817,25 @@
                      6. SECTION: APPLICATIONS HUB
                      ========================================================================== -->
                 <section id="section-applications" class="content-section hidden">
-                    <div class="page-header">
+                    <div class="page-header mb-4">
                         <h1 class="page-title">Applications Hub</h1>
-                        
-                    </div>
+                        <p class="text-muted text-sm mt-1">Manage incoming student candidate proposals, outgoing applications, and mentoring sessions.</p>
 
-                    <div class="tabs">
-                        <button type="button" class="tab-btn active" data-tab="posted">Posted Services</button>
-                        <button type="button" class="tab-btn" data-tab="applied">My Orders & Applications</button>
-                        <button type="button" class="tab-btn" data-tab="mentoring">Mentoring Requests</button>
+                        <!-- Segmented Applications Navigation Tabs: matching Services format -->
+                        <div class="marketplace-tabs-container mt-3" id="applications-marketplace-tabs">
+                            <button type="button" class="marketplace-tab-btn active" id="tab-app-posted" data-tab="posted">
+                                <span>Posted Services</span>
+                                <span class="tab-count-pill" id="apps-posted-count">0</span>
+                            </button>
+                            <button type="button" class="marketplace-tab-btn" id="tab-app-applied" data-tab="applied">
+                                <span>My Orders & Applications</span>
+                                <span class="tab-count-pill" id="apps-applied-count">0</span>
+                            </button>
+                            <button type="button" class="marketplace-tab-btn" id="tab-app-mentoring" data-tab="mentoring">
+                                <span>Mentoring Requests</span>
+                                <span class="tab-count-pill" id="apps-mentoring-count">0</span>
+                            </button>
+                        </div>
                     </div>
 
                     <div id="posted-jobs-list" class="apps-list">

@@ -1901,7 +1901,44 @@ function setupApplyDialog() {
 // -- Applications Hub  ------------------------------------------------------------
 let appTab = 'posted';
 
+async function updateApplicationTabCounts() {
+  if (!userData?.id && !devPreview) return;
+  if (devPreview) {
+    const postedEl = $('#apps-posted-count');
+    if (postedEl) postedEl.textContent = '1';
+    const appliedEl = $('#apps-applied-count');
+    if (appliedEl) appliedEl.textContent = '1';
+    const mentoringEl = $('#apps-mentoring-count');
+    if (mentoringEl) mentoringEl.textContent = '0';
+    return;
+  }
+  try {
+    const [resJobs, resApps] = await Promise.all([
+      listMyHelpRequestsWithApplications(dc, { userId: userData.id }, SERVER_ONLY).catch(() => ({ data: { helpRequests: [] } })),
+      listApplicationsByApplicant(dc, { userId: userData.id }, SERVER_ONLY).catch(() => ({ data: { applications: [] } }))
+    ]);
+    const allJobs = resJobs?.data?.helpRequests || [];
+    const postedCount = allJobs.filter(j => {
+      const isMentoring = j.category === 'MENTORING' || (j.title && j.title.toLowerCase().startsWith('mentoring:'));
+      return (j.status === 'OPEN' || !j.status) && !isMentoring;
+    }).length;
+    const mentoringCount = allJobs.filter(j => {
+      const isMentoring = j.category === 'MENTORING' || (j.title && j.title.toLowerCase().startsWith('mentoring:'));
+      return (j.status === 'OPEN' || !j.status) && isMentoring;
+    }).length;
+    const appliedCount = (resApps?.data?.applications || []).filter(a => a.status !== 'REJECTED').length;
+
+    const postedEl = $('#apps-posted-count');
+    if (postedEl) postedEl.textContent = postedCount;
+    const appliedEl = $('#apps-applied-count');
+    if (appliedEl) appliedEl.textContent = appliedCount;
+    const mentoringEl = $('#apps-mentoring-count');
+    if (mentoringEl) mentoringEl.textContent = mentoringCount;
+  } catch (err) {}
+}
+
 async function loadApplications(isSilent = false) {
+  updateApplicationTabCounts();
   if (appTab === 'posted') await loadPostedJobs(isSilent);
   else if (appTab === 'applied') await loadMyApplications(isSilent);
   else if (appTab === 'mentoring') await loadMentoringRequests(isSilent);
@@ -1911,8 +1948,31 @@ async function loadPostedJobs(isSilent = false) {
   const container = $('#posted-jobs-list');
   if (!isSilent) container.innerHTML = '<div class="loader"></div>';
   try {
-    const res = await listMyHelpRequestsWithApplications(dc, { userId: userData.id }, SERVER_ONLY);
-    const allMyJobs = res.data.helpRequests || [];
+    const res = await listMyHelpRequestsWithApplications(dc, { userId: userData?.id }, SERVER_ONLY).catch(() => ({ data: { helpRequests: [] } }));
+    let allMyJobs = res.data?.helpRequests || [];
+
+    if (devPreview && allMyJobs.length === 0) {
+      allMyJobs = [
+        {
+          id: 'req_1',
+          title: '3D Printing of Enclosure Case (ABS/PLA)',
+          category: '3D Design',
+          budget: 450,
+          type: 'OFFER',
+          tags: ['STANDING_OFFER'],
+          status: 'OPEN',
+          applications_on_helpRequest: [
+            {
+              id: 'app_m1',
+              status: 'PENDING',
+              priceOffer: 450,
+              message: 'Need 2 enclosure cases printed in black ABS filament.',
+              applicant: { id: 'user_m4', fullName: 'Rafael Domingo', studentId: '2023-11029' }
+            }
+          ]
+        }
+      ];
+    }
 
     // Auto-restore any of the user's standing offers that were closed accidentally by the previous bug
     for (const j of allMyJobs) {
@@ -2095,8 +2155,22 @@ async function loadMyApplications(isSilent = false) {
   const container = $('#my-applications-list');
   if (!isSilent) container.innerHTML = '<div class="loader"></div>';
   try {
-    const res = await listApplicationsByApplicant(dc, { userId: userData.id }, SERVER_ONLY);
-    const apps = (res.data.applications || []).filter(a => a.status !== 'REJECTED');
+    const res = await listApplicationsByApplicant(dc, { userId: userData?.id }, SERVER_ONLY).catch(() => ({ data: { applications: [] } }));
+    let apps = (res.data?.applications || []).filter(a => a.status !== 'REJECTED');
+    if (devPreview && apps.length === 0) {
+      apps = [
+        {
+          id: 'app_prev_1',
+          status: 'PENDING',
+          priceOffer: 2500,
+          helpRequest: {
+            id: 'req_3',
+            title: 'Need Arduino Firmware for Water Monitoring IoT',
+            requester: { fullName: 'Maria Santos' }
+          }
+        }
+      ];
+    }
     container.innerHTML = '';
     if (apps.length === 0) {
       container.innerHTML = '<div class="empty-state text-center text-muted" style="padding: 2rem;">No applications or orders submitted yet.</div>';
@@ -2264,7 +2338,7 @@ window.rejectApplication = async function(appId) {
 
 function switchAppTab(targetTab) {
   appTab = targetTab;
-  $$('.tab-btn[data-tab]').forEach(b => {
+  $$('#applications-marketplace-tabs .marketplace-tab-btn, .tab-btn[data-tab]').forEach(b => {
     b.classList.toggle('active', b.dataset.tab === targetTab);
   });
 
@@ -2276,7 +2350,7 @@ function switchAppTab(targetTab) {
 }
 
 function setupApplicationTabs() {
-  $$('.tab-btn[data-tab]').forEach(btn => {
+  $$('#applications-marketplace-tabs .marketplace-tab-btn, .tab-btn[data-tab]').forEach(btn => {
     btn.addEventListener('click', (e) => {
       e.preventDefault();
       switchAppTab(btn.dataset.tab);

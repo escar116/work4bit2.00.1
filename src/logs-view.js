@@ -55,11 +55,6 @@ export function renderLogsSection(logs, activeFilter = 'all', searchQuery = '') 
     );
   }
 
-  const totalLogs = logs.length;
-  const postCount = logs.filter(l => l.action === 'post' || l.action === 'delete').length;
-  const appCount = logs.filter(l => l.action === 'apply' || l.action === 'get accepted').length;
-  const latestLogTime = logs[0] ? formatTime(logs[0].timestamp) : 'No logs yet';
-
   const actionFilters = [
     { id: 'all', label: 'All Actions' },
     { id: 'post', label: 'Post' },
@@ -75,29 +70,6 @@ export function renderLogsSection(logs, activeFilter = 'all', searchQuery = '') 
   ];
 
   return `
-    <div class="logs-stats-grid mb-4">
-      <article class="analytics-metric">
-        <p>Your Recorded Actions</p>
-        <strong>${totalLogs}</strong>
-        <small>Personal user audit activity</small>
-      </article>
-      <article class="analytics-metric">
-        <p>Posts & Listings</p>
-        <strong>${postCount}</strong>
-        <small>Service offers & requests</small>
-      </article>
-      <article class="analytics-metric">
-        <p>Applications & Approvals</p>
-        <strong>${appCount}</strong>
-        <small>Proposals sent and accepted</small>
-      </article>
-      <article class="analytics-metric">
-        <p>Most Recent Action</p>
-        <strong style="font-size: 1.25rem;">${latestLogTime}</strong>
-        <small>Current authenticated session</small>
-      </article>
-    </div>
-
     <!-- Controls Bar -->
     <div class="logs-controls-bar mb-4">
       <div class="logs-search-box">
