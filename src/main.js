@@ -18,6 +18,9 @@ import {
   updateUserStatus, terminateJob, completeJob, getUserProfile,
   deleteUser, deleteApplication
 } from '@work4abit/dataconnect';
+import { summarizeDashboard } from './dashboard-stats.js';
+import { renderDashboard } from './dashboard-view.js';
+import { setupWorkspace } from './workspace.js';
 
 // -- Firebase Config  ------------------------------------------------------------
 const firebaseConfig = {
@@ -55,6 +58,7 @@ let googleUser = null;
 
 
 let userData = null;
+let workspace = null;
 const VALID_SECTIONS = ['dashboard', 'services', 'mentoring', 'applications', 'messages', 'transactions', 'ratings', 'profile', 'admin'];
 const initialPath = window.location.pathname.replace(/^\/|\/$/g, '');
 let activeSection = VALID_SECTIONS.includes(initialPath) ? initialPath : (sessionStorage.getItem('active_section') || 'dashboard');
@@ -451,6 +455,9 @@ function showApp() {
   if (topAvatar) topAvatar.textContent = userInitials;
 
   navigateTo(activeSection || 'dashboard');
+  if (workspace) {
+    workspace.updateUser();
+  }
   startBackgroundSync();
   updateNotificationCenter();
 }
@@ -499,6 +506,9 @@ function clearUserSessionDOM() {
   lastConversationsDigest = '';
   activeAppliedIds = new Set();
   userApplicationsByRequestId = new Map();
+  if (workspace) {
+    workspace.reset();
+  }
 }
 
 onAuthStateChanged(auth, async (user) => {
@@ -850,7 +860,18 @@ function setupForgotPassword() {
   $('#pending-logout-btn')?.addEventListener('click', (e) => { e.preventDefault(); signOut(auth); });
 }
 
-// -- Dashboard (Dynamic Live Data)  ------------------------------------------------------------
+function handleWorkspaceSearch(term) {
+  navigateTo('services');
+  requestFilters.q = term;
+  const primarySearch = $('#marketplace-search-primary');
+  if (primarySearch) {
+    primarySearch.value = term;
+    $('#btn-search-clear')?.classList.toggle('hidden', !term);
+  }
+  renderServices(allRequests);
+}
+
+// -- Dashboard (Dynamic Live Statistical Data)  ------------------------------------------------------------
 async function loadDashboard(isSilent = false) {
   const welcomeEl = $('#dashboard-welcome');
   if (welcomeEl) {
@@ -858,313 +879,78 @@ async function loadDashboard(isSilent = false) {
     welcomeEl.textContent = `Welcome back, ${firstName}!`;
   }
 
+  const container = $('#dashboard-analytics-content');
+  if (!container) return;
+
+  if (!isSilent && !container.querySelector('.analytics-metrics')) {
+    container.innerHTML = `
+      <div class="text-center text-muted" style="padding: 3rem 0;">
+        <div class="loader" style="margin: 0 auto 1rem;"></div>
+        <p>Calculating your freelance statistics...</p>
+      </div>
+    `;
+  }
+
+  if (!userData?.id) {
+    container.innerHTML = `
+      <div class="empty-state text-center text-muted" style="padding: 2.5rem 1rem;">
+        <p>Please log in to view your dashboard analytics.</p>
+      </div>
+    `;
+    return;
+  }
+
   try {
-    const [reqRes, appRes, myPostRes, convRes, usersRes] = await Promise.all([
-      listHelpRequests(dc, SERVER_ONLY),
-      userData?.id ? listApplicationsByApplicant(dc, { userId: userData.id }, SERVER_ONLY) : { data: { applications: [] } },
-      userData?.id ? listMyHelpRequestsWithApplications(dc, { userId: userData.id }, SERVER_ONLY) : { data: { helpRequests: [] } },
-      userData?.id ? listConversations(dc, { userId: userData.id }, SERVER_ONLY) : { data: { conversations: [] } },
-      listAllUsers(dc, SERVER_ONLY)
+    const [appRes, myPostRes, posterAppRes, reviewResult] = await Promise.all([
+      listApplicationsByApplicant(dc, { userId: userData.id }, SERVER_ONLY).catch(() => ({ data: { applications: [] } })),
+      listMyHelpRequestsWithApplications(dc, { userId: userData.id }, SERVER_ONLY).catch(() => ({ data: { helpRequests: [] } })),
+      listApplicationsForMyRequests(dc, { userId: userData.id }, SERVER_ONLY).catch(() => ({ data: { applications: [] } })),
+      Promise.allSettled([
+        getDocs(query(collection(firestore, "reviews"), where("targetUserId", "==", userData.id)))
+      ]).then(results => results[0])
     ]);
-    const requests = reqRes.data.helpRequests || [];
-    const applications = appRes.data.applications || [];
-    const myPostedJobs = myPostRes.data.helpRequests || [];
-    const conversations = convRes.data.conversations || [];
-    const allUsers = usersRes.data.users || [];
 
-    const activeApps = applications.filter(a => a.status === 'PENDING' || a.status === 'APPROVED').length;
-    let completedJobs = applications.filter(a => a.status === 'COMPLETED').length;
-    myPostedJobs.forEach(j => {
-      const completedApps = (j.applications_on_helpRequest || []).filter(a => a.status === 'COMPLETED');
-      if (completedApps.length > 0) {
-        completedJobs += completedApps.length;
-      } else if (!isJobOffer(j) && j.status === 'COMPLETED') {
-        completedJobs += 1;
-      }
-    });
+    const submitted = appRes.data?.applications || [];
+    const listings = myPostRes.data?.helpRequests || [];
 
-    // Total Transactions (Role-aware earnings and spendings)
-    let totalEarnings = 0;
-    let totalSpent = 0;
-
-    applications.forEach(a => {
-      if (a.status === 'COMPLETED') {
-        const isOffer = isJobOffer(a.helpRequest);
-        const amt = Number(a.priceOffer) || 0;
-        if (isOffer) {
-          totalSpent += amt;
-        } else {
-          totalEarnings += amt;
-        }
-      }
-    });
-
-    myPostedJobs.forEach(j => {
-      const isOffer = isJobOffer(j);
-      const apps = j.applications_on_helpRequest || [];
-      apps.forEach(a => {
-        if (a.status === 'COMPLETED') {
-          const amt = Number(a.priceOffer) || Number(j.budget) || 0;
-          if (isOffer) {
-            totalEarnings += amt;
-          } else {
-            totalSpent += amt;
-          }
+    // Aggregate received applications from poster query and helpRequests
+    const received = [...(posterAppRes.data?.applications || [])];
+    const seenAppIds = new Set(received.map(a => a.id));
+    listings.forEach(post => {
+      (post.applications_on_helpRequest || []).forEach(a => {
+        if (!seenAppIds.has(a.id)) {
+          received.push({ ...a, helpRequest: post });
+          seenAppIds.add(a.id);
         }
       });
     });
 
-    $('#stat-applied').textContent = activeApps;
-    $('#stat-completed').textContent = completedJobs;
-    $('#stat-earnings').innerHTML = totalSpent > 0 
-    ? `<div style="font-size: 1.75rem;">${peso(totalEarnings)} <span style="font-size: 0.85rem; font-weight: 600; color: var(--color-green);">Earned</span></div>
-       <div style="font-size: 1.15rem; color: var(--text-heading); margin-top: 0.15rem;">${peso(totalSpent)} <span style="font-size: 0.75rem; font-weight: 500; color: var(--text-muted);">Spent</span></div>` 
-    : peso(totalEarnings);
-    
-    // Fetch real rating from Firestore
-    let realRating = '0.0';
-    if (userData?.id) {
-      try {
-        const q = query(collection(firestore, "reviews"), where("targetUserId", "==", userData.id));
-        const revSnap = await getDocs(q);
-        if (!revSnap.empty) {
-          let sum = 0;
-          revSnap.forEach(doc => sum += doc.data().rating);
-          realRating = (sum / revSnap.size).toFixed(1);
-        }
-      } catch (e) {
-        console.warn("Could not fetch ratings for dashboard", e);
-      }
+    const stats = summarizeDashboard(submitted, received, listings, isJobOffer);
+    container.innerHTML = renderDashboard(stats, reviewResult);
+
+    if (workspace) {
+      workspace.updateUser();
     }
-    $('#stat-rating').innerHTML = `${realRating} <span class="text-amber">★</span>`;
-
-    // Recommended Services Feed
-    const listEl = $('#dashboard-listings');
-    if (!isSilent) listEl.innerHTML = `<div class="job-list-item" style="border: none;">    <div class="skeleton-loader" style="width: 44px; height: 44px; border-radius: 12px; flex-shrink: 0;"></div>    <div class="job-item-info" style="width: 100%;">        <div class="skeleton-loader skeleton-title" style="margin-bottom: 8px; width: 60%; height: 16px;"></div>        <div class="skeleton-loader skeleton-line-short" style="margin-bottom: 0; width: 40%; height: 12px;"></div>    </div></div><div class="job-list-item" style="border: none;">    <div class="skeleton-loader" style="width: 44px; height: 44px; border-radius: 12px; flex-shrink: 0;"></div>    <div class="job-item-info" style="width: 100%;">        <div class="skeleton-loader skeleton-title" style="margin-bottom: 8px; width: 50%; height: 16px;"></div>        <div class="skeleton-loader skeleton-line-short" style="margin-bottom: 0; width: 30%; height: 12px;"></div>    </div></div><div class="job-list-item" style="border: none;">    <div class="skeleton-loader" style="width: 44px; height: 44px; border-radius: 12px; flex-shrink: 0;"></div>    <div class="job-item-info" style="width: 100%;">        <div class="skeleton-loader skeleton-title" style="margin-bottom: 8px; width: 70%; height: 16px;"></div>        <div class="skeleton-loader skeleton-line-short" style="margin-bottom: 0; width: 45%; height: 12px;"></div>    </div></div>`;
-    
-    // Filter out jobs the user posted themselves, only show OPEN jobs, hide expired jobs, and exclude listings exceeding the 100k cap (e.g. 1B placeholder)
-    const now = new Date();
-    const recommended = requests.filter(r => 
-      (r.status === 'OPEN' || !r.status) && 
-      r.requester?.id !== userData?.id && 
-      (!r.deadline || new Date(r.deadline + 'T23:59:59') >= now) &&
-      (Number(r.budget) <= 100000 && Number(r.budget) > 0)
-    );
-    
-    if (recommended.length === 0) {
-      listEl.innerHTML = '<div class="empty-state text-center text-muted" style="padding: 1.5rem;">No services available right now. Be the first to post!</div>';
-    } else {
-      listEl.innerHTML = '';
-      const colors = ['job-icon-green', 'job-icon-purple', 'job-icon-cyan'];
-      recommended.slice(0, 3).forEach((r, idx) => {
-        const item = document.createElement('div');
-        item.className = 'job-list-item cursor-pointer';
-        const isOffer = isJobOffer(r);
-        item.innerHTML = `
-          <div class="job-icon-box ${colors[idx % colors.length]}">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline></svg>
-          </div>
-          <div class="job-item-info">
-            <div class="flex items-center gap-2">
-              <h3 class="job-item-title">${r.title}</h3>
-              <span class="badge ${isOffer ? 'badge-standing' : 'badge-normal'}" style="font-size: 10px; padding: 1px 6px;">${isOffer ? 'Offer' : 'Request'}</span>
-            </div>
-            <p class="job-item-subtext">${peso(r.budget)} · ${r.category || 'General'}</p>
-          </div>
-          <button type="button" class="btn btn-outline btn-sm dash-item-details-btn" style="font-size: 11px; padding: 3px 8px; flex-shrink: 0;">Details</button>
-        `;
-        item.addEventListener('click', (e) => {
-          e.preventDefault();
-          const isMine = r.requester?.id === userData?.id;
-          const hasApplied = activeAppliedIds.has(r.id);
-          let btnText = isOffer ? 'Avail' : 'Apply';
-          let btnClass = 'btn-purple';
-          let btnDisabled = false;
-          let actionType = 'apply';
-          if (isMine) {
-            btnText = 'Delete'; btnClass = 'btn-delete-service'; actionType = 'delete';
-          } else if (hasApplied) {
-            btnText = 'Cancel'; btnClass = 'btn-cancel-service'; actionType = 'cancel';
-          }
-          openServiceDetailsDialog(r, { actionType, btnText, btnClass, btnDisabled });
-        });
-        listEl.appendChild(item);
-      });
-    }
-
-
-        // Recommended Mentors Feed (2 with rating, 1 without)
-    const mentorsEl = $('#dashboard-mentors');
-    if (mentorsEl) {
-      if (!isSilent) mentorsEl.innerHTML = `<div class="job-list-item" style="border: none;">    <div class="skeleton-loader" style="width: 44px; height: 44px; border-radius: 12px; flex-shrink: 0;"></div>    <div class="job-item-info" style="width: 100%;">        <div class="skeleton-loader skeleton-title" style="margin-bottom: 8px; width: 60%; height: 16px;"></div>        <div class="skeleton-loader skeleton-line-short" style="margin-bottom: 0; width: 40%; height: 12px;"></div>    </div></div><div class="job-list-item" style="border: none;">    <div class="skeleton-loader" style="width: 44px; height: 44px; border-radius: 12px; flex-shrink: 0;"></div>    <div class="job-item-info" style="width: 100%;">        <div class="skeleton-loader skeleton-title" style="margin-bottom: 8px; width: 50%; height: 16px;"></div>        <div class="skeleton-loader skeleton-line-short" style="margin-bottom: 0; width: 30%; height: 12px;"></div>    </div></div><div class="job-list-item" style="border: none;">    <div class="skeleton-loader" style="width: 44px; height: 44px; border-radius: 12px; flex-shrink: 0;"></div>    <div class="job-item-info" style="width: 100%;">        <div class="skeleton-loader skeleton-title" style="margin-bottom: 8px; width: 70%; height: 16px;"></div>        <div class="skeleton-loader skeleton-line-short" style="margin-bottom: 0; width: 45%; height: 12px;"></div>    </div></div>`;
-      
-      try {
-        // Fetch all reviews from Firestore to figure out ratings
-        
-          // Fetch all reviews and profiles from Firestore
-          const [allReviewsSnap, profilesSnap] = await Promise.all([
-             getDocs(collection(firestore, "reviews")),
-             getDocs(collection(firestore, "user_profiles"))
-          ]);
-          
-          const userRatings = {};
-          allReviewsSnap.forEach(doc => {
-              const data = doc.data();
-              if (data.targetUserId) {
-                  if (!userRatings[data.targetUserId]) userRatings[data.targetUserId] = { sum: 0, count: 0 };
-                  userRatings[data.targetUserId].sum += data.rating;
-                  userRatings[data.targetUserId].count += 1;
-              }
-          });
-
-          const userProfiles = {};
-          profilesSnap.forEach(doc => { userProfiles[doc.id] = doc.data(); });
-          
-          const otherUsers = allUsers.filter(u => u.id !== userData?.id);
-          const withRating = otherUsers.filter(u => userRatings[u.id]);
-          const withoutRating = otherUsers.filter(u => !userRatings[u.id]);
-          
-          // Shuffle arrays
-          const shuffledWith = withRating.sort(() => 0.5 - Math.random());
-          const shuffledWithout = withoutRating.sort(() => 0.5 - Math.random());
-          
-          // Pick 2 with rating, 1 without (if available)
-          let selectedMentors = [];
-          if (shuffledWith.length >= 2) {
-              selectedMentors.push(shuffledWith[0], shuffledWith[1]);
-          } else {
-              selectedMentors.push(...shuffledWith);
-          }
-          
-          if (shuffledWithout.length >= 1) {
-              selectedMentors.push(shuffledWithout[0]);
-          }
-          
-          // Fill remaining if needed to get 3
-          while (selectedMentors.length < 3 && (shuffledWith.length + shuffledWithout.length) > selectedMentors.length) {
-              const unused = [...shuffledWith, ...shuffledWithout].filter(u => !selectedMentors.includes(u));
-              if (unused.length) selectedMentors.push(unused[0]);
-              else break;
-          }
-          
-          // Shuffle the final 3
-          selectedMentors = selectedMentors.sort(() => 0.5 - Math.random());
-          
-          if (selectedMentors.length === 0) {
-            mentorsEl.innerHTML = '<div class="empty-state text-center text-muted" style="padding: 1.5rem;">No mentors available right now.</div>';
-          } else {
-            mentorsEl.innerHTML = '';
-            const mColors = ['job-icon-purple', 'job-icon-cyan', 'job-icon-green'];
-            selectedMentors.forEach((m, idx) => {
-              const item = document.createElement('div');
-              item.className = 'job-list-item';
-              item.style.cursor = 'pointer';
-              item.style.transition = 'background 0.2s';
-              item.onmouseenter = () => item.style.background = 'var(--bg-main)';
-              item.onmouseleave = () => item.style.background = 'transparent';
-              
-              const rData = userRatings[m.id];
-              const rScore = rData ? (rData.sum / rData.count).toFixed(1) : 'New';
-              const rIcon = rData ? '<span class="text-amber">★</span>' : '';
-              
-              const skills = userProfiles[m.id]?.skills || [];
-              let skillsHtml = '';
-              if (skills.length > 0) {
-                 skillsHtml = '<div class="mt-1 flex flex-wrap gap-1 items-center">' + skills.slice(0, 3).map(s => `<span class="badge" style="background: rgba(255,255,255,0.05); font-size: 0.65rem; padding: 0.1rem 0.4rem; white-space: nowrap; border: 1px solid var(--border-light); color: var(--text-muted);">${s}</span>`).join('') + (skills.length > 3 ? '<span class="text-xs text-muted" style="font-size: 0.65rem;">+' + (skills.length - 3) + '</span>' : '') + '</div>';
-              }
-              
-              item.innerHTML = `
-                <div class="job-icon-box ${mColors[idx % mColors.length]}">
-                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
-                </div>
-                <div class="job-item-info" style="display: flex; flex-direction: column; justify-content: center;">
-                  <h3 class="job-item-title">${m.fullName}</h3>
-                  <p class="job-item-subtext" style="margin-bottom: 2px;">${m.preferredRole || 'Student'} • ${rScore} ${rIcon}</p>
-                  ${skillsHtml}
-                </div>
-                <div style="margin-left: auto; color: var(--text-muted);">
-                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"></path></svg>
-                </div>
-              `;
-              
-              item.addEventListener('click', () => {
-                 navigateTo('mentoring');
-                 activeMentoringTarget = m;
-                 document.getElementById('mentoring-target-name').textContent = m.fullName;
-                 document.getElementById('mentoring-apply-form').reset();
-                 document.getElementById('dialog-mentoring-apply').showModal();
-              });
-
-              mentorsEl.appendChild(item);
-            });
-          }
-} catch (err) {
-        mentorsEl.innerHTML = '<div class="empty-state text-center text-muted">Could not load mentors.</div>';
-      }
-    }
-
-    // Recent Applications Feed
-    const recentAppsEl = $('#dashboard-recent-apps');
-    if (!isSilent) recentAppsEl.innerHTML = `<div class="job-list-item" style="border: none;">    <div class="skeleton-loader" style="width: 44px; height: 44px; border-radius: 12px; flex-shrink: 0;"></div>    <div class="job-item-info" style="width: 100%;">        <div class="skeleton-loader skeleton-title" style="margin-bottom: 8px; width: 60%; height: 16px;"></div>        <div class="skeleton-loader skeleton-line-short" style="margin-bottom: 0; width: 40%; height: 12px;"></div>    </div></div><div class="job-list-item" style="border: none;">    <div class="skeleton-loader" style="width: 44px; height: 44px; border-radius: 12px; flex-shrink: 0;"></div>    <div class="job-item-info" style="width: 100%;">        <div class="skeleton-loader skeleton-title" style="margin-bottom: 8px; width: 50%; height: 16px;"></div>        <div class="skeleton-loader skeleton-line-short" style="margin-bottom: 0; width: 30%; height: 12px;"></div>    </div></div><div class="job-list-item" style="border: none;">    <div class="skeleton-loader" style="width: 44px; height: 44px; border-radius: 12px; flex-shrink: 0;"></div>    <div class="job-item-info" style="width: 100%;">        <div class="skeleton-loader skeleton-title" style="margin-bottom: 8px; width: 70%; height: 16px;"></div>        <div class="skeleton-loader skeleton-line-short" style="margin-bottom: 0; width: 45%; height: 12px;"></div>    </div></div>`;
-    if (applications.length === 0) {
-      recentAppsEl.innerHTML = '<div class="empty-state text-center text-muted" style="padding: 1rem;">No applications submitted yet.</div>';
-    } else {
-      recentAppsEl.innerHTML = '';
-      applications.slice(0, 3).forEach(app => {
-        const row = document.createElement('div');
-        row.className = 'app-row-item';
-        const isPending = app.status === 'PENDING';
-        row.innerHTML = `
-          <div class="avatar avatar-sm">${initials(app.helpRequest?.title || 'AP')}</div>
-          <div class="app-row-info">
-            <h4 class="app-row-title">${app.helpRequest?.title || 'Service Request'}</h4>
-            <p class="app-row-meta"><span class="${isPending ? 'text-amber font-semibold' : 'text-green font-semibold'}">${app.status || 'Pending'}</span> · ${peso(app.priceOffer)}</p>
-          </div>
-        `;
-        row.addEventListener('click', () => navigateTo('applications'));
-        recentAppsEl.appendChild(row);
-      });
-    }
-
-    // Recent Messages Feed
-    const recentMsgEl = $('#dashboard-recent-messages');
-    if (!isSilent) recentMsgEl.innerHTML = `<div class="job-list-item" style="border: none;">    <div class="skeleton-loader" style="width: 44px; height: 44px; border-radius: 12px; flex-shrink: 0;"></div>    <div class="job-item-info" style="width: 100%;">        <div class="skeleton-loader skeleton-title" style="margin-bottom: 8px; width: 60%; height: 16px;"></div>        <div class="skeleton-loader skeleton-line-short" style="margin-bottom: 0; width: 40%; height: 12px;"></div>    </div></div><div class="job-list-item" style="border: none;">    <div class="skeleton-loader" style="width: 44px; height: 44px; border-radius: 12px; flex-shrink: 0;"></div>    <div class="job-item-info" style="width: 100%;">        <div class="skeleton-loader skeleton-title" style="margin-bottom: 8px; width: 50%; height: 16px;"></div>        <div class="skeleton-loader skeleton-line-short" style="margin-bottom: 0; width: 30%; height: 12px;"></div>    </div></div><div class="job-list-item" style="border: none;">    <div class="skeleton-loader" style="width: 44px; height: 44px; border-radius: 12px; flex-shrink: 0;"></div>    <div class="job-item-info" style="width: 100%;">        <div class="skeleton-loader skeleton-title" style="margin-bottom: 8px; width: 70%; height: 16px;"></div>        <div class="skeleton-loader skeleton-line-short" style="margin-bottom: 0; width: 45%; height: 12px;"></div>    </div></div>`;
-    if (conversations.length === 0) {
-      recentMsgEl.innerHTML = '<div class="empty-state text-center text-muted" style="padding: 1rem;">No active chats yet.</div>';
-    } else {
-      recentMsgEl.innerHTML = '';
-      await sortConversationsByActivity(conversations);
-      conversations.slice(0, 2).forEach(conv => {
-        const isPoster = conv.poster?.id === userData?.id;
-        const otherUser = isPoster ? conv.applicant : conv.poster;
-        const isCompleted = isConversationCompleted(conv);
-        const row = document.createElement('div');
-        row.className = 'message-row-item';
-        row.innerHTML = `
-          <div class="avatar avatar-sm">${initials(otherUser?.fullName || '')}</div>
-          <div class="message-row-info">
-            <div class="flex-between">
-              <h4 class="message-row-name">${otherUser?.fullName || 'Peer'}</h4>
-              <span class="${isCompleted ? 'badge badge-approved' : 'badge badge-pending'}" style="font-size: 10px; padding: 2px 7px;">${isCompleted ? 'Job Completed' : 'In Progress'}</span>
-            </div>
-            <p class="message-row-text truncate">${conv.application?.helpRequest?.title || 'Chat conversation'}</p>
-          </div>
-        `;
-        row.addEventListener('click', () => {
-          activeConvId = conv.id;
-          sessionStorage.setItem('active_conversation_id', conv.id);
-          navigateTo('messages');
-        });
-        recentMsgEl.appendChild(row);
-      });
-    }
-
   } catch (err) {
     console.error('Dashboard load error:', err);
+    container.innerHTML = `
+      <div class="analytics-warning" style="margin-top: 1rem;">
+        Failed to load statistics. <button type="button" class="btn btn-outline btn-sm" id="dash-retry-btn" style="margin-left: 0.5rem;">Retry</button>
+      </div>
+    `;
+    $('#dash-retry-btn')?.addEventListener('click', () => loadDashboard());
   }
 }
 
 function setupDashboardLinks() {
+  $('#dashboard-refresh')?.addEventListener('click', (e) => {
+    e.preventDefault();
+    loadDashboard();
+  });
+  $('#dash-btn-start-guide')?.addEventListener('click', (e) => {
+    e.preventDefault();
+    document.querySelector('.guide-open')?.click();
+  });
   $('#dash-view-all-jobs')?.addEventListener('click', (e) => { e.preventDefault(); navigateTo('services'); });
   $('#dash-view-all-apps')?.addEventListener('click', (e) => { e.preventDefault(); navigateTo('applications'); });
   $('#dash-view-all-messages')?.addEventListener('click', (e) => { e.preventDefault(); navigateTo('messages'); });
@@ -4537,6 +4323,13 @@ document.addEventListener('DOMContentLoaded', () => {
   setupDialogCloseButtons();
   setupNotificationCenter();
   setupPortfolio();
+
+  workspace = setupWorkspace({
+    navigate: navigateTo,
+    search: handleWorkspaceSearch,
+    getUser: () => userData,
+    refresh: () => loadDashboard()
+  });
 
   $$('.nav-btn[data-target]').forEach(btn => {
     btn.addEventListener('click', (e) => {

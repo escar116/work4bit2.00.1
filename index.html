@@ -510,203 +510,29 @@
                             <p class="welcome-subtext">Manage your campus freelance activity, applications, and student peer services.</p>
                         </div>
                         <div class="dashboard-quick-actions">
+                            <button type="button" class="btn btn-outline btn-sm" id="dashboard-refresh" title="Refresh dashboard data">↻ Refresh</button>
                             <button type="button" class="btn btn-purple btn-sm" id="dash-btn-post-offer">+ Post Service Offer</button>
                             <button type="button" class="btn btn-outline btn-sm" id="dash-btn-post-request">+ Post Service Request</button>
                         </div>
                     </div>
 
-                    <!-- 4 Top Stat Cards (Real dynamic values) -->
-                    <div class="dashboard-stats-grid mt-6">
-                        <div class="dash-stat-card">
-                            <div class="stat-card-header-row">
-                                <span class="stat-card-label">Active Applications</span>
-                                <div class="stat-card-icon icon-purple">
-                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path><rect x="8" y="2" width="8" height="4" rx="1" ry="1"></rect></svg>
-                                </div>
-                            </div>
-                            <div class="stat-card-number" id="stat-applied">0</div>
-                            <span class="stat-card-subtext">Pending proposals & orders</span>
+                    <!-- Onboarding Guide Banner (Upskwela Style) -->
+                    <div class="dashboard-onboarding-card">
+                        <div class="onboarding-card-info">
+                            <h3>
+                                <span>Learn how Work4abit works</span>
+                                <span class="onboarding-badge" id="dash-guide-badge">0 / 5 completed</span>
+                            </h3>
+                            <p>Complete the quick getting started walkthrough to learn about service offers, requests, messaging, and orders.</p>
                         </div>
-                        <div class="dash-stat-card">
-                            <div class="stat-card-header-row">
-                                <span class="stat-card-label">Jobs Completed</span>
-                                <div class="stat-card-icon icon-green">
-                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
-                                </div>
-                            </div>
-                            <div class="stat-card-number text-green" id="stat-completed">0</div>
-                            <span class="stat-card-subtext">Delivered successfully</span>
-                        </div>
-                        <div class="dash-stat-card">
-                            <div class="stat-card-header-row">
-                                <span class="stat-card-label">Total Earnings</span>
-                                <div class="stat-card-icon icon-cyan">
-                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"></line><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path></svg>
-                                </div>
-                            </div>
-                            <div class="stat-card-number" id="stat-earnings">₱0</div>
-                            <span class="stat-card-subtext">Net campus freelance funds</span>
-                        </div>
-                        <div class="dash-stat-card">
-                            <div class="stat-card-header-row">
-                                <span class="stat-card-label">Average Rating</span>
-                                <div class="stat-card-icon icon-amber">
-                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>
-                                </div>
-                            </div>
-                            <div class="stat-card-number" id="stat-rating">0.0 <span class="text-amber">★</span></div>
-                            <span class="stat-card-subtext">Peer reviews & ratings</span>
-                        </div>
+                        <button type="button" class="btn btn-purple btn-sm" id="dash-btn-start-guide">Start Guide</button>
                     </div>
 
-                    <!-- Campus Quick Discovery Bar -->
-                    <div class="dashboard-discovery-bar mt-4">
-                        <span class="discovery-bar-label">Explore Campus Skills:</span>
-                        <div class="discovery-pills-wrap">
-                            <button type="button" class="dash-pill-btn" data-category="3D Design">3D Design & Printing</button>
-                            <button type="button" class="dash-pill-btn" data-category="Electronics & Circuit Design">Electronics & Circuits</button>
-                            <button type="button" class="dash-pill-btn" data-category="Embedded Systems">Embedded Systems</button>
-                            <button type="button" class="dash-pill-btn" data-category="Software Development">Software Dev</button>
-                            <button type="button" class="dash-pill-btn" data-category="UI/UX Design">UI/UX Design</button>
-                            <button type="button" class="dash-pill-btn" data-category="CAD & 3D Modeling">CAD Modeling</button>
-                        </div>
-                    </div>
-
-                    <!-- 2-Column Main Feed (Recommended Jobs Left + Stacked Recent Right) -->
-                    <div class="dashboard-main-grid mt-6">
-                        <!-- Left: Recommended Services & Mentors Stack -->
-                        <div class="dash-left-stack" style="display: flex; flex-direction: column; gap: 1.5rem;">
-                            <!-- Recommended Services -->
-                            <div class="dash-card">
-                                <div class="dash-card-header">
-                                    <h2 class="dash-card-title">Recommended Services</h2>
-                                    <button type="button" class="view-all-link" id="dash-view-all-jobs">View all</button>
-                                </div>
-                                <div id="dashboard-listings" class="jobs-list-feed">
-                                    <div class="job-list-item" style="border: none;">
-                                        <div class="skeleton-loader" style="width: 44px; height: 44px; border-radius: 12px; flex-shrink: 0;"></div>
-                                        <div class="job-item-info" style="width: 100%;">
-                                            <div class="skeleton-loader skeleton-title" style="margin-bottom: 8px; width: 60%; height: 16px;"></div>
-                                            <div class="skeleton-loader skeleton-line-short" style="margin-bottom: 0; width: 40%; height: 12px;"></div>
-                                        </div>
-                                    </div>
-                                    <div class="job-list-item" style="border: none;">
-                                        <div class="skeleton-loader" style="width: 44px; height: 44px; border-radius: 12px; flex-shrink: 0;"></div>
-                                        <div class="job-item-info" style="width: 100%;">
-                                            <div class="skeleton-loader skeleton-title" style="margin-bottom: 8px; width: 50%; height: 16px;"></div>
-                                            <div class="skeleton-loader skeleton-line-short" style="margin-bottom: 0; width: 30%; height: 12px;"></div>
-                                        </div>
-                                    </div>
-                                    <div class="job-list-item" style="border: none;">
-                                        <div class="skeleton-loader" style="width: 44px; height: 44px; border-radius: 12px; flex-shrink: 0;"></div>
-                                        <div class="job-item-info" style="width: 100%;">
-                                            <div class="skeleton-loader skeleton-title" style="margin-bottom: 8px; width: 70%; height: 16px;"></div>
-                                            <div class="skeleton-loader skeleton-line-short" style="margin-bottom: 0; width: 45%; height: 12px;"></div>
-                                        </div>
-                                    </div>
-</div>
-                            </div>
-
-                            <!-- Recent Applications -->
-                            <div class="dash-card">
-                                <div class="dash-card-header">
-                                    <h2 class="dash-card-title">Recent Applications</h2>
-                                    <button type="button" class="view-all-link" id="dash-view-all-apps">View
-                                        all</button>
-                                </div>
-                                <div class="recent-apps-list" id="dashboard-recent-apps">
-                                    <div class="job-list-item" style="border: none;">
-                                        <div class="skeleton-loader" style="width: 44px; height: 44px; border-radius: 12px; flex-shrink: 0;"></div>
-                                        <div class="job-item-info" style="width: 100%;">
-                                            <div class="skeleton-loader skeleton-title" style="margin-bottom: 8px; width: 60%; height: 16px;"></div>
-                                            <div class="skeleton-loader skeleton-line-short" style="margin-bottom: 0; width: 40%; height: 12px;"></div>
-                                        </div>
-                                    </div>
-                                    <div class="job-list-item" style="border: none;">
-                                        <div class="skeleton-loader" style="width: 44px; height: 44px; border-radius: 12px; flex-shrink: 0;"></div>
-                                        <div class="job-item-info" style="width: 100%;">
-                                            <div class="skeleton-loader skeleton-title" style="margin-bottom: 8px; width: 50%; height: 16px;"></div>
-                                            <div class="skeleton-loader skeleton-line-short" style="margin-bottom: 0; width: 30%; height: 12px;"></div>
-                                        </div>
-                                    </div>
-                                    <div class="job-list-item" style="border: none;">
-                                        <div class="skeleton-loader" style="width: 44px; height: 44px; border-radius: 12px; flex-shrink: 0;"></div>
-                                        <div class="job-item-info" style="width: 100%;">
-                                            <div class="skeleton-loader skeleton-title" style="margin-bottom: 8px; width: 70%; height: 16px;"></div>
-                                            <div class="skeleton-loader skeleton-line-short" style="margin-bottom: 0; width: 45%; height: 12px;"></div>
-                                        </div>
-                                    </div>
-</div>
-                            </div>
-
-
-                        </div>
-
-                        <!-- Right: Stacked Recent Applications & Messages -->
-                        <div class="dash-right-stack">
-                            <!-- Recommended Mentors -->
-                            <div class="dash-card">
-                                <div class="dash-card-header">
-                                    <h2 class="dash-card-title">Recommended Mentors</h2>
-                                    <button type="button" class="view-all-link" id="dash-view-all-mentors">View all</button>
-                                </div>
-                                <div id="dashboard-mentors" class="jobs-list-feed">
-                                    <div class="job-list-item" style="border: none;">
-                                        <div class="skeleton-loader" style="width: 44px; height: 44px; border-radius: 12px; flex-shrink: 0;"></div>
-                                        <div class="job-item-info" style="width: 100%;">
-                                            <div class="skeleton-loader skeleton-title" style="margin-bottom: 8px; width: 60%; height: 16px;"></div>
-                                            <div class="skeleton-loader skeleton-line-short" style="margin-bottom: 0; width: 40%; height: 12px;"></div>
-                                        </div>
-                                    </div>
-                                    <div class="job-list-item" style="border: none;">
-                                        <div class="skeleton-loader" style="width: 44px; height: 44px; border-radius: 12px; flex-shrink: 0;"></div>
-                                        <div class="job-item-info" style="width: 100%;">
-                                            <div class="skeleton-loader skeleton-title" style="margin-bottom: 8px; width: 50%; height: 16px;"></div>
-                                            <div class="skeleton-loader skeleton-line-short" style="margin-bottom: 0; width: 30%; height: 12px;"></div>
-                                        </div>
-                                    </div>
-                                    <div class="job-list-item" style="border: none;">
-                                        <div class="skeleton-loader" style="width: 44px; height: 44px; border-radius: 12px; flex-shrink: 0;"></div>
-                                        <div class="job-item-info" style="width: 100%;">
-                                            <div class="skeleton-loader skeleton-title" style="margin-bottom: 8px; width: 70%; height: 16px;"></div>
-                                            <div class="skeleton-loader skeleton-line-short" style="margin-bottom: 0; width: 45%; height: 12px;"></div>
-                                        </div>
-                                    </div>
-</div>
-                            </div>
-
-
-                            <!-- Recent Messages -->
-                            <div class="dash-card">
-                                <div class="dash-card-header">
-                                    <h2 class="dash-card-title">Recent Messages</h2>
-                                    <button type="button" class="view-all-link" id="dash-view-all-messages">View
-                                        all</button>
-                                </div>
-                                <div class="recent-messages-list" id="dashboard-recent-messages">
-                                    <div class="job-list-item" style="border: none;">
-                                        <div class="skeleton-loader" style="width: 44px; height: 44px; border-radius: 12px; flex-shrink: 0;"></div>
-                                        <div class="job-item-info" style="width: 100%;">
-                                            <div class="skeleton-loader skeleton-title" style="margin-bottom: 8px; width: 60%; height: 16px;"></div>
-                                            <div class="skeleton-loader skeleton-line-short" style="margin-bottom: 0; width: 40%; height: 12px;"></div>
-                                        </div>
-                                    </div>
-                                    <div class="job-list-item" style="border: none;">
-                                        <div class="skeleton-loader" style="width: 44px; height: 44px; border-radius: 12px; flex-shrink: 0;"></div>
-                                        <div class="job-item-info" style="width: 100%;">
-                                            <div class="skeleton-loader skeleton-title" style="margin-bottom: 8px; width: 50%; height: 16px;"></div>
-                                            <div class="skeleton-loader skeleton-line-short" style="margin-bottom: 0; width: 30%; height: 12px;"></div>
-                                        </div>
-                                    </div>
-                                    <div class="job-list-item" style="border: none;">
-                                        <div class="skeleton-loader" style="width: 44px; height: 44px; border-radius: 12px; flex-shrink: 0;"></div>
-                                        <div class="job-item-info" style="width: 100%;">
-                                            <div class="skeleton-loader skeleton-title" style="margin-bottom: 8px; width: 70%; height: 16px;"></div>
-                                            <div class="skeleton-loader skeleton-line-short" style="margin-bottom: 0; width: 45%; height: 12px;"></div>
-                                        </div>
-                                    </div>
-</div>
-                            </div>
+                    <!-- Pure Dynamic Statistical Analytics Container (Rendered by dashboard-view.js) -->
+                    <div id="dashboard-analytics-content">
+                        <div class="text-center text-muted" style="padding: 3rem 0;">
+                            <div class="loader" style="margin: 0 auto 1rem;"></div>
+                            <p>Calculating your freelance statistics...</p>
                         </div>
                     </div>
                 </section>
