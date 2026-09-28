@@ -921,20 +921,21 @@ async function loadDashboard(isSilent = false) {
   }
 
   try {
-    const [appRes, myPostRes, posterAppRes, reviewResult] = await Promise.all([
-      listApplicationsByApplicant(dc, { userId: userData.id }, SERVER_ONLY).catch(() => ({ data: { applications: [] } })),
-      listMyHelpRequestsWithApplications(dc, { userId: userData.id }, SERVER_ONLY).catch(() => ({ data: { helpRequests: [] } })),
-      listApplicationsForMyRequests(dc, { userId: userData.id }, SERVER_ONLY).catch(() => ({ data: { applications: [] } })),
-      Promise.allSettled([
-        getDocs(query(collection(firestore, "reviews"), where("targetUserId", "==", userData.id)))
-      ]).then(results => results[0])
+    const [appResult, postResult, posterAppResult, reviewResult] = await Promise.allSettled([
+      listApplicationsByApplicant(dc, { userId: userData.id }, SERVER_ONLY),
+      listMyHelpRequestsWithApplications(dc, { userId: userData.id }, SERVER_ONLY),
+      listApplicationsForMyRequests(dc, { userId: userData.id }, SERVER_ONLY),
+      getDocs(query(collection(firestore, "reviews"), where("targetUserId", "==", userData.id)))
     ]);
+    if ([appResult, postResult, posterAppResult].some(result => result.status === 'rejected')) {
+      throw new Error('One or more dashboard data sources could not be loaded.');
+    }
 
-    const submitted = appRes.data?.applications || [];
-    const listings = myPostRes.data?.helpRequests || [];
+    const submitted = appResult.value.data?.applications || [];
+    const listings = postResult.value.data?.helpRequests || [];
 
     // Aggregate received applications from poster query and helpRequests
-    const received = [...(posterAppRes.data?.applications || [])];
+    const received = [...(posterAppResult.value.data?.applications || [])];
     const seenAppIds = new Set(received.map(a => a.id));
     listings.forEach(post => {
       (post.applications_on_helpRequest || []).forEach(a => {
@@ -966,10 +967,6 @@ function setupDashboardLinks() {
   $('#dashboard-refresh')?.addEventListener('click', (e) => {
     e.preventDefault();
     loadDashboard();
-  });
-  $('#dash-btn-start-guide')?.addEventListener('click', (e) => {
-    e.preventDefault();
-    document.querySelector('.guide-open')?.click();
   });
   $('#dash-view-all-jobs')?.addEventListener('click', (e) => { e.preventDefault(); navigateTo('services'); });
   $('#dash-view-all-apps')?.addEventListener('click', (e) => { e.preventDefault(); navigateTo('applications'); });
