@@ -648,7 +648,7 @@
                                 <button type="button" id="btn-post-offer" class="btn btn-purple">
                                     + Post a Service Offer
                                 </button>
-                                <button type="button" id="btn-post-request" class="btn btn-outline">
+                                <button type="button" id="btn-post-request" class="btn btn-purple" style="display: none;">
                                     + Post a Service Request
                                 </button>
                             </div>
@@ -766,12 +766,24 @@
 
                         </aside>
 
-                        <!-- Request Cards Grid -->
-                        <div style="flex-grow: 1;">
+                        <!-- Request Cards Grid with Prominent Search Bar -->
+                        <div style="flex-grow: 1; min-width: 0;">
+                            <!-- Prominent Marketplace Search Bar -->
+                            <div class="marketplace-search-bar-wrap mb-3">
+                                <div class="marketplace-search-box">
+                                    <svg class="marketplace-search-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <circle cx="11" cy="11" r="8"></circle>
+                                        <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                                    </svg>
+                                    <input type="text" id="marketplace-search-primary" class="marketplace-search-input" placeholder="Search service offers (e.g. 3D printing, laser cutting, circuit design, repairs)...">
+                                    <button type="button" id="btn-search-clear" class="marketplace-search-clear hidden" title="Clear search">✕</button>
+                                </div>
+                            </div>
+
                             <div id="requests-count" class="text-sm text-muted mb-3"></div>
                             <div class="requests-grid" id="requests-grid">
-                            <div class="loader"></div>
-                        </div>
+                                <div class="loader"></div>
+                            </div>
                         </div>
                     </div>
                 </section>
@@ -1287,6 +1299,65 @@
                     <button type="submit" id="new-request-submit" class="btn btn-purple">Publish Service Offer</button>
                 </div>
             </form>
+        </div>
+    </dialog>
+ 
+    <!-- Service / Offer Details Modal -->
+    <dialog id="dialog-service-details" class="modal">
+        <div class="modal-content" style="max-width: 680px; width: 95%;">
+            <div class="modal-header">
+                <div>
+                    <span id="sd-modal-type-badge" class="badge badge-normal mb-1">Service Offer</span>
+                    <h2 id="sd-modal-title" style="margin: 0; font-size: 1.35rem; line-height: 1.3;">Service Details</h2>
+                </div>
+                <button type="button" class="dialog-close-btn">✕</button>
+            </div>
+            
+            <div class="service-details-body" style="display: flex; flex-direction: column; gap: 1.25rem; margin-top: 1rem;">
+                <!-- Poster card -->
+                <div class="sd-poster-card flex items-center justify-between" style="background: rgba(255,255,255,0.03); border: 1px solid var(--border-light); border-radius: var(--radius-md); padding: 0.85rem 1.15rem;">
+                    <div class="flex items-center gap-3">
+                        <div id="sd-poster-avatar" class="avatar avatar-md cursor-pointer">S</div>
+                        <div>
+                            <div class="flex items-center gap-2">
+                                <strong id="sd-poster-name" class="cursor-pointer hover:underline" style="font-size: 1rem;">Student Name</strong>
+                                <span id="sd-poster-role-tag" class="text-xs text-muted">Service Provider</span>
+                            </div>
+                            <small id="sd-poster-faculty" class="text-muted text-xs" style="display: block;">Faculty Reference</small>
+                        </div>
+                    </div>
+                    <button type="button" id="sd-btn-view-profile" class="btn btn-outline btn-sm">View Profile</button>
+                </div>
+
+                <!-- Key Specs Grid -->
+                <div class="sd-specs-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 0.75rem;">
+                    <div class="sd-spec-item" style="background: rgba(255,255,255,0.02); border: 1px solid var(--border-light); border-radius: var(--radius-sm); padding: 0.75rem;">
+                        <small class="text-muted text-xs" id="sd-price-label">Starting Rate</small>
+                        <div id="sd-price-value" style="font-size: 1.25rem; font-weight: 800; color: var(--primary-purple); margin-top: 2px;">₱0</div>
+                    </div>
+                    <div class="sd-spec-item" style="background: rgba(255,255,255,0.02); border: 1px solid var(--border-light); border-radius: var(--radius-sm); padding: 0.75rem;">
+                        <small class="text-muted text-xs">Category</small>
+                        <div id="sd-category-value" style="font-size: 0.95rem; font-weight: 600; margin-top: 4px;">General</div>
+                    </div>
+                    <div class="sd-spec-item" style="background: rgba(255,255,255,0.02); border: 1px solid var(--border-light); border-radius: var(--radius-sm); padding: 0.75rem;">
+                        <small class="text-muted text-xs" id="sd-timeline-label">Availability / Timeline</small>
+                        <div id="sd-timeline-value" style="font-size: 0.92rem; font-weight: 600; margin-top: 4px; color: #4ade80;">Standing Service</div>
+                    </div>
+                </div>
+
+                <!-- Scope / Description -->
+                <div>
+                    <h4 style="font-size: 0.92rem; font-weight: 700; color: var(--text-heading); margin-bottom: 0.5rem; text-transform: uppercase; letter-spacing: 0.04em;">Full Scope & Description</h4>
+                    <div id="sd-description-content" style="background: rgba(0,0,0,0.25); border: 1px solid var(--border-light); border-radius: var(--radius-md); padding: 1.15rem; font-size: 0.92rem; line-height: 1.65; color: var(--text-main); white-space: pre-wrap; word-break: break-word; max-height: 320px; overflow-y: auto;">
+                        Description goes here...
+                    </div>
+                </div>
+            </div>
+
+            <div class="modal-footer" style="margin-top: 1.5rem; display: flex; justify-content: space-between; align-items: center;">
+                <button type="button" class="btn btn-outline dialog-close-btn">Close</button>
+                <button type="button" id="sd-modal-action-btn" class="btn btn-purple">Avail</button>
+            </div>
         </div>
     </dialog>
 

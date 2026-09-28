@@ -982,16 +982,18 @@ function setServicesTab(tab) {
       : 'Tasks and projects posted by students in need of assistance or technical talent from campus peers.';
   }
 
-  if (isOffer) {
-    $('#btn-post-offer')?.classList.add('btn-purple');
-    $('#btn-post-offer')?.classList.remove('btn-outline');
-    $('#btn-post-request')?.classList.remove('btn-purple');
-    $('#btn-post-request')?.classList.add('btn-outline');
-  } else {
-    $('#btn-post-request')?.classList.add('btn-purple');
-    $('#btn-post-request')?.classList.remove('btn-outline');
-    $('#btn-post-offer')?.classList.remove('btn-purple');
-    $('#btn-post-offer')?.classList.add('btn-outline');
+  // Contextual post buttons: only show the post button relevant to active tab
+  const btnOffer = $('#btn-post-offer');
+  const btnReq = $('#btn-post-request');
+  if (btnOffer) btnOffer.style.display = isOffer ? 'inline-flex' : 'none';
+  if (btnReq) btnReq.style.display = isOffer ? 'none' : 'inline-flex';
+
+  // Contextual search placeholder
+  const searchInput = $('#marketplace-search-primary');
+  if (searchInput) {
+    searchInput.placeholder = isOffer
+      ? 'Search service offers (e.g. 3D printing, laser cutting, circuit design, repairs)...'
+      : 'Search service requests (e.g. Arduino debug, PCB layout, mobile app, tutoring)...';
   }
 
   renderServices(allRequests);
@@ -1006,6 +1008,19 @@ async function loadServices(isSilent = false) {
       userData?.id ? listApplicationsByApplicant(dc, { userId: userData.id }, SERVER_ONLY) : { data: { applications: [] } }
     ]);
     allRequests = reqRes.data.helpRequests || [];
+
+    // Filter and auto-clean placeholder/test mockup listings (Finding #2)
+    for (const r of allRequests) {
+      const isPlaceholder = (
+        (r.title && r.title.trim().toLowerCase() === 'job title') ||
+        (r.description && r.description.trim().toLowerCase() === 'job description' && Number(r.budget) === 45000)
+      );
+      if (isPlaceholder) {
+        try {
+          await updateHelpRequestStatus(dc, { id: r.id, status: 'DELETED' });
+        } catch (e) {}
+      }
+    }
 
     // Cache any existing standing offers
     allRequests.forEach(r => {
@@ -1066,14 +1081,108 @@ async function loadServices(isSilent = false) {
   }
 }
 
+function openServiceDetailsDialog(r, actionInfo) {
+  const isOffer = isJobOffer(r);
+  const isMine = r.requester?.id === userData?.id;
+  const isExpired = !isOffer && r.deadline ? new Date(r.deadline + 'T23:59:59') < new Date() : false;
+
+  const typeBadge = $('#sd-modal-type-badge');
+  if (typeBadge) {
+    typeBadge.textContent = isOffer ? 'Service Offer' : 'Service Request';
+    typeBadge.className = `badge ${isOffer ? 'badge-standing' : 'badge-normal'} mb-1`;
+  }
+
+  const titleEl = $('#sd-modal-title');
+  if (titleEl) titleEl.textContent = r.title || 'Untitled Service';
+
+  const avatarEl = $('#sd-poster-avatar');
+  if (avatarEl) avatarEl.textContent = initials(r.requester?.fullName || 'S');
+
+  const nameEl = $('#sd-poster-name');
+  if (nameEl) nameEl.textContent = r.requester?.fullName || (isOffer ? 'Student Provider' : 'Student Client');
+
+  const roleTagEl = $('#sd-poster-role-tag');
+  if (roleTagEl) roleTagEl.textContent = isOffer ? 'Service Provider' : 'Client in need';
+
+  const facultyEl = $('#sd-poster-faculty');
+  if (facultyEl) {
+    facultyEl.textContent = r.requester?.facultyReference 
+      ? `Faculty: ${r.requester.facultyReference}`
+      : (r.requester?.studentId ? `Student ID: ${r.requester.studentId}` : 'Verified Campus Peer');
+  }
+
+  const viewProfBtn = $('#sd-btn-view-profile');
+  if (viewProfBtn) {
+    viewProfBtn.onclick = () => {
+      $('#dialog-service-details')?.close();
+      if (r.requester?.id) openViewProfileDialog(r.requester.id);
+    };
+  }
+
+  const priceLabel = $('#sd-price-label');
+  if (priceLabel) priceLabel.textContent = isOffer ? 'Starting Rate' : 'Budget';
+
+  const priceValue = $('#sd-price-value');
+  if (priceValue) priceValue.textContent = peso(r.budget);
+
+  const catValue = $('#sd-category-value');
+  if (catValue) catValue.textContent = r.category || 'General';
+
+  const timelineLabel = $('#sd-timeline-label');
+  if (timelineLabel) timelineLabel.textContent = isOffer ? 'Service Type' : 'Timeline & Urgency';
+
+  const timelineValue = $('#sd-timeline-value');
+  if (timelineValue) {
+    if (isOffer) {
+      timelineValue.textContent = 'Standing Service (Always Open)';
+      timelineValue.style.color = '#4ade80';
+    } else if (r.deadline) {
+      timelineValue.textContent = isExpired ? `Due ${r.deadline} (Expired)` : `Due ${r.deadline}`;
+      timelineValue.style.color = isExpired ? '#ef4444' : 'var(--text-main)';
+    } else {
+      timelineValue.textContent = r.urgency ? `${r.urgency} Urgency` : 'Flexible';
+      timelineValue.style.color = 'var(--text-main)';
+    }
+  }
+
+  const descContent = $('#sd-description-content');
+  if (descContent) descContent.textContent = r.description || 'No description provided.';
+
+  // Configure action button inside details dialog
+  const actionBtn = $('#sd-modal-action-btn');
+  if (actionBtn && actionInfo) {
+    actionBtn.className = `btn ${actionInfo.btnClass}`;
+    actionBtn.textContent = actionInfo.btnText;
+    actionBtn.disabled = Boolean(actionInfo.btnDisabled);
+
+    actionBtn.onclick = (e) => {
+      e.preventDefault();
+      $('#dialog-service-details')?.close();
+      if (actionInfo.actionType === 'apply') {
+        openApplyDialog(r);
+      } else if (actionInfo.actionType === 'delete') {
+        actionInfo.triggerDelete?.();
+      } else if (actionInfo.actionType === 'cancel') {
+        actionInfo.triggerCancel?.();
+      }
+    };
+  }
+
+  $('#dialog-service-details')?.showModal();
+}
+
 function renderServices(requests) {
   const grid = $('#requests-grid');
   const now = new Date();
 
-  // Exclude mentoring requests from regular services marketplace
+  // Exclude mentoring requests and placeholder listings
   const marketplaceRequests = requests.filter(r => {
     const isMentoring = r.category === 'MENTORING' || (r.title && r.title.toLowerCase().startsWith('mentoring:'));
-    return !isMentoring;
+    const isPlaceholder = (
+      (r.title && r.title.trim().toLowerCase() === 'job title') ||
+      (r.description && r.description.trim().toLowerCase() === 'job description' && Number(r.budget) === 45000)
+    );
+    return !isMentoring && !isPlaceholder;
   });
 
   // Calculate counts for badges using isJobOffer
@@ -1113,7 +1222,53 @@ function renderServices(requests) {
 
   grid.innerHTML = '';
   if (filtered.length === 0) {
-    grid.innerHTML = `<div class="empty-state text-center text-muted" style="grid-column: 1/-1; padding: 2rem;">No ${currentServicesTab === 'offers' ? 'service offers' : 'service requests'} found matching your criteria.</div>`;
+    const isOffer = currentServicesTab === 'offers';
+    const hasActiveFilters = Boolean(requestFilters.q || requestFilters.category || (requestFilters.maxPrice && requestFilters.maxPrice !== Infinity));
+    
+    grid.innerHTML = `
+      <div class="marketplace-empty-card" style="grid-column: 1/-1;">
+        <div class="empty-icon-circle">
+          <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="11" cy="11" r="8"></circle>
+            <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+          </svg>
+        </div>
+        <h3 class="empty-title">No ${isOffer ? 'Service Offers' : 'Service Requests'} Found</h3>
+        <p class="empty-subtitle">
+          ${hasActiveFilters 
+            ? 'No listings matched your active search or filters. Try resetting your filters to see more results.' 
+            : `There are currently no active ${isOffer ? 'service offers' : 'service requests'}. Be the first student to publish one!`
+          }
+        </p>
+        <div class="empty-actions-row">
+          ${hasActiveFilters ? `<button type="button" class="btn btn-outline btn-sm" id="btn-empty-reset-filters">Reset All Filters</button>` : ''}
+          <button type="button" class="btn btn-purple btn-sm" id="btn-empty-create-listing">
+            + Post a ${isOffer ? 'Service Offer' : 'Service Request'}
+          </button>
+        </div>
+      </div>
+    `;
+
+    $('#btn-empty-reset-filters')?.addEventListener('click', () => {
+      requestFilters = { q: '', category: '', maxPrice: Infinity, sort: 'newest' };
+      if ($('#marketplace-search-primary')) $('#marketplace-search-primary').value = '';
+      if ($('#filter-search')) $('#filter-search').value = '';
+      if ($('#filter-category')) $('#filter-category').value = '';
+      if ($('#filter-budget')) $('#filter-budget').value = '';
+      if ($('#filter-sort')) $('#filter-sort').value = 'newest';
+      if ($('#btn-search-clear')) $('#btn-search-clear').classList.add('hidden');
+      renderServices(allRequests);
+    });
+
+    $('#btn-empty-create-listing')?.addEventListener('click', () => {
+      setNewListingModalMode(isOffer ? 'OFFER' : 'REQUEST');
+      if (!isOffer) {
+        const dl = $('#nr-deadline');
+        if (dl) dl.min = new Date().toISOString().split('T')[0];
+      }
+      $('#dialog-new-request').showModal();
+    });
+
     return;
   }
 
@@ -1159,6 +1314,49 @@ function renderServices(requests) {
       ? `<span class="badge badge-standing">Standing</span>`
       : `<span class="${r.urgency === 'Urgent' ? 'badge-urgent' : r.urgency === 'Low' ? 'badge-low' : 'badge-normal'}">${r.urgency || 'Normal'}</span>`;
 
+    const triggerDelete = async () => {
+      const itemName = isOffer ? 'service offer' : 'service request';
+      if (!confirm(`Are you sure you want to delete this ${itemName}?`)) return;
+      try {
+        await updateHelpRequestStatus(dc, { id: r.id, status: 'DELETED' });
+        if (isOffer) {
+          knownStandingOfferIds.delete(r.id);
+          try {
+            localStorage.setItem('standing_offer_ids', JSON.stringify(Array.from(knownStandingOfferIds)));
+          } catch (err) {}
+        }
+        showToast(`Deleted ${itemName}.`);
+        loadServices();
+        loadDashboard(true);
+        if (activeSection === 'applications') loadApplications();
+      } catch (err) {
+        showToast('Could not delete: ' + err.message, 'error');
+      }
+    };
+
+    const triggerCancel = async () => {
+      const itemName = isOffer ? 'order request' : 'application';
+      if (!confirm(`Are you sure you want to cancel your ${itemName}?`)) return;
+      try {
+        const myApp = userApplicationsByRequestId.get(r.id);
+        if (myApp?.id) {
+          try {
+            await deleteApplication(dc, { id: myApp.id });
+          } catch (delErr) {
+            await updateApplicationStatus(dc, { id: myApp.id, status: 'REJECTED' });
+          }
+        }
+        showToast(`Cancelled ${itemName}.`);
+        loadServices();
+        loadDashboard(true);
+        if (activeSection === 'applications') loadApplications();
+      } catch (err) {
+        showToast('Could not cancel: ' + err.message, 'error');
+      }
+    };
+
+    const actionInfo = { actionType, btnText, btnClass, btnDisabled, triggerDelete, triggerCancel };
+
     card.innerHTML = `
       <div class="request-card-header">
         <div class="avatar avatar-sm cursor-pointer flex-shrink-0" onclick="openViewProfileDialog('${r.requester?.id}')">${initials(r.requester?.fullName || 'S')}</div>
@@ -1170,8 +1368,11 @@ function renderServices(requests) {
           ${rightBadge}
         </div>
       </div>
-      <h3 class="request-card-title">${r.title}</h3>
+      <h3 class="request-card-title cursor-pointer hover:underline card-open-details">${r.title}</h3>
       <p class="request-card-desc line-clamp-3">${r.description || 'No description provided.'}</p>
+      <div>
+        <a href="#" class="view-details-link card-open-details">View full scope & details →</a>
+      </div>
       <div class="request-card-meta">
         <span class="badge badge-normal">${r.category || 'General'}</span>
         ${standingOrDeadline}
@@ -1181,11 +1382,21 @@ function renderServices(requests) {
           <small class="text-muted">${isOffer ? 'Starting Rate' : 'Budget'}</small>
           <div class="request-card-price">${peso(r.budget)}</div>
         </div>
-        <button type="button" class="btn ${btnClass} btn-sm apply-btn" ${btnDisabled ? 'disabled' : ''}>
-          ${btnText}
-        </button>
+        <div class="request-card-btn-group">
+          <button type="button" class="btn btn-view-details btn-sm card-open-details">Details</button>
+          <button type="button" class="btn ${btnClass} btn-sm apply-btn" ${btnDisabled ? 'disabled' : ''}>
+            ${btnText}
+          </button>
+        </div>
       </div>
     `;
+
+    card.querySelectorAll('.card-open-details').forEach(el => {
+      el.addEventListener('click', (e) => {
+        e.preventDefault();
+        openServiceDetailsDialog(r, actionInfo);
+      });
+    });
 
     const actionBtn = card.querySelector('.apply-btn');
     if (actionType === 'apply') {
@@ -1196,53 +1407,16 @@ function renderServices(requests) {
     } else if (actionType === 'delete') {
       actionBtn?.addEventListener('click', async (e) => {
         e.preventDefault();
-        const itemName = isOffer ? 'service offer' : 'service request';
-        if (!confirm(`Are you sure you want to delete this ${itemName}?`)) return;
         actionBtn.disabled = true;
         actionBtn.textContent = 'Deleting...';
-        try {
-          await updateHelpRequestStatus(dc, { id: r.id, status: 'DELETED' });
-          if (isOffer) {
-            knownStandingOfferIds.delete(r.id);
-            try {
-              localStorage.setItem('standing_offer_ids', JSON.stringify(Array.from(knownStandingOfferIds)));
-            } catch (err) {}
-          }
-          showToast(`Deleted ${itemName}.`);
-          loadServices();
-          loadDashboard(true);
-          if (activeSection === 'applications') loadApplications();
-        } catch (err) {
-          showToast('Could not delete: ' + err.message, 'error');
-          actionBtn.disabled = false;
-          actionBtn.textContent = 'Delete';
-        }
+        await triggerDelete();
       });
     } else if (actionType === 'cancel') {
       actionBtn?.addEventListener('click', async (e) => {
         e.preventDefault();
-        const itemName = isOffer ? 'order request' : 'application';
-        if (!confirm(`Are you sure you want to cancel your ${itemName}?`)) return;
         actionBtn.disabled = true;
         actionBtn.textContent = 'Cancelling...';
-        try {
-          const myApp = userApplicationsByRequestId.get(r.id);
-          if (myApp?.id) {
-            try {
-              await deleteApplication(dc, { id: myApp.id });
-            } catch (delErr) {
-              await updateApplicationStatus(dc, { id: myApp.id, status: 'REJECTED' });
-            }
-          }
-          showToast(`Cancelled ${itemName}.`);
-          loadServices();
-          loadDashboard(true);
-          if (activeSection === 'applications') loadApplications();
-        } catch (err) {
-          showToast('Could not cancel: ' + err.message, 'error');
-          actionBtn.disabled = false;
-          actionBtn.textContent = 'Cancel';
-        }
+        await triggerCancel();
       });
     }
     grid.appendChild(card);
@@ -1260,9 +1434,30 @@ function setupServiceFilters() {
     setServicesTab('requests');
   });
 
-  $('#filter-search')?.addEventListener('input', (e) => {
-    requestFilters.q = e.target.value;
+  const primarySearch = $('#marketplace-search-primary');
+  const clearSearchBtn = $('#btn-search-clear');
+  const sidebarSearch = $('#filter-search');
+
+  const updateSearch = (val) => {
+    requestFilters.q = val;
+    if (primarySearch && primarySearch.value !== val) primarySearch.value = val;
+    if (sidebarSearch && sidebarSearch.value !== val) sidebarSearch.value = val;
+    if (clearSearchBtn) clearSearchBtn.classList.toggle('hidden', !val);
     renderServices(allRequests);
+  };
+
+  primarySearch?.addEventListener('input', (e) => {
+    updateSearch(e.target.value);
+  });
+
+  sidebarSearch?.addEventListener('input', (e) => {
+    updateSearch(e.target.value);
+  });
+
+  clearSearchBtn?.addEventListener('click', (e) => {
+    e.preventDefault();
+    updateSearch('');
+    primarySearch?.focus();
   });
 
   $('#filter-category')?.addEventListener('input', (e) => {
@@ -1282,12 +1477,13 @@ function setupServiceFilters() {
 
   $('#btn-reset-filters')?.addEventListener('click', (e) => {
     e.preventDefault();
-    requestFilters = { q: '', category: '', maxPrice: 20000, sort: 'newest' };
-    $('#filter-search').value = '';
-    $('#filter-category').value = '';
-    $('#filter-sort').value = 'newest';
+    requestFilters = { q: '', category: '', maxPrice: Infinity, sort: 'newest' };
+    if (primarySearch) primarySearch.value = '';
+    if (sidebarSearch) sidebarSearch.value = '';
+    if (clearSearchBtn) clearSearchBtn.classList.add('hidden');
+    if ($('#filter-category')) $('#filter-category').value = '';
+    if ($('#filter-sort')) $('#filter-sort').value = 'newest';
     if ($('#filter-budget')) $('#filter-budget').value = '';
-    requestFilters.maxPrice = Infinity;
     renderServices(allRequests);
   });
 }
@@ -2700,69 +2896,82 @@ async function loadProfile() {
   $('#profile-student-id').textContent = userData.studentId || 'N/A';
 
   const bioDisplay = document.getElementById('profile-bio-display');
-  if (bioDisplay) bioDisplay.textContent = userData.bio ? userData.bio : 'Loading bio...';
-  
   const skillsDisplay = document.getElementById('profile-skills-display');
+
+  // Instant render from memory or localStorage cache (eliminates loading delay)
+  const cachedBio = userData.bio || localStorage.getItem(`cached_bio_${userData.id}`);
+  let cachedSkills = userData.skills;
+  if (!cachedSkills) {
+    try { cachedSkills = JSON.parse(localStorage.getItem(`cached_skills_${userData.id}`) || '[]'); } catch(e) { cachedSkills = []; }
+  }
+
+  if (bioDisplay) bioDisplay.textContent = cachedBio || 'Loading bio...';
   if (skillsDisplay) {
-    if (userData.skills && userData.skills.length > 0) {
-      skillsDisplay.innerHTML = userData.skills.map(s => `<span class="skill-pill" style="display:inline-block; margin:2px; background:var(--accent-purple-light); color:var(--primary-purple); border:1px solid rgba(79, 70, 229, 0.2); font-weight:600; padding:4px 10px; border-radius:999px; font-size:12px;">${s}</span>`).join('');
+    if (cachedSkills && cachedSkills.length > 0) {
+      skillsDisplay.innerHTML = cachedSkills.map(s => `<span class="skill-pill" style="display:inline-block; margin:2px; background:var(--accent-purple-light); color:var(--primary-purple); border:1px solid rgba(79, 70, 229, 0.2); font-weight:600; padding:4px 10px; border-radius:999px; font-size:12px;">${s}</span>`).join('');
     } else {
       skillsDisplay.innerHTML = '<span class="text-xs text-muted">Loading skills...</span>';
     }
   }
 
   try {
-    const resUser = await getUserProfile(dc, { id: userData.id }, SERVER_ONLY);
-    const userProfile = resUser.data.user;
-    if (!userProfile) return;
+    // Parallelize userProfile (DC), profileDoc (Firestore), and reviews (Firestore)
+    const [resUser, profileDoc, reviewsSnap] = await Promise.all([
+      getUserProfile(dc, { id: userData.id }, SERVER_ONLY),
+      getDoc(doc(firestore, "user_profiles", userData.id)).catch(e => { console.warn(e); return null; }),
+      getDocs(query(collection(firestore, "reviews"), where("targetUserId", "==", userData.id))).catch(e => { console.warn(e); return { docs: [] }; })
+    ]);
 
-    // Set stats
-    const apps = userProfile.applications_on_applicant || [];
-    $('#stat-app-pending').textContent = apps.filter(a => a.status === 'PENDING').length;
-    $('#stat-app-completed').textContent = apps.filter(a => a.status === 'COMPLETED').length;
-    $('#stat-app-terminated').textContent = apps.filter(a => a.status === 'TERMINATED').length;
+    const userProfile = resUser?.data?.user;
+    if (userProfile) {
+      const apps = userProfile.applications_on_applicant || [];
+      $('#stat-app-pending').textContent = apps.filter(a => a.status === 'PENDING').length;
+      $('#stat-app-completed').textContent = apps.filter(a => a.status === 'COMPLETED').length;
+      $('#stat-app-terminated').textContent = apps.filter(a => a.status === 'TERMINATED').length;
 
-    const reqs = userProfile.helpRequests_on_requester || [];
-    $('#stat-emp-pending').textContent = reqs.filter(r => r.status === 'OPEN').length;
-    $('#stat-emp-completed').textContent = reqs.filter(r => r.status === 'COMPLETED').length;
-    $('#stat-emp-terminated').textContent = reqs.filter(r => r.status === 'TERMINATED').length;
-
-    try {
-      const profileDoc = await getDoc(doc(firestore, "user_profiles", userData.id));
-      if (profileDoc.exists()) {
-        const data = profileDoc.data();
-        userData.bio = data.bio || '';
-        userData.skills = data.skills || [];
-      } else {
-        userData.bio = '';
-        userData.skills = [];
-      }
-      
-      if (bioDisplay) bioDisplay.textContent = userData.bio || 'No bio provided yet.';
-      if (skillsDisplay) {
-        if (userData.skills && userData.skills.length > 0) {
-          skillsDisplay.innerHTML = userData.skills.map(s => `<span class="skill-pill" style="display:inline-block; margin:2px; background:var(--accent-purple-light); color:var(--primary-purple); border:1px solid rgba(79, 70, 229, 0.2); font-weight:600; padding:4px 10px; border-radius:999px; font-size:12px;">${s}</span>`).join('');
-        } else {
-          skillsDisplay.innerHTML = '<span class="text-xs text-muted">No skills listed yet.</span>';
-        }
-      }
-    } catch(e) {
-      console.error('Failed to fetch user_profile', e);
-      if (bioDisplay) bioDisplay.textContent = userData.bio || 'No bio provided yet.';
-      if (skillsDisplay) skillsDisplay.innerHTML = '<span class="text-xs text-muted">No skills listed yet.</span>';
+      const reqs = userProfile.helpRequests_on_requester || [];
+      $('#stat-emp-pending').textContent = reqs.filter(r => r.status === 'OPEN').length;
+      $('#stat-emp-completed').textContent = reqs.filter(r => r.status === 'COMPLETED').length;
+      $('#stat-emp-terminated').textContent = reqs.filter(r => r.status === 'TERMINATED').length;
     }
 
-    const reviewsSnap = await getDocs(query(collection(firestore, "reviews"), where("targetUserId", "==", userData.id)));
-    const reviews = reviewsSnap.docs.map(d => ({ id: d.id, ...d.data() }));
-    for (let r of reviews) {
-      if (!r.reviewerName && r.reviewerId) {
+    if (profileDoc && profileDoc.exists()) {
+      const data = profileDoc.data();
+      userData.bio = data.bio || '';
+      userData.skills = data.skills || [];
+    } else if (profileDoc) {
+      userData.bio = '';
+      userData.skills = [];
+    }
+
+    if (userData.bio !== undefined) {
+      try { localStorage.setItem(`cached_bio_${userData.id}`, userData.bio); } catch(e) {}
+    }
+    if (userData.skills !== undefined) {
+      try { localStorage.setItem(`cached_skills_${userData.id}`, JSON.stringify(userData.skills)); } catch(e) {}
+    }
+
+    if (bioDisplay) bioDisplay.textContent = userData.bio || 'No bio provided yet.';
+    if (skillsDisplay) {
+      if (userData.skills && userData.skills.length > 0) {
+        skillsDisplay.innerHTML = userData.skills.map(s => `<span class="skill-pill" style="display:inline-block; margin:2px; background:var(--accent-purple-light); color:var(--primary-purple); border:1px solid rgba(79, 70, 229, 0.2); font-weight:600; padding:4px 10px; border-radius:999px; font-size:12px;">${s}</span>`).join('');
+      } else {
+        skillsDisplay.innerHTML = '<span class="text-xs text-muted">No skills listed yet.</span>';
+      }
+    }
+
+    const reviews = (reviewsSnap.docs || []).map(d => ({ id: d.id, ...d.data() }));
+    // Batch lookup missing reviewer names concurrently
+    const missingReviewers = reviews.filter(r => !r.reviewerName && r.reviewerId);
+    if (missingReviewers.length > 0) {
+      await Promise.all(missingReviewers.map(async r => {
         try {
           const res = await getUserProfile(dc, { id: r.reviewerId });
-          if (res.data.user) r.reviewerName = res.data.user.fullName;
+          if (res?.data?.user) r.reviewerName = res.data.user.fullName;
         } catch(e) {}
-      }
+      }));
     }
-            renderReviewsProfile(reviews);
+    renderReviewsProfile(reviews);
   } catch (err) {
     console.error('Error loading profile:', err);
   }
@@ -2984,30 +3193,30 @@ window.openViewProfileDialog = async function(userId) {
     }
     
     try {
-      const res = await listAllUsers(dc);
+      const [res, profilesSnap, revSnap] = await Promise.all([
+        listAllUsers(dc),
+        getDocs(collection(firestore, "user_profiles")).catch(() => ({ forEach: () => {} })),
+        getDocs(collection(firestore, "reviews")).catch(() => ({ forEach: () => {} }))
+      ]);
       let users = res.data.users || [];
       users = users.filter(u => u.id !== userData.id);
       
-      try {
-        const profilesSnap = await getDocs(collection(firestore, "user_profiles"));
-        const profilesMap = {};
-        profilesSnap.forEach(d => { profilesMap[d.id] = d.data(); });
-        
-        const revSnap = await getDocs(collection(firestore, "reviews"));
-        const revMap = {};
-        revSnap.forEach(d => {
-          const data = d.data();
-          if(!revMap[data.targetUserId]) revMap[data.targetUserId] = { sum: 0, count: 0 };
-          revMap[data.targetUserId].sum += Number(data.rating) || 5;
-          revMap[data.targetUserId].count++;
-        });
+      const profilesMap = {};
+      profilesSnap.forEach(d => { profilesMap[d.id] = d.data(); });
+      
+      const revMap = {};
+      revSnap.forEach(d => {
+        const data = d.data();
+        if(!revMap[data.targetUserId]) revMap[data.targetUserId] = { sum: 0, count: 0 };
+        revMap[data.targetUserId].sum += Number(data.rating) || 5;
+        revMap[data.targetUserId].count++;
+      });
 
-        users.forEach(u => {
-          u.bio = profilesMap[u.id]?.bio || '';
-          u.skills = profilesMap[u.id]?.skills || [];
-          u.rating = revMap[u.id] ? (revMap[u.id].sum / revMap[u.id].count).toFixed(1) : 'New';
-        });
-      } catch(e) {}
+      users.forEach(u => {
+        u.bio = profilesMap[u.id]?.bio || '';
+        u.skills = profilesMap[u.id]?.skills || [];
+        u.rating = revMap[u.id] ? (revMap[u.id].sum / revMap[u.id].count).toFixed(1) : 'New';
+      });
       
       allUsersData = users;
       renderMentoringGrid(users);

@@ -1116,6 +1116,163 @@ body.light-theme .success-message {
     flex-shrink: 0;
 }
 
+.request-card-btn-group {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex-shrink: 0;
+}
+
+.btn-view-details {
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid var(--border-light);
+    color: var(--text-muted);
+    padding: 0.35rem 0.75rem;
+    font-size: 0.82rem;
+    border-radius: var(--radius-sm);
+    font-weight: 500;
+    transition: var(--transition);
+}
+
+.btn-view-details:hover {
+    background: rgba(124, 108, 248, 0.12);
+    border-color: rgba(124, 108, 248, 0.4);
+    color: var(--primary-purple);
+    transform: translateY(-1px);
+}
+
+.view-details-link {
+    color: var(--primary-purple);
+    font-size: 0.8rem;
+    font-weight: 500;
+    cursor: pointer;
+    text-decoration: none;
+    transition: var(--transition);
+}
+
+.view-details-link:hover {
+    text-decoration: underline;
+    color: var(--primary-purple-hover);
+}
+
+/* Primary Marketplace Search Bar */
+.marketplace-search-bar-wrap {
+    width: 100%;
+}
+
+.marketplace-search-box {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    background: var(--bg-card);
+    border: 1px solid var(--border-card);
+    border-radius: var(--radius-md);
+    padding: 0.65rem 1rem;
+    box-shadow: var(--shadow-card);
+    transition: var(--transition);
+}
+
+.marketplace-search-box:focus-within {
+    border-color: var(--primary-purple);
+    box-shadow: 0 0 0 3px rgba(124, 108, 248, 0.2);
+}
+
+.marketplace-search-icon {
+    color: var(--text-muted);
+    flex-shrink: 0;
+}
+
+.marketplace-search-input {
+    flex: 1;
+    background: transparent;
+    border: none;
+    outline: none;
+    color: var(--text-main);
+    font-size: 0.95rem;
+    font-family: inherit;
+}
+
+.marketplace-search-input::placeholder {
+    color: var(--text-muted);
+    opacity: 0.7;
+}
+
+.marketplace-search-clear {
+    background: transparent;
+    border: none;
+    color: var(--text-muted);
+    cursor: pointer;
+    font-size: 1rem;
+    padding: 0 0.25rem;
+    line-height: 1;
+    transition: var(--transition);
+}
+
+.marketplace-search-clear:hover {
+    color: var(--text-heading);
+}
+
+/* Marketplace Empty State Recovery Card */
+.marketplace-empty-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border-card);
+    border-radius: var(--radius-card);
+    padding: 3.5rem 1.5rem;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    box-shadow: var(--shadow-card);
+}
+
+.marketplace-empty-card .empty-icon-circle {
+    width: 64px;
+    height: 64px;
+    border-radius: 50%;
+    background: rgba(124, 108, 248, 0.1);
+    color: var(--primary-purple);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 1.25rem;
+}
+
+.marketplace-empty-card .empty-title {
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: var(--text-heading);
+    margin-bottom: 0.5rem;
+}
+
+.marketplace-empty-card .empty-subtitle {
+    font-size: 0.9rem;
+    color: var(--text-muted);
+    max-width: 480px;
+    line-height: 1.55;
+    margin-bottom: 1.5rem;
+}
+
+.marketplace-empty-card .empty-actions-row {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+    justify-content: center;
+}
+
+/* Service Details Modal Specifics */
+.sd-poster-card:hover {
+    border-color: rgba(124, 108, 248, 0.3);
+}
+
+.sd-spec-item {
+    transition: var(--transition);
+}
+
+.sd-spec-item:hover {
+    background: rgba(255, 255, 255, 0.04);
+}
+
 /* ==========================================================================
    7. APPLICATIONS HUB
    ========================================================================== */
