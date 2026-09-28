@@ -464,6 +464,11 @@ function showApp() {
   const topAvatar = $('#dashboard-user-avatar');
   if (topAvatar) topAvatar.textContent = userInitials;
 
+  if (currentUser?.uid && !sessionStorage.getItem(`w4a_session_logged_in_${currentUser.uid}`)) {
+    sessionStorage.setItem(`w4a_session_logged_in_${currentUser.uid}`, 'true');
+    logUserAction('log in', `Signed in as ${userData?.email || currentUser.email || 'student'}`, currentUser.uid);
+  }
+
   navigateTo(activeSection || 'dashboard');
   if (workspace) {
     workspace.updateUser();
@@ -530,6 +535,7 @@ onAuthStateChanged(auth, async (user) => {
       clearUserSessionDOM();
     }
     currentUser = user;
+    window.__currentUser = user;
     try {
       const res = await getUser(dc, { id: user.uid }, SERVER_ONLY);
       if (res.data.user) {
@@ -551,6 +557,7 @@ onAuthStateChanged(auth, async (user) => {
   } else {
     currentUser = null;
     userData = null;
+    window.__currentUser = null;
     clearUserSessionDOM();
     showAuth('landing');
   }
@@ -1432,7 +1439,7 @@ function renderServices(requests) {
           } catch (err) {}
         }
         showToast(`Deleted ${itemName}.`);
-        logUserAction(isOffer ? 'Deleted Service Offer' : 'Deleted Service Request', `Removed ${itemName} "${r.title || ''}"`, 'Services', 'info');
+        logUserAction('delete', `Deleted ${itemName} "${r.title || ''}"`, currentUser?.uid || userData?.id);
         loadServices();
         loadDashboard(true);
         if (activeSection === 'applications') loadApplications();
@@ -1454,7 +1461,7 @@ function renderServices(requests) {
           }
         }
         showToast(`Cancelled ${itemName}.`);
-        logUserAction(isOffer ? 'Cancelled Order Request' : 'Cancelled Application', `Withdrew ${itemName}`, 'Applications', 'info');
+        logUserAction('delete', `Withdrew ${itemName} for "${r.title || ''}"`, currentUser?.uid || userData?.id);
         loadServices();
         loadDashboard(true);
         if (activeSection === 'applications') loadApplications();
@@ -1624,7 +1631,6 @@ function setupServiceFilters() {
     if ($('#filter-budget')) $('#filter-budget').value = '';
     updateFilterBadge();
     renderServices(allRequests);
-    logUserAction('Reset Marketplace Filters', 'Cleared active search filters and keywords', 'Search', 'info');
   });
 }
 
@@ -1790,7 +1796,6 @@ function setupNewRequestDialog() {
         }
 
         showToast(isOffer ? 'Service offer updated!' : 'Service request updated!');
-        logUserAction(isOffer ? 'Updated Service Offer' : 'Updated Service Request', `"${title}" · Rate: ₱${Number(budget).toLocaleString()} · ${category}`, 'Services', 'info');
         editingListing = null;
         $('#dialog-new-request').close();
         e.target.reset();
@@ -1819,7 +1824,7 @@ function setupNewRequestDialog() {
         deadline: deadline
       });
       showToast(isOffer ? 'Service offer published! It will stay active for ongoing orders.' : 'Service request published successfully!');
-      logUserAction(isOffer ? 'Published Service Offer' : 'Published Service Request', `"${title}" · Rate: ₱${Number(budget).toLocaleString()} · ${category}`, 'Services', 'success');
+      logUserAction('post', isOffer ? `Posted service offer: "${title}" (₱${Number(budget).toLocaleString()})` : `Posted service request: "${title}" (₱${Number(budget).toLocaleString()})`, currentUser?.uid || userData?.id);
       $('#dialog-new-request').close();
       e.target.reset();
       setServicesTab(isOffer ? 'offers' : 'requests');
@@ -1880,7 +1885,7 @@ function setupApplyDialog() {
         message: $('#apply-message').value.trim()
       });
       showToast(isOffer ? `Order request sent! Proposed budget: ${peso(amount)}` : `Application sent! Proposed rate: ${peso(amount)}`);
-      logUserAction(isOffer ? 'Placed Service Order' : 'Submitted Proposal', `Proposed rate: ${peso(amount)} for "${applyingRequest?.title || 'Listing'}"`, 'Applications', 'pending');
+      logUserAction('apply', isOffer ? `Ordered service: "${applyTarget?.title || 'Listing'}" (₱${Number(amount).toLocaleString()})` : `Applied for: "${applyTarget?.title || 'Listing'}" (₱${Number(amount).toLocaleString()})`, currentUser?.uid || userData?.id);
       $('#dialog-apply').close();
       loadServices();
       loadDashboard(true);
@@ -2203,7 +2208,9 @@ async function handleApprove(application, job) {
       }
     }
     showToast(isOffer ? 'Order accepted! Chat created.' : 'Application approved! Chat created.');
-    logUserAction(isOffer ? 'Accepted Customer Order' : 'Approved Student Application', `Order active for messaging and delivery`, 'Applications', 'success');
+    if (application?.applicantId) {
+      logUserAction('get accepted', `Application accepted for "${job?.title || 'Listing'}"`, application.applicantId);
+    }
     navigateTo('messages');
   } catch (err) {
     showToast('Error: ' + err.message, 'error');
@@ -2214,7 +2221,6 @@ async function handleReject(application) {
   try {
     await updateApplicationStatus(dc, { id: application.id, status: 'REJECTED' });
     showToast('Application rejected.');
-    logUserAction('Declined Proposal', 'Turned down candidate application', 'Applications', 'rejected');
     loadApplications();
   } catch (err) {
     showToast('Error: ' + err.message, 'error');
@@ -2482,6 +2488,8 @@ async function selectConversation(convId) {
     try {
       await terminateJob(dc, { applicationId: conv.application.id, helpRequestId: conv.application.helpRequest.id });
       showToast('Job terminated.');
+      const jobTitle = conv.application?.helpRequest?.title || (isOffer ? 'Service Offer' : 'Service Request');
+      logUserAction('terminate', `Terminated job: "${jobTitle}"`, currentUser?.uid || userData?.id);
       activeConvId = null;
       activeSubscriptionConvId = null;
       sessionStorage.removeItem('active_conversation_id');
@@ -2770,6 +2778,7 @@ function setupChat() {
       }
       await push(ref(db, `conversations/${sendingConvId}/messages`), payload);
       touchConversationActivity(sendingConvId, Date.now());
+      logUserAction('message', content ? `Sent message: "${content.slice(0, 45)}${content.length > 45 ? '...' : ''}"` : 'Sent attachment', currentUser?.uid || userData?.id);
     } catch (err) {
       showToast('Error sending message: ' + err.message, 'error');
       tempDiv.remove();
@@ -3066,6 +3075,7 @@ function setupInlineRatingForm() {
   $('#inline-rating-form')?.addEventListener('submit', (e) => {
     e.preventDefault();
     showToast('Feedback submitted! Thank you.');
+    logUserAction('rate', 'Submitted platform feedback and rating', currentUser?.uid || userData?.id);
     $('#inline-feedback-text').value = '';
   });
 }
@@ -3145,6 +3155,11 @@ function setupReviewDialog() {
         reviewTarget.conv.application.status = 'COMPLETED';
       }
 
+      logUserAction('complete transaction', `Completed transaction for "${helpReq?.title || 'Listing'}"`, currentUser?.uid || userData?.id);
+      if (reviewTarget.otherUser?.id) {
+        logUserAction('complete transaction', `Completed transaction for "${helpReq?.title || 'Listing'}"`, reviewTarget.otherUser.id);
+      }
+
       // 2. Submit the review to Firestore
       const revData = {
         rating: selectedRating,
@@ -3155,6 +3170,7 @@ function setupReviewDialog() {
         createdAt: firestoreTimestamp()
       };
       await addDoc(collection(firestore, "reviews"), revData);
+      logUserAction('rate', `Rated ${reviewTarget.otherUser?.fullName || 'user'} ${selectedRating} star${selectedRating > 1 ? 's' : ''}`, currentUser?.uid || userData?.id);
 
       const actionSuccessMsg = isOffer 
         ? (reviewTarget.isClient ? 'Payment confirmed and order completed!' : 'Order marked as completed!')
@@ -3640,8 +3656,92 @@ window.openViewProfileDialog = async function(userId) {
 };
 
   // -- Mentoring  ------------------------------------------------------------
+  let mentoringFilters = {
+    q: '',
+    skill: '',
+    rating: 'all',
+    sort: 'default'
+  };
+
+  function updateMentoringFilterBadge() {
+    let count = 0;
+    if (mentoringFilters.skill && mentoringFilters.skill.trim()) count++;
+    if (mentoringFilters.rating && mentoringFilters.rating !== 'all') count++;
+    if (mentoringFilters.sort && mentoringFilters.sort !== 'default') count++;
+
+    const badge = document.getElementById('mentoring-filter-active-count');
+    const toggleBtn = document.getElementById('btn-toggle-mentoring-filters');
+    if (badge) {
+      if (count > 0) {
+        badge.textContent = `(${count})`;
+        badge.classList.remove('hidden');
+        toggleBtn?.classList.add('has-active');
+      } else {
+        badge.classList.add('hidden');
+        toggleBtn?.classList.remove('has-active');
+      }
+    }
+  }
+
+  function applyMentoringFiltersAndRender() {
+    let filtered = [...allUsersData];
+    const q = (mentoringFilters.q || '').toLowerCase().trim();
+    const skill = (mentoringFilters.skill || '').toLowerCase().trim();
+    const ratingFilter = mentoringFilters.rating;
+    const sort = mentoringFilters.sort;
+
+    if (q) {
+      filtered = filtered.filter(u => 
+        (u.fullName || '').toLowerCase().includes(q) || 
+        (u.preferredRole || '').toLowerCase().includes(q) ||
+        (u.bio || '').toLowerCase().includes(q) ||
+        (u.skills || []).some(s => s.toLowerCase().includes(q))
+      );
+    }
+
+    if (skill) {
+      filtered = filtered.filter(u => 
+        (u.skills || []).some(s => s.toLowerCase().includes(skill)) ||
+        (u.preferredRole || '').toLowerCase().includes(skill)
+      );
+    }
+
+    if (ratingFilter && ratingFilter !== 'all') {
+      if (ratingFilter === '5') {
+        filtered = filtered.filter(u => u.rating === '5.0' || parseFloat(u.rating) >= 4.9);
+      } else if (ratingFilter === '4') {
+        filtered = filtered.filter(u => !isNaN(parseFloat(u.rating)) && parseFloat(u.rating) >= 4.0);
+      } else if (ratingFilter === 'new') {
+        filtered = filtered.filter(u => u.rating === 'New' || isNaN(parseFloat(u.rating)));
+      }
+    }
+
+    if (sort === 'rating-high') {
+      filtered.sort((a, b) => {
+        const rA = isNaN(parseFloat(a.rating)) ? -1 : parseFloat(a.rating);
+        const rB = isNaN(parseFloat(b.rating)) ? -1 : parseFloat(b.rating);
+        return rB - rA;
+      });
+    } else if (sort === 'name-asc') {
+      filtered.sort((a, b) => (a.fullName || '').localeCompare(b.fullName || ''));
+    } else if (sort === 'name-desc') {
+      filtered.sort((a, b) => (b.fullName || '').localeCompare(a.fullName || ''));
+    }
+
+    const countEl = document.getElementById('mentoring-count');
+    if (countEl) {
+      countEl.textContent = `Showing ${filtered.length} mentor${filtered.length === 1 ? '' : 's'}`;
+    }
+
+    renderMentoringGrid(filtered);
+  }
+
   async function loadMentoring() {
     const grid = document.getElementById('mentoring-users-grid');
+    if (devPreview && allUsersData.length > 0) {
+      applyMentoringFiltersAndRender();
+      return;
+    }
     if (grid.children.length === 0 || grid.querySelector('.skeleton-loader') || grid.querySelector('.loader')) {
       const skeletonCard = `
         <div class="job-card" style="box-shadow: none; border: 1px solid var(--border-light);">
@@ -3696,7 +3796,7 @@ window.openViewProfileDialog = async function(userId) {
       });
       
       allUsersData = users;
-      renderMentoringGrid(users);
+      applyMentoringFiltersAndRender();
     } catch(e) {
       console.error(e);
       grid.innerHTML = '<div class="empty-state">Error loading users.</div>';
@@ -3758,17 +3858,70 @@ window.openViewProfileDialog = async function(userId) {
 
   function setupMentoringDialog() {
     const searchInput = document.getElementById('mentoring-search-input');
-    if (searchInput) {
-      searchInput.addEventListener('input', (e) => {
-        const q = e.target.value.toLowerCase();
-        const filtered = allUsersData.filter(u => 
-          (u.fullName || '').toLowerCase().includes(q) || 
-          (u.preferredRole || '').toLowerCase().includes(q) ||
-          (u.skills || []).some(s => s.toLowerCase().includes(q))
-        );
-        renderMentoringGrid(filtered);
-      });
-    }
+    const clearSearchBtn = document.getElementById('btn-mentoring-search-clear');
+    const toggleBtn = document.getElementById('btn-toggle-mentoring-filters');
+    const drawer = document.getElementById('mentoring-filter-drawer');
+    const resetBtn = document.getElementById('btn-reset-mentoring-filters');
+    const skillInput = document.getElementById('filter-mentor-skill');
+    const ratingSelect = document.getElementById('filter-mentor-rating');
+    const sortSelect = document.getElementById('filter-mentor-sort');
+
+    toggleBtn?.addEventListener('click', (e) => {
+      e.preventDefault();
+      if (drawer) {
+        const isHidden = drawer.classList.contains('hidden');
+        drawer.classList.toggle('hidden', !isHidden);
+        toggleBtn.classList.toggle('active', isHidden);
+        toggleBtn.setAttribute('aria-expanded', isHidden ? 'true' : 'false');
+      }
+    });
+
+    searchInput?.addEventListener('input', (e) => {
+      mentoringFilters.q = e.target.value;
+      if (clearSearchBtn) clearSearchBtn.classList.toggle('hidden', !e.target.value);
+      applyMentoringFiltersAndRender();
+    });
+
+    clearSearchBtn?.addEventListener('click', (e) => {
+      e.preventDefault();
+      mentoringFilters.q = '';
+      if (searchInput) {
+        searchInput.value = '';
+        searchInput.focus();
+      }
+      clearSearchBtn.classList.add('hidden');
+      applyMentoringFiltersAndRender();
+    });
+
+    skillInput?.addEventListener('input', (e) => {
+      mentoringFilters.skill = e.target.value;
+      updateMentoringFilterBadge();
+      applyMentoringFiltersAndRender();
+    });
+
+    ratingSelect?.addEventListener('change', (e) => {
+      mentoringFilters.rating = e.target.value;
+      updateMentoringFilterBadge();
+      applyMentoringFiltersAndRender();
+    });
+
+    sortSelect?.addEventListener('change', (e) => {
+      mentoringFilters.sort = e.target.value;
+      updateMentoringFilterBadge();
+      applyMentoringFiltersAndRender();
+    });
+
+    resetBtn?.addEventListener('click', (e) => {
+      e.preventDefault();
+      mentoringFilters = { q: '', skill: '', rating: 'all', sort: 'default' };
+      if (searchInput) searchInput.value = '';
+      if (clearSearchBtn) clearSearchBtn.classList.add('hidden');
+      if (skillInput) skillInput.value = '';
+      if (ratingSelect) ratingSelect.value = 'all';
+      if (sortSelect) sortSelect.value = 'default';
+      updateMentoringFilterBadge();
+      applyMentoringFiltersAndRender();
+    });
 
     const form = document.getElementById('mentoring-apply-form');
     if (form) {
@@ -3809,6 +3962,7 @@ window.openViewProfileDialog = async function(userId) {
           });
           
           showToast('Mentoring proposal sent!');
+          logUserAction('apply', `Sent mentoring proposal to ${activeMentoringTarget.fullName}: "${title}" (₱${Number(amount).toLocaleString()})`, currentUser?.uid || userData?.id);
           document.getElementById('dialog-mentoring-apply').close();
         } catch (err) {
           console.error(err);
@@ -4309,6 +4463,10 @@ function setupMobileSidebar() {
 function setupLogout() {
   $('#btn-logout')?.addEventListener('click', async (e) => {
     e.preventDefault();
+    if (currentUser?.uid) {
+      logUserAction('log out', `Signed out from session`, currentUser.uid);
+      sessionStorage.removeItem(`w4a_session_logged_in_${currentUser.uid}`);
+    }
     const forms = ['#landing-quick-login-form', '#login-form', '#register-form'];
     forms.forEach(sel => { const f = document.querySelector(sel); if (f) f.reset(); });
     hide($('#register-faculty-other-group'));
@@ -4472,6 +4630,12 @@ document.addEventListener('DOMContentLoaded', () => {
       { id: 'req_2', title: 'Circuit Schematic & PCB Layout Review', category: 'PCB & Hardware Design', budget: 1200, type: 'OFFER', tags: ['STANDING_OFFER'], requester: { fullName: 'Engr. Noel V.' }, createdAt: new Date(Date.now() - 3600000*48).toISOString() },
       { id: 'req_3', title: 'Need Arduino Firmware for Water Monitoring IoT', category: 'Embedded Systems', budget: 2500, type: 'REQUEST', requester: { fullName: 'Maria Santos' }, createdAt: new Date(Date.now() - 3600000*12).toISOString() },
       { id: 'req_4', title: 'Laser Cutting Acrylic Chassis Plates', category: 'CAD & 3D Modeling', budget: 650, type: 'OFFER', tags: ['STANDING_OFFER'], requester: { fullName: 'Tech Lab Guild' }, createdAt: new Date(Date.now() - 3600000*72).toISOString() }
+    ];
+    allUsersData = [
+      { id: 'user_m1', fullName: 'Engr. Noel Villanueva', preferredRole: 'Offer My Skills', bio: 'Senior embedded hardware engineer & PCB routing specialist.', skills: ['PCB & Hardware Design', 'Embedded Systems', 'C++', 'Electronics & Circuit Design'], rating: '5.0' },
+      { id: 'user_m2', fullName: 'Anna Salcedo', preferredRole: 'Offer My Skills', bio: 'AI researcher and Python backend developer. Happy to mentor on ML models.', skills: ['Python', 'AI & Data', 'Machine Learning', 'Software Development'], rating: '4.9' },
+      { id: 'user_m3', fullName: 'Marites Bautista', preferredRole: 'Offer My Skills', bio: 'CAD designer and 3D modeling instructor with 4+ years rapid prototyping.', skills: ['CAD & 3D Modeling', '3D Design', 'SolidWorks'], rating: '4.8' },
+      { id: 'user_m4', fullName: 'Rafael Domingo', preferredRole: 'Offer My Skills', bio: 'Full-stack web developer and UI designer for interactive student platforms.', skills: ['JavaScript', 'React', 'Frontend Development', 'UI/UX Design'], rating: 'New' }
     ];
     showApp();
     navigateTo(devPreview);

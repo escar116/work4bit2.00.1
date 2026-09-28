@@ -717,24 +717,99 @@
                      5b. SECTION: MENTORING HUB
                      ========================================================================== -->
                 <section id="section-mentoring" class="content-section hidden">
-                    <div class="page-header-flex" style="align-items: flex-start; justify-content: space-between; display: flex; flex-wrap: nowrap; align-items: center; gap: 1rem; position: relative;">
-                        <div style="flex: 1; min-width: 0;">
-                            <h1 class="page-title">Mentoring Hub</h1>
-                            
-                        </div>
-                        <label class="search-bar mentoring-search">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="search-icon">
-                                <circle cx="11" cy="11" r="8"></circle>
-                                <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
-                            </svg>
-                            <input type="text" id="mentoring-search-input" class="search-input" placeholder="Search by name, or skills..."></label>
+                    <div class="page-header mb-4">
+                        <h1 class="page-title">Mentoring Hub</h1>
+                        <p class="text-muted text-sm mt-1">Connect with verified student mentors, get project guidance, and build technical skills.</p>
                     </div>
 
-                    <div class="glass-panel" style="padding: 1.5rem;">
-                        <h2 class="text-xl font-bold mb-4" style="color: var(--text-heading);">Available Mentors</h2>
-                        <div class="requests-grid" id="mentoring-users-grid" style="max-height: 70vh; overflow-y: auto; padding-right: 0.5rem; padding-bottom: 0.5rem;">
-                            <div class="loader"></div>
+                    <!-- Combined Search & Filter Bar for Mentoring -->
+                    <div class="marketplace-search-combined-wrap mb-4">
+                        <div class="marketplace-search-combined-bar">
+                            <!-- Left: Search input section -->
+                            <div class="search-input-section">
+                                <svg class="search-bar-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <circle cx="11" cy="11" r="8"></circle>
+                                    <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                                </svg>
+                                <input type="text" id="mentoring-search-input" class="marketplace-search-input" placeholder="Search mentors by name, role, or skill">
+                                <button type="button" id="btn-mentoring-search-clear" class="marketplace-search-clear hidden" title="Clear search">✕</button>
+                            </div>
+
+                            <!-- Subtle Vertical Divider -->
+                            <div class="search-bar-divider" aria-hidden="true"></div>
+
+                            <!-- Right: Filter section -->
+                            <div class="search-filter-section">
+                                <button type="button" id="btn-toggle-mentoring-filters" class="btn-combined-filter" aria-expanded="false" title="Toggle Filters">
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                        <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon>
+                                    </svg>
+                                    <span class="filter-btn-text">Filters</span>
+                                    <span id="mentoring-filter-active-count" class="filter-count-badge hidden">(0)</span>
+                                </button>
+                                <button type="button" id="btn-reset-mentoring-filters" class="btn-combined-reset" title="Reset all filters">
+                                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                                        <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path>
+                                        <path d="M3 3v5h5"></path>
+                                    </svg>
+                                </button>
+                            </div>
                         </div>
+
+                        <!-- Mentoring Filter Drawer -->
+                        <div id="mentoring-filter-drawer" class="marketplace-filter-drawer hidden">
+                            <div class="filter-drawer-grid">
+                                <div class="form-group mb-0">
+                                    <label class="form-label" for="filter-mentor-skill">Skill or Discipline</label>
+                                    <input list="mentoring-skill-options" id="filter-mentor-skill" class="form-control" placeholder="All Skills (e.g. JavaScript, Python, CAD...)">
+                                    <datalist id="mentoring-skill-options">
+                                        <option value="3D Design">3D Design</option>
+                                        <option value="AI & Data">AI & Data</option>
+                                        <option value="Arduino IDE">Arduino IDE</option>
+                                        <option value="C++">C++</option>
+                                        <option value="CAD & 3D Modeling">CAD & 3D Modeling</option>
+                                        <option value="Electronics & Circuit Design">Electronics & Circuit Design</option>
+                                        <option value="Embedded Systems">Embedded Systems</option>
+                                        <option value="Frontend Development">Frontend Development</option>
+                                        <option value="Git">Git</option>
+                                        <option value="Graphic Design">Graphic Design</option>
+                                        <option value="JavaScript">JavaScript</option>
+                                        <option value="Node.js">Node.js</option>
+                                        <option value="PCB & Hardware Design">PCB & Hardware Design</option>
+                                        <option value="Python">Python</option>
+                                        <option value="Quality Assurance">Quality Assurance</option>
+                                        <option value="React">React</option>
+                                        <option value="Software Development">Software Development</option>
+                                        <option value="UI/UX Design">UI/UX Design</option>
+                                    </datalist>
+                                </div>
+
+                                <div class="form-group mb-0">
+                                    <label class="form-label" for="filter-mentor-rating">Rating Status</label>
+                                    <select id="filter-mentor-rating" class="form-control">
+                                        <option value="all">All Mentors</option>
+                                        <option value="5">5.0 Star Rated</option>
+                                        <option value="4">4.0+ Stars</option>
+                                        <option value="new">New Mentors</option>
+                                    </select>
+                                </div>
+
+                                <div class="form-group mb-0">
+                                    <label class="form-label" for="filter-mentor-sort">Sort Mentors</label>
+                                    <select id="filter-mentor-sort" class="form-control">
+                                        <option value="default">Default Order</option>
+                                        <option value="rating-high">Highest Rating First</option>
+                                        <option value="name-asc">Name (A to Z)</option>
+                                        <option value="name-desc">Name (Z to A)</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div id="mentoring-count" class="text-sm text-muted mb-3"></div>
+                    <div class="requests-grid" id="mentoring-users-grid">
+                        <div class="loader"></div>
                     </div>
                 </section>
 

@@ -8,7 +8,7 @@
     --status-completed: #10b981;
     --status-terminated: #ef4444;
     /* Solid Deep Navy Sidebar */
-    --sidebar-bg: #151b2d;
+    --sidebar-bg: #22283e;
     --sidebar-hover: rgba(255, 255, 255, 0.07);
     --sidebar-active: #4f46e5;
     
@@ -5201,4 +5201,104 @@ dialog.workspace-guide::backdrop {
         border-top: 1px solid var(--border-card);
         padding-top: 0.5rem;
     }
+}
+
+/* Sidebar Header Spacing Refinement */
+.sidebar-nav {
+    padding-top: 0.85rem !important;
+}
+
+#sidebar .sidebar-header {
+    height: auto !important;
+    min-height: auto !important;
+    margin-bottom: 0.35rem !important;
+    padding: 0 0.5rem !important;
+}
+
+.sidebar-section-label {
+    font-size: 0.68rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    color: var(--text-on-dark-muted);
+    padding: 0 0.5rem;
+    margin-bottom: 0.25rem !important;
+    display: block;
+}
+
+/* Mentoring Grid Natural Layout (No Scrollbar) */
+#mentoring-users-grid {
+    max-height: none !important;
+    overflow-y: visible !important;
+    overflow: visible !important;
+    width: 100%;
+}
+
+/* Action Badges for Exact 10 User Action Types */
+.log-action-badge {
+    font-size: 0.72rem;
+    font-weight: 700;
+    padding: 0.2rem 0.65rem;
+    border-radius: var(--radius-pill);
+    letter-spacing: 0.03em;
+    display: inline-block;
+}
+
+.action-badge-log-in {
+    background: rgba(59, 130, 246, 0.15);
+    color: #2563eb;
+    border: 1px solid rgba(59, 130, 246, 0.25);
+}
+
+.action-badge-log-out {
+    background: rgba(100, 116, 139, 0.15);
+    color: #64748b;
+    border: 1px solid rgba(100, 116, 139, 0.25);
+}
+
+.action-badge-post {
+    background: rgba(99, 102, 241, 0.15);
+    color: #6366f1;
+    border: 1px solid rgba(99, 102, 241, 0.25);
+}
+
+.action-badge-delete {
+    background: rgba(239, 68, 68, 0.15);
+    color: #dc2626;
+    border: 1px solid rgba(239, 68, 68, 0.25);
+}
+
+.action-badge-apply {
+    background: rgba(245, 158, 11, 0.15);
+    color: #d97706;
+    border: 1px solid rgba(245, 158, 11, 0.25);
+}
+
+.action-badge-get-accepted {
+    background: rgba(16, 185, 129, 0.15);
+    color: #059669;
+    border: 1px solid rgba(16, 185, 129, 0.25);
+}
+
+.action-badge-message {
+    background: rgba(139, 92, 246, 0.15);
+    color: #8b5cf6;
+    border: 1px solid rgba(139, 92, 246, 0.25);
+}
+
+.action-badge-terminate {
+    background: rgba(239, 68, 68, 0.15);
+    color: #dc2626;
+    border: 1px solid rgba(239, 68, 68, 0.25);
+}
+
+.action-badge-complete-transaction {
+    background: rgba(16, 185, 129, 0.15);
+    color: #059669;
+    border: 1px solid rgba(16, 185, 129, 0.25);
+}
+
+.action-badge-rate {
+    background: rgba(245, 158, 11, 0.15);
+    color: #d97706;
+    border: 1px solid rgba(245, 158, 11, 0.25);
 }
