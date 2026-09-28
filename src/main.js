@@ -1,4 +1,4 @@
-// ── Imports ──────────────────────────────────────────────────────────────────
+// -- Imports  ------------------------------------------------------------
 import { initializeApp } from 'firebase/app';
 import {
   getAuth, onAuthStateChanged, signInWithEmailAndPassword,
@@ -19,7 +19,7 @@ import {
   deleteUser, deleteApplication
 } from '@work4abit/dataconnect';
 
-// ── Firebase Config ──────────────────────────────────────────────────────────
+// -- Firebase Config  ------------------------------------------------------------
 const firebaseConfig = {
   apiKey: "AIzaSyAu53ZLxN_6p_BKZUWSE6R8aMbn_iKP91s",
   authDomain: "work4abit.firebaseapp.com",
@@ -39,7 +39,7 @@ const firestore = getFirestore(app);
 const googleProvider = new GoogleAuthProvider();
 googleProvider.setCustomParameters({ prompt: 'select_account' });
 
-// ── Constants ────────────────────────────────────────────────────────────────
+// -- Constants  ------------------------------------------------------------
 const ADMIN_EMAILS = [
   'charlesjanparaggua@gmail.com',
   'anryurmanita@gmail.com',
@@ -49,7 +49,7 @@ const ADMIN_EMAILS = [
 ];
 const SERVER_ONLY = { fetchPolicy: 'SERVER_ONLY' };
 
-// ── State ────────────────────────────────────────────────────────────────────
+// -- State  ------------------------------------------------------------
 let currentUser = null;
 let googleUser = null;
 
@@ -70,7 +70,7 @@ let renderedMsgIds = new Set();
 let pendingTempMessages = [];
 let lastConversationsDigest = '';
 
-// ── DOM Helpers ──────────────────────────────────────────────────────────────
+// -- DOM Helpers  ------------------------------------------------------------
 const $ = (sel) => document.querySelector(sel);
 const $$ = (sel) => document.querySelectorAll(sel);
 const peso = (n) => '₱' + Number(n || 0).toLocaleString('en-PH', { maximumFractionDigits: 0 });
@@ -113,7 +113,7 @@ function compressImage(file) {
   });
 }
 
-// ── Realtime Multi-Client Synchronization Engine ─────────────────────────────
+// -- Realtime Multi-Client Synchronization Engine  ------------------------------------------------------------
 function startBackgroundSync() {
   if (autoRefreshTimer) clearInterval(autoRefreshTimer);
 
@@ -149,7 +149,7 @@ document.addEventListener('visibilitychange', () => {
   }
 });
 
-// ── Navigation ───────────────────────────────────────────────────────────────
+// -- Navigation  ------------------------------------------------------------
 function navigateTo(section, pushState = true) {
   activeSection = section;
   sessionStorage.setItem('active_section', section);
@@ -225,7 +225,7 @@ function showApp() {
   startBackgroundSync();
 }
 
-// ── Auth Listener ────────────────────────────────────────────────────────────
+// -- Auth Listener  ------------------------------------------------------------
 function clearUserSessionDOM() {
   activeSection = 'dashboard';
   sessionStorage.removeItem('active_section');
@@ -293,7 +293,7 @@ onAuthStateChanged(auth, async (user) => {
   }
 });
 
-// ── Landing Page ─────────────────────────────────────────────────────────────
+// -- Landing Page  ------------------------------------------------------------
 function setupLanding() {
   const form = $('#landing-quick-login-form');
   const googleBtn = $('#landing-google-btn');
@@ -354,7 +354,7 @@ function setupLanding() {
   $('#register-link-home')?.addEventListener('click', (e) => { e.preventDefault(); showAuth('landing'); });
 }
 
-// ── Register ─────────────────────────────────────────────────────────────────
+// -- Register  ------------------------------------------------------------
 function setupRegister() {
   const form = $('#register-form');
   const googleBtn = $('#register-google-btn');
@@ -540,7 +540,7 @@ function setupRegister() {
   $('#register-link-login')?.addEventListener('click', (e) => { e.preventDefault(); showAuth('landing'); });
 }
 
-// ── Forgot Password ──────────────────────────────────────────────────────────
+// -- Forgot Password  ------------------------------------------------------------
 function setupForgotPassword() {
   const form = $('#forgot-form');
   const emailInput = $('#forgot-email');
@@ -591,7 +591,7 @@ function setupForgotPassword() {
       btn.textContent = 'Sending reset link...';
       await sendPasswordResetEmail(auth, email);
       showForgotMessage(
-        `<strong>Password reset link sent!</strong> We've sent a link to <strong>${email}</strong>.<br><br>📬 <em>If you don't see it in your inbox, <strong>please check your Spam / Junk folder</strong>.</em>`,
+        `<strong>Password reset link sent!</strong> We've sent a link to <strong>${email}</strong>.<br><br><em>If you don't see it in your inbox, <strong>please check your Spam / Junk folder</strong>.</em>`,
         'success'
       );
     } catch (err) {
@@ -610,7 +610,7 @@ function setupForgotPassword() {
   $('#pending-logout-btn')?.addEventListener('click', (e) => { e.preventDefault(); signOut(auth); });
 }
 
-// ── Dashboard (Dynamic Live Data) ────────────────────────────────────────────
+// -- Dashboard (Dynamic Live Data)  ------------------------------------------------------------
 async function loadDashboard(isSilent = false) {
   const welcomeEl = $('#dashboard-welcome');
   if (welcomeEl) {
@@ -915,7 +915,7 @@ function setupDashboardLinks() {
   $('#dashboard-avatar-btn')?.addEventListener('click', (e) => { e.preventDefault(); navigateTo('profile'); });
 }
 
-// ── Find Services ────────────────────────────────────────────────────────────
+// -- Find Services  ------------------------------------------------------------
 let allRequests = [];
 let activeAppliedIds = new Set();
 let requestFilters = { q: '', category: '', maxPrice: Infinity, sort: 'newest' };
@@ -1139,23 +1139,23 @@ function renderServices(requests) {
     }
 
     const standingOrDeadline = isOffer
-      ? `<span class="request-card-deadline" style="color: #4ade80; font-weight: 600;">⚡ Standing Service (Always Open)</span>`
+      ? `<span class="request-card-deadline" style="color: #4ade80; font-weight: 600;">Standing Service (Always Open)</span>`
       : (r.deadline
           ? (isExpired
-              ? `<span class="request-card-deadline" style="color: #ef4444; font-weight: 600;">📅 Due ${r.deadline} (Expired)</span>`
-              : `<span class="request-card-deadline">📅 Due ${r.deadline}</span>`)
+              ? `<span class="request-card-deadline" style="color: #ef4444; font-weight: 600;">Due ${r.deadline} (Expired)</span>`
+              : `<span class="request-card-deadline">Due ${r.deadline}</span>`)
           : '');
 
     const rightBadge = isOffer
-      ? `<span class="badge badge-standing">⚡ Standing</span>`
-      : `<span class="${r.urgency === 'Urgent' ? 'badge-urgent' : r.urgency === 'Low' ? 'badge-low' : 'badge-normal'}">${r.urgency === 'Urgent' ? '🔥 ' : ''}${r.urgency || 'Normal'}</span>`;
+      ? `<span class="badge badge-standing">Standing</span>`
+      : `<span class="${r.urgency === 'Urgent' ? 'badge-urgent' : r.urgency === 'Low' ? 'badge-low' : 'badge-normal'}">${r.urgency || 'Normal'}</span>`;
 
     card.innerHTML = `
       <div class="request-card-header">
         <div class="avatar avatar-sm cursor-pointer flex-shrink-0" onclick="openViewProfileDialog('${r.requester?.id}')">${initials(r.requester?.fullName || 'S')}</div>
         <div class="request-card-user">
           <strong class="request-card-name cursor-pointer hover:underline" onclick="openViewProfileDialog('${r.requester?.id}')">${r.requester?.fullName || (isOffer ? 'Student Provider' : 'Student Client')}</strong>
-          <small class="text-muted text-xs" style="display: block; margin-top: 1px;">${isOffer ? '🛠️ Service Provider' : '📌 Client in need'}</small>
+          <small class="text-muted text-xs" style="display: block; margin-top: 1px;">${isOffer ? 'Service Provider' : 'Client in need'}</small>
         </div>
         <div class="request-card-badge">
           ${rightBadge}
@@ -1231,7 +1231,7 @@ function setupServiceFilters() {
   });
 }
 
-// ── New Listing Dialog (Service Offer vs Service Request) ────────────────────
+// -- New Listing Dialog (Service Offer vs Service Request)  ------------------------------------------------------------
 function setNewListingModalMode(mode = 'OFFER') {
   const isOffer = mode === 'OFFER';
   const typeInput = $('#nr-listing-type');
@@ -1356,7 +1356,7 @@ function setupNewRequestDialog() {
   });
 }
 
-// ── Apply / Avail Dialog ─────────────────────────────────────────────────────
+// -- Apply / Avail Dialog  ------------------------------------------------------------
 let applyTarget = null;
 
 function openApplyDialog(request) {
@@ -1414,7 +1414,7 @@ function setupApplyDialog() {
   });
 }
 
-// ── Applications Hub ─────────────────────────────────────────────────────────
+// -- Applications Hub  ------------------------------------------------------------
 let appTab = 'posted';
 
 async function loadApplications(isSilent = false) {
@@ -1457,8 +1457,8 @@ async function loadPostedJobs(isSilent = false) {
       const isOffer = isJobOffer(job);
       if (isOffer) markAsStandingOffer(job.id);
       const typeBadge = isOffer
-        ? `<span class="badge badge-standing">🛠️ Service Offer</span>`
-        : `<span class="badge badge-request">📌 Service Request</span>`;
+        ? `<span class="badge badge-standing">Service Offer</span>`
+        : `<span class="badge badge-request">Service Request</span>`;
       const pending = (job.applications_on_helpRequest || []).filter(a => a.status === 'PENDING');
       const countLabel = isOffer ? `${pending.length} order request(s)` : `${pending.length} candidate(s)`;
       
@@ -1470,7 +1470,7 @@ async function loadPostedJobs(isSilent = false) {
             <h3 style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; margin-bottom: 0.25rem;">
               ${job.title} ${typeBadge}
             </h3>
-            <small class="text-muted">${isOffer ? '⚡ Standing Service (Always Open for Campus Orders)' : (job.deadline ? `📅 Due: ${job.deadline}` : '📌 One-Time Request')}</small>
+            <small class="text-muted">${isOffer ? 'Standing Service (Always Open for Campus Orders)' : (job.deadline ? `Due: ${job.deadline}` : 'One-Time Request')}</small>
           </div>
           <div style="display: flex; gap: 0.5rem; align-items: center;">
             <span class="badge badge-normal">${peso(job.budget)} ${isOffer ? 'base' : ''}</span>
@@ -1597,16 +1597,16 @@ async function loadMyApplications(isSilent = false) {
       card.className = 'application-card';
       const statusClass = app.status === 'APPROVED' ? 'badge-approved' : app.status === 'COMPLETED' ? 'badge-normal' : 'badge-pending';
       const statusText = app.status === 'APPROVED' 
-        ? (isOffer ? '✅ Order Accepted' : '✅ Application Accepted')
+        ? (isOffer ? 'Order Accepted' : 'Application Accepted')
         : app.status === 'COMPLETED' 
-          ? (isOffer ? '🎉 Order Completed' : '🎉 Job Completed')
-          : (isOffer ? '⏳ Order Pending' : '⏳ Application Pending');
+          ? (isOffer ? 'Order Completed' : 'Job Completed')
+          : (isOffer ? 'Order Pending' : 'Application Pending');
 
       card.innerHTML = `
         <div style="flex: 1; min-width: 0;">
           <div style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
             <h4 style="margin: 0;">${app.helpRequest?.title || (isOffer ? 'Service Order' : 'Service Request')}</h4>
-            <span class="badge ${isOffer ? 'badge-standing' : 'badge-request'}">${isOffer ? '🛠️ Service Order' : '📌 Service Request'}</span>
+            <span class="badge ${isOffer ? 'badge-standing' : 'badge-request'}">${isOffer ? '🛠️ Service Order' : 'Service Request'}</span>
           </div>
           <small class="text-muted" style="display: block; margin-top: 0.25rem;">
             ${isOffer ? 'Agreed Rate / Budget' : 'Proposed Rate'}: <strong>${peso(app.priceOffer)}</strong>
@@ -1643,8 +1643,8 @@ async function handleApprove(application, job) {
     const convId = convRes.data.conversation_insert?.id;
     if (convId) {
       const initialText = isOffer
-        ? `📋 Service Order Accepted\n\nAgreed Budget: ${peso(application.priceOffer)}\nOrder Scope & Details: ${application.message}`
-        : `📋 Application Accepted\n\nProposed Rate: ${peso(application.priceOffer)}\nProposal: ${application.message}`;
+        ? `Service Order Accepted\n\nAgreed Budget: ${peso(application.priceOffer)}\nOrder Scope & Details: ${application.message}`
+        : `Application Accepted\n\nProposed Rate: ${peso(application.priceOffer)}\nProposal: ${application.message}`;
 
       await push(ref(db, `conversations/${convId}/messages`), {
         senderId: application.applicant.id,
@@ -1751,7 +1751,7 @@ function setupApplicationTabs() {
   });
 }
 
-// ── Messages & Realtime Chat Engine ──────────────────────────────────────────
+// -- Messages & Realtime Chat Engine  ------------------------------------------------------------
 let conversations = [];
 let reviewTarget = null;
 let activeSubscriptionConvId = null;
@@ -1825,6 +1825,16 @@ async function loadMessages(isSilent = false) {
   }
 }
 
+function formatConversationDate(date) {
+  if (!date || isNaN(date.getTime())) return '';
+  const now = new Date();
+  const isToday = date.toDateString() === now.toDateString();
+  const timeStr = date.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
+  if (isToday) return timeStr;
+  const dateStr = date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+  return `${dateStr}, ${timeStr}`;
+}
+
 function renderConversationList() {
   const convList = $('#conversations-list');
   const digest = conversations.map(c => `${c.id}:${c.lastActivityAt || 0}:${c.application?.status}:${c.application?.helpRequest?.status}`).join(',') + '|' + activeConvId;
@@ -1841,7 +1851,7 @@ function renderConversationList() {
     const otherName = isPoster ? conv.applicant?.fullName : conv.poster?.fullName;
     const isCompleted = isConversationCompleted(conv);
     const activityDate = conv.lastActivityAt ? new Date(conv.lastActivityAt) : null;
-    const dateText = activityDate ? activityDate.toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) : '';
+    const dateText = activityDate ? formatConversationDate(activityDate) : '';
     const item = document.createElement('div');
     item.className = `conversation-item ${conv.id === activeConvId ? 'active' : ''}`;
     item.innerHTML = `
@@ -1915,8 +1925,8 @@ async function selectConversation(convId) {
   const isOffer = isJobOffer(conv.application?.helpRequest);
   const isClient = (!isOffer && isPoster) || (isOffer && !isPoster);
   const typeTag = isOffer
-    ? '<span class="badge badge-standing" style="font-size: 10px; padding: 2px 7px;">🛠️ Service Offer</span>'
-    : '<span class="badge badge-request" style="font-size: 10px; padding: 2px 7px;">📌 Service Request</span>';
+    ? '<span class="badge badge-standing" style="font-size: 10px; padding: 2px 7px;">Service Offer</span>'
+    : '<span class="badge badge-request" style="font-size: 10px; padding: 2px 7px;">Service Request</span>';
 
   const chatHeader = $('#chat-header-content');
   chatHeader.innerHTML = `
@@ -2184,7 +2194,7 @@ function setupChat() {
   });
 }
 
-// ── Transactions (Real Dynamic Data) ─────────────────────────────────────────
+// -- Transactions (Real Dynamic Data)  ------------------------------------------------------------
 let allTransactions = [];
 async function loadTransactions() {
   const tbody = $('#transactions-tbody');
@@ -2198,6 +2208,10 @@ async function loadTransactions() {
     const apps = appRes.data.applications || [];
     const myPosts = myPostRes.data.helpRequests || [];
     const posterApplicationDates = new Map((posterAppRes.data.applications || []).map(a => [a.id, a.createdAt]));
+    const getTimestamp = (app) => {
+      const value = app.createdAt || posterApplicationDates.get(app.id);
+      return value ? new Date(value).getTime() : 0;
+    };
     const submittedDate = (app) => {
       const value = app.createdAt || posterApplicationDates.get(app.id);
       return value ? new Date(value).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }) : 'Unknown';
@@ -2219,7 +2233,8 @@ async function loadTransactions() {
           amount: Number(a.priceOffer) || Number(a.helpRequest?.budget) || 0,
           status: a.status,
           type: 'PAYMENT',
-          date: submittedDate(a)
+          date: submittedDate(a),
+          timestamp: getTimestamp(a)
         });
       } else {
         // Applicant applied to a freelance request -> USER IS FREELANCER (Earning)
@@ -2230,7 +2245,8 @@ async function loadTransactions() {
           amount: Number(a.priceOffer) || 0,
           status: a.status,
           type: 'EARNING',
-          date: submittedDate(a)
+          date: submittedDate(a),
+          timestamp: getTimestamp(a)
         });
       }
     });
@@ -2250,7 +2266,8 @@ async function loadTransactions() {
             amount: Number(a.priceOffer) || Number(p.budget) || 0,
             status: a.status,
             type: 'EARNING',
-            date: submittedDate(a)
+            date: submittedDate(a),
+          timestamp: getTimestamp(a)
           });
         } else {
           // Poster requested a freelance job -> USER IS CLIENT (Paying)
@@ -2261,12 +2278,14 @@ async function loadTransactions() {
             amount: Number(a.priceOffer) || Number(p.budget) || 0,
             status: a.status,
             type: 'PAYMENT',
-            date: submittedDate(a)
+            date: submittedDate(a),
+          timestamp: getTimestamp(a)
           });
         }
       });
     });
 
+    txList.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
     allTransactions = txList;
 
     // Calculate totals
@@ -2384,7 +2403,7 @@ function setupTransactionTabs() {
   });
 }
 
-// ── Ratings & Feedback ───────────────────────────────────────────────────────
+// -- Ratings & Feedback  ------------------------------------------------------------
 async function loadRatings() {
   const score = '5.0';
   $('#ratings-avg-score').textContent = score;
@@ -2399,7 +2418,7 @@ function setupInlineRatingForm() {
   });
 }
 
-// ── Review Dialog ────────────────────────────────────────────────────────────
+// -- Review Dialog  ------------------------------------------------------------
 function setupReviewDialog() {
   let selectedRating = 5;
   const starButtons = $$('#review-stars .star-btn');
@@ -2496,9 +2515,9 @@ function setupReviewDialog() {
         const ratingStars = '★'.repeat(selectedRating) + '☆'.repeat(5 - selectedRating);
         const completionText = isOffer
           ? (reviewTarget.isClient
-              ? `✅ Deliverables Received & Payment Released!\nRating given: ${ratingStars} (${selectedRating}/5)`
-              : `✅ Order Fulfilled & Completed!\nRating given: ${ratingStars} (${selectedRating}/5)`)
-          : `✅ Job Completed & Payment Released!\nRating given: ${ratingStars} (${selectedRating}/5)`;
+              ? `Deliverables Received & Payment Released!\nRating given: ${ratingStars} (${selectedRating}/5)`
+              : `Order Fulfilled & Completed!\nRating given: ${ratingStars} (${selectedRating}/5)`)
+          : `Job Completed & Payment Released!\nRating given: ${ratingStars} (${selectedRating}/5)`;
 
         await push(ref(db, `conversations/${reviewTarget.conv.id}/messages`), {
           senderId: userData.id,
@@ -2529,7 +2548,7 @@ function setupReviewDialog() {
   });
 }
 
-// ── Profile ──────────────────────────────────────────────────────────────────
+// -- Profile  ------------------------------------------------------------
 function renderReviews(reviews, prefix) {
   if (!reviews || reviews.length === 0) {
     $(`#${prefix}-avg`).textContent = '0.0';
@@ -2831,7 +2850,7 @@ window.openViewProfileDialog = async function(userId) {
   }
 };
 
-  // ── Mentoring ────────────────────────────────────────────────────────────────
+  // -- Mentoring  ------------------------------------------------------------
   async function loadMentoring() {
     const grid = document.getElementById('mentoring-users-grid');
     if (grid.children.length === 0 || grid.querySelector('.skeleton-loader') || grid.querySelector('.loader')) {
@@ -3096,7 +3115,7 @@ window.openViewProfileDialog = async function(userId) {
   }
 }
 
-// ΓöÇΓöÇ Admin Dashboard & Platform Intelligence ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+// -- Admin Dashboard & Platform Intelligence  ------------------------------------------------------------
 let adminActiveTab = 'pending';
 let adminUsersData = [];
 let adminPendingData = [];
@@ -3497,7 +3516,7 @@ function setupMobileSidebar() {
   if(closeBtn) closeBtn.addEventListener('click', closeMobileSidebar);
 }
 
-// ── Logout ───────────────────────────────────────────────────────────────────
+// -- Logout  ------------------------------------------------------------
 function setupLogout() {
   $('#btn-logout')?.addEventListener('click', async (e) => {
     e.preventDefault();
@@ -3518,7 +3537,7 @@ function setupLogout() {
   });
 }
 
-// ── Dialog Helpers ───────────────────────────────────────────────────────────
+// -- Dialog Helpers  ------------------------------------------------------------
 function setupDialogCloseButtons() {
   $$('.dialog-close-btn').forEach(btn => {
     btn.addEventListener('click', (e) => {
@@ -3533,7 +3552,7 @@ function setupDialogCloseButtons() {
   });
 }
 
-// ── Universal Password Visibility Toggle ───────────────────────────────────────
+// -- Universal Password Visibility Toggle  ------------------------------------------------------------
 function setupPasswordToggles() {
   const eyeSvg = `
     <svg class="eye-icon eye-show" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -3592,7 +3611,7 @@ function setupPasswordToggles() {
   });
 }
 
-// ── Initialization ───────────────────────────────────────────────────────────
+// -- Initialization  ------------------------------------------------------------
 document.addEventListener('DOMContentLoaded', () => {
   window.addEventListener('popstate', (e) => {
     if (e.state && e.state.section) {
