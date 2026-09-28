@@ -113,6 +113,234 @@ function compressImage(file) {
   });
 }
 
+function escapeHtml(str) {
+  if (!str) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
+
+function formatMessageTime(ts) {
+  if (!ts) return '';
+  const date = typeof ts === 'number' ? new Date(ts) : (ts?.seconds ? new Date(ts.seconds * 1000) : new Date(ts));
+  if (isNaN(date.getTime())) return '';
+  const now = new Date();
+  const isToday = date.toDateString() === now.toDateString();
+  const timeStr = date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  if (isToday) return timeStr;
+  return `${date.toLocaleDateString([], { month: 'short', day: 'numeric' })}, ${timeStr}`;
+}
+
+function formatFileSize(bytes) {
+  if (!bytes) return '';
+  if (bytes < 1024) return bytes + ' B';
+  if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+  return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+}
+
+function renderAttachmentHtml(att) {
+  if (!att || !att.dataUrl) return '';
+  const isImg = att.type?.startsWith('image/') || /\.(png|jpe?g|gif|webp|svg)$/i.test(att.name || '');
+  if (isImg) {
+    return `<img src="${att.dataUrl}" class="chat-attachment-img" alt="${escapeHtml(att.name || 'image')}" onclick="window.open('${att.dataUrl}', '_blank')">`;
+  }
+  return `
+    <a href="${att.dataUrl}" download="${escapeHtml(att.name || 'attachment')}" class="chat-attachment-file" target="_blank" rel="noopener">
+      <span style="font-size: 1.4rem;">📁</span>
+      <div class="chat-file-meta">
+        <span class="chat-file-name truncate">${escapeHtml(att.name || 'Attachment')}</span>
+        <span class="chat-file-size text-muted">${att.size || ''}</span>
+      </div>
+      <span style="font-size: 0.9rem; color: var(--primary-purple); font-weight: bold; margin-left: auto;">⬇</span>
+    </a>
+  `;
+}
+
+// -- Notification Center Engine  ------------------------------------------------------------
+let currentNotifications = [];
+
+async function updateNotificationCenter() {
+  if (!userData) return;
+  const bellBtns = [$('#btn-notifications'), $('#btn-mobile-notifications')].filter(Boolean);
+  const badgeEls = [$('#notification-unread-count'), $('#mobile-notification-unread-count')].filter(Boolean);
+  const listEls = [$('#notification-list'), $('#mobile-notification-list')].filter(Boolean);
+
+  let readNotifIds = new Set();
+  try {
+    const raw = localStorage.getItem('read_notifs_' + userData.id);
+    if (raw) readNotifIds = new Set(JSON.parse(raw));
+  } catch (e) {}
+
+  try {
+    const [postedRes, appRes] = await Promise.all([
+      listMyHelpRequestsWithApplications(dc, { userId: userData.id }, SERVER_ONLY).catch(() => ({ data: { helpRequests: [] } })),
+      listApplicationsByApplicant(dc, { userId: userData.id }, SERVER_ONLY).catch(() => ({ data: { applications: [] } }))
+    ]);
+
+    const notifs = [];
+
+    // 1. Applications or Orders on My Posted Jobs
+    const myJobs = postedRes.data?.helpRequests || [];
+    myJobs.forEach(job => {
+      if (job.status === 'DELETED') return;
+      const isOffer = isJobOffer(job);
+      const apps = job.applications_on_helpRequest || [];
+      apps.forEach(app => {
+        if (app.status === 'PENDING') {
+          notifs.push({
+            id: `app_pending_${app.id}`,
+            icon: isOffer ? '📦' : '📝',
+            title: isOffer ? 'New Campus Order Request' : 'New Job Application',
+            desc: `${app.applicant?.fullName || 'A student'} applied to "${job.title}" for ${peso(app.priceOffer)}`,
+            time: app.createdAt || Date.now(),
+            action: () => {
+              navigateTo('applications');
+              switchAppTab('posted');
+            }
+          });
+        }
+      });
+    });
+
+    // 2. Status of My Applications to other jobs
+    const myApps = appRes.data?.applications || [];
+    myApps.forEach(app => {
+      if (app.status === 'APPROVED') {
+        notifs.push({
+          id: `app_approved_${app.id}`,
+          icon: '✅',
+          title: 'Application Approved!',
+          desc: `Your offer for "${app.helpRequest?.title || 'Job'}" was approved. Chat is now open!`,
+          time: app.updatedAt || app.createdAt || Date.now(),
+          action: () => {
+            navigateTo('messages');
+          }
+        });
+      } else if (app.status === 'COMPLETED') {
+        notifs.push({
+          id: `app_completed_${app.id}`,
+          icon: '🎉',
+          title: 'Project Completed!',
+          desc: `Service for "${app.helpRequest?.title || 'Project'}" has been marked complete.`,
+          time: app.updatedAt || app.createdAt || Date.now(),
+          action: () => {
+            navigateTo('transactions');
+          }
+        });
+      }
+    });
+
+    // Mark unread state and sort
+    notifs.forEach(n => {
+      n.unread = !readNotifIds.has(n.id);
+    });
+
+    notifs.sort((a, b) => {
+      if (a.unread !== b.unread) return a.unread ? -1 : 1;
+      return (new Date(b.time).getTime() || 0) - (new Date(a.time).getTime() || 0);
+    });
+
+    currentNotifications = notifs;
+    const unreadCount = notifs.filter(n => n.unread).length;
+
+    // Update bell animation & badge
+    if (unreadCount > 0) {
+      bellBtns.forEach(btn => btn.classList.add('has-unread'));
+      badgeEls.forEach(badge => {
+        badge.textContent = unreadCount > 99 ? '99+' : unreadCount;
+        badge.classList.add('active');
+      });
+    } else {
+      bellBtns.forEach(btn => btn.classList.remove('has-unread'));
+      badgeEls.forEach(badge => {
+        badge.textContent = '0';
+        badge.classList.remove('active');
+      });
+    }
+
+    // Render in notification list trays
+    listEls.forEach(listEl => {
+      if (notifs.length === 0) {
+        listEl.innerHTML = '<div class="notification-empty text-muted">No new notifications</div>';
+      } else {
+        listEl.innerHTML = notifs.slice(0, 15).map(n => `
+          <div class="notification-item ${n.unread ? 'unread' : ''}" data-id="${n.id}">
+            <div class="notification-icon-box" style="background: ${n.unread ? 'rgba(124, 108, 248, 0.2)' : 'rgba(255, 255, 255, 0.05)'};">
+              ${n.icon || '🔔'}
+            </div>
+            <div class="notification-item-content">
+              <div class="notification-item-title">${escapeHtml(n.title)}</div>
+              <div class="notification-item-desc">${escapeHtml(n.desc)}</div>
+              <div class="notification-item-time">${formatMessageTime(n.time)}</div>
+            </div>
+          </div>
+        `).join('');
+
+        listEl.querySelectorAll('.notification-item').forEach(el => {
+          el.addEventListener('click', () => {
+            const id = el.dataset.id;
+            readNotifIds.add(id);
+            try {
+              localStorage.setItem('read_notifs_' + userData.id, JSON.stringify(Array.from(readNotifIds)));
+            } catch (e) {}
+            const notif = currentNotifications.find(n => n.id === id);
+            if (notif?.action) notif.action();
+            $('#notification-dropdown')?.classList.add('hidden');
+            $('#mobile-notification-dropdown')?.classList.add('hidden');
+            updateNotificationCenter();
+          });
+        });
+      }
+    });
+  } catch (err) {
+    console.warn('Error updating notification center:', err);
+  }
+}
+
+function setupNotificationCenter() {
+  const toggleDropdown = (dropdownId, e) => {
+    e.stopPropagation();
+    const dropdown = $(dropdownId);
+    if (dropdown) dropdown.classList.toggle('hidden');
+  };
+
+  $('#btn-notifications')?.addEventListener('click', (e) => toggleDropdown('#notification-dropdown', e));
+  $('#btn-mobile-notifications')?.addEventListener('click', (e) => toggleDropdown('#mobile-notification-dropdown', e));
+
+  const markAllRead = (e) => {
+    e.preventDefault();
+    if (!userData) return;
+    let readNotifIds = new Set();
+    try {
+      const raw = localStorage.getItem('read_notifs_' + userData.id);
+      if (raw) readNotifIds = new Set(JSON.parse(raw));
+    } catch (e) {}
+    currentNotifications.forEach(n => readNotifIds.add(n.id));
+    try {
+      localStorage.setItem('read_notifs_' + userData.id, JSON.stringify(Array.from(readNotifIds)));
+    } catch (e) {}
+    updateNotificationCenter();
+    showToast('All notifications marked as read.');
+  };
+
+  $('#btn-mark-read')?.addEventListener('click', markAllRead);
+  $('#btn-mobile-mark-read')?.addEventListener('click', markAllRead);
+
+  document.addEventListener('click', (e) => {
+    const desktopDropdown = $('#notification-dropdown');
+    if (desktopDropdown && !desktopDropdown.contains(e.target) && !e.target.closest('#btn-notifications')) {
+      desktopDropdown.classList.add('hidden');
+    }
+    const mobileDropdown = $('#mobile-notification-dropdown');
+    if (mobileDropdown && !mobileDropdown.contains(e.target) && !e.target.closest('#btn-mobile-notifications')) {
+      mobileDropdown.classList.add('hidden');
+    }
+  });
+}
+
 // -- Realtime Multi-Client Synchronization Engine  ------------------------------------------------------------
 function startBackgroundSync() {
   if (autoRefreshTimer) clearInterval(autoRefreshTimer);
@@ -121,6 +349,7 @@ function startBackgroundSync() {
   // Increased interval to 60 seconds to prevent quota exhaustion
   autoRefreshTimer = setInterval(() => {
     if (!userData) return;
+    updateNotificationCenter();
     if (activeSection === 'messages') {
       loadMessages(true);
     } else if (activeSection === 'dashboard') {
@@ -223,6 +452,7 @@ function showApp() {
 
   navigateTo(activeSection || 'dashboard');
   startBackgroundSync();
+  updateNotificationCenter();
 }
 
 // -- Auth Listener  ------------------------------------------------------------
@@ -253,6 +483,15 @@ function clearUserSessionDOM() {
   const totalEl = $('#trans-total-earnings'); if (totalEl) totalEl.textContent = '₱0';
   const pendEl = $('#trans-pending-earnings'); if (pendEl) pendEl.textContent = '₱0';
   const compEl = $('#trans-completed-earnings'); if (compEl) compEl.textContent = '₱0';
+
+  const bellBtns = [$('#btn-notifications'), $('#btn-mobile-notifications')].filter(Boolean);
+  const badgeEls = [$('#notification-unread-count'), $('#mobile-notification-unread-count')].filter(Boolean);
+  bellBtns.forEach(btn => btn.classList.remove('has-unread'));
+  badgeEls.forEach(badge => {
+    badge.textContent = '0';
+    badge.classList.remove('active');
+  });
+  currentNotifications = [];
 
   activeConvId = null;
   reviewTarget = null;
@@ -934,12 +1173,16 @@ function setupDashboardLinks() {
 
   $('#dash-btn-post-offer')?.addEventListener('click', (e) => {
     e.preventDefault();
+    editingListing = null;
+    $('#new-request-form')?.reset();
     setNewListingModalMode('OFFER');
     $('#dialog-new-request').showModal();
   });
 
   $('#dash-btn-post-request')?.addEventListener('click', (e) => {
     e.preventDefault();
+    editingListing = null;
+    $('#new-request-form')?.reset();
     setNewListingModalMode('REQUEST');
     const dl = $('#nr-deadline');
     if (dl) dl.min = new Date().toISOString().split('T')[0];
@@ -1213,6 +1456,20 @@ function openServiceDetailsDialog(r, actionInfo) {
     };
   }
 
+  const editBtn = $('#sd-modal-edit-btn');
+  if (editBtn) {
+    if (isMine) {
+      editBtn.classList.remove('hidden');
+      editBtn.onclick = (e) => {
+        e.preventDefault();
+        $('#dialog-service-details')?.close();
+        openEditListingDialog(r);
+      };
+    } else {
+      editBtn.classList.add('hidden');
+    }
+  }
+
   $('#dialog-service-details')?.showModal();
 }
 
@@ -1305,6 +1562,8 @@ function renderServices(requests) {
     });
 
     $('#btn-empty-create-listing')?.addEventListener('click', () => {
+      editingListing = null;
+      $('#new-request-form')?.reset();
       setNewListingModalMode(isOffer ? 'OFFER' : 'REQUEST');
       if (!isOffer) {
         const dl = $('#nr-deadline');
@@ -1425,6 +1684,7 @@ function renderServices(requests) {
         </div>
         <div class="request-card-btn-group">
           <button type="button" class="btn btn-view-details btn-sm card-open-details">Details</button>
+          ${isMine ? `<button type="button" class="btn btn-outline btn-sm edit-listing-btn">Edit</button>` : ''}
           <button type="button" class="btn ${btnClass} btn-sm apply-btn" ${btnDisabled ? 'disabled' : ''}>
             ${btnText}
           </button>
@@ -1437,6 +1697,11 @@ function renderServices(requests) {
         e.preventDefault();
         openServiceDetailsDialog(r, actionInfo);
       });
+    });
+
+    card.querySelector('.edit-listing-btn')?.addEventListener('click', (e) => {
+      e.preventDefault();
+      openEditListingDialog(r);
     });
 
     const actionBtn = card.querySelector('.apply-btn');
@@ -1523,6 +1788,39 @@ function setupServiceFilters() {
 }
 
 // -- New Listing Dialog (Service Offer vs Service Request)  ------------------------------------------------------------
+let editingListing = null;
+
+function openEditListingDialog(listing) {
+  if (!listing) return;
+  editingListing = listing;
+  const isOffer = isJobOffer(listing);
+  setNewListingModalMode(isOffer ? 'OFFER' : 'REQUEST');
+
+  const titleHeader = $('#new-listing-modal-title');
+  const submitBtn = $('#new-request-submit');
+  if (titleHeader) titleHeader.textContent = isOffer ? 'Edit Service Offer' : 'Edit Service Request';
+  if (submitBtn) submitBtn.textContent = 'Save Changes';
+
+  const titleInput = $('#nr-title');
+  const descInput = $('#nr-description');
+  const catInput = $('#nr-category');
+  const budgetInput = $('#nr-budget');
+  const urgencyInput = $('#nr-urgency');
+  const dlInput = $('#nr-deadline');
+
+  if (titleInput) titleInput.value = listing.title || '';
+  if (descInput) descInput.value = listing.description || '';
+  if (catInput) catInput.value = listing.category || '';
+  if (budgetInput) budgetInput.value = listing.budget || '';
+  if (!isOffer && urgencyInput) urgencyInput.value = listing.urgency || 'Normal';
+  if (!isOffer && dlInput) {
+    dlInput.min = new Date().toISOString().split('T')[0];
+    dlInput.value = listing.deadline || '';
+  }
+
+  $('#dialog-new-request')?.showModal();
+}
+
 function setNewListingModalMode(mode = 'OFFER') {
   const isOffer = mode === 'OFFER';
   const typeInput = $('#nr-listing-type');
@@ -1545,7 +1843,7 @@ function setNewListingModalMode(mode = 'OFFER') {
   const submitBtn = $('#new-request-submit');
 
   if (isOffer) {
-    if (titleHeader) titleHeader.textContent = 'Post a Service Offer';
+    if (titleHeader) titleHeader.textContent = editingListing ? 'Edit Service Offer' : 'Post a Service Offer';
     if (titleDesc) titleDesc.textContent = 'Offer your equipment (3D printing, laser cutting, paper printing) or skills. Standing services stay active continuously for multiple orders.';
     if (titleLabel) titleLabel.textContent = 'Service Title *';
     if (titleInput) titleInput.placeholder = 'e.g. 3D Printing & Prototyping (FDM / Resin)';
@@ -1556,9 +1854,9 @@ function setNewListingModalMode(mode = 'OFFER') {
     if (urgencyGroup) urgencyGroup.style.display = 'none';
     if (standingNoteGroup) standingNoteGroup.style.display = 'block';
     if (deadlineGroup) deadlineGroup.style.display = 'none';
-    if (submitBtn) submitBtn.textContent = 'Publish Service Offer';
+    if (submitBtn) submitBtn.textContent = editingListing ? 'Save Changes' : 'Publish Service Offer';
   } else {
-    if (titleHeader) titleHeader.textContent = 'Post a Service Request';
+    if (titleHeader) titleHeader.textContent = editingListing ? 'Edit Service Request' : 'Post a Service Request';
     if (titleDesc) titleDesc.textContent = 'Describe a task, project, or problem where you need technical help or service from campus peers.';
     if (titleLabel) titleLabel.textContent = 'Request / Task Title *';
     if (titleInput) titleInput.placeholder = 'e.g. Help Debugging ESP32 FreeRTOS Code';
@@ -1569,19 +1867,23 @@ function setNewListingModalMode(mode = 'OFFER') {
     if (urgencyGroup) urgencyGroup.style.display = 'block';
     if (standingNoteGroup) standingNoteGroup.style.display = 'none';
     if (deadlineGroup) deadlineGroup.style.display = 'block';
-    if (submitBtn) submitBtn.textContent = 'Publish Service Request';
+    if (submitBtn) submitBtn.textContent = editingListing ? 'Save Changes' : 'Publish Service Request';
   }
 }
 
 function setupNewRequestDialog() {
   $('#btn-post-offer')?.addEventListener('click', (e) => {
     e.preventDefault();
+    editingListing = null;
+    $('#new-request-form')?.reset();
     setNewListingModalMode('OFFER');
     $('#dialog-new-request').showModal();
   });
 
   $('#btn-post-request')?.addEventListener('click', (e) => {
     e.preventDefault();
+    editingListing = null;
+    $('#new-request-form')?.reset();
     setNewListingModalMode('REQUEST');
     const dl = $('#nr-deadline');
     if (dl) dl.min = new Date().toISOString().split('T')[0];
@@ -1621,6 +1923,48 @@ function setupNewRequestDialog() {
     }
 
     const btn = $('#new-request-submit');
+
+    if (editingListing) {
+      const prevListing = editingListing;
+      btn.disabled = true; btn.textContent = 'Saving Changes...';
+      try {
+        await updateHelpRequestStatus(dc, { id: prevListing.id, status: 'DELETED' });
+        if (knownStandingOfferIds.has(prevListing.id)) {
+          knownStandingOfferIds.delete(prevListing.id);
+        }
+
+        const newReq = await createHelpRequest(dc, {
+          title: $('#nr-title').value.trim(),
+          description: $('#nr-description').value.trim(),
+          budget: budget,
+          requesterId: userData.id,
+          category: $('#nr-category').value || null,
+          urgency: urgency,
+          deadline: deadline
+        });
+
+        const newId = newReq?.data?.helpRequest_insert?.id;
+        if (isOffer && newId) {
+          markAsStandingOffer(newId);
+        }
+
+        showToast(isOffer ? 'Service offer updated!' : 'Service request updated!');
+        editingListing = null;
+        $('#dialog-new-request').close();
+        e.target.reset();
+        setServicesTab(isOffer ? 'offers' : 'requests');
+        loadServices();
+        loadDashboard(true);
+        if (activeSection === 'applications') loadApplications();
+      } catch (err) {
+        showToast('Could not save changes: ' + err.message, 'error');
+      } finally {
+        btn.disabled = false;
+        btn.textContent = 'Save Changes';
+      }
+      return;
+    }
+
     btn.disabled = true; btn.textContent = 'Publishing...';
     try {
       await createHelpRequest(dc, {
@@ -1766,6 +2110,7 @@ async function loadPostedJobs(isSilent = false) {
           <div class="job-card-header-actions">
             <span class="badge badge-normal">${peso(job.budget)} ${isOffer ? 'base' : ''}</span>
             <span class="badge badge-pending">${countLabel}</span>
+            <button type="button" class="btn btn-outline btn-sm edit-job-btn" style="padding: 3px 10px; font-size: 11px;">Edit</button>
             <button type="button" class="btn btn-outline btn-sm delete-job-btn btn-delete-service" style="padding: 3px 10px; font-size: 11px;">Delete</button>
           </div>
         </div>
@@ -1797,6 +2142,10 @@ async function loadPostedJobs(isSilent = false) {
           candList.appendChild(row);
         });
       }
+      jobEl.querySelector('.edit-job-btn')?.addEventListener('click', (e) => {
+        e.preventDefault();
+        openEditListingDialog(job);
+      });
       jobEl.querySelector('.delete-job-btn')?.addEventListener('click', async (e) => {
         e.preventDefault();
         const itemName = isOffer ? 'service offer' : 'service request';
@@ -1819,6 +2168,7 @@ async function loadPostedJobs(isSilent = false) {
       });
       container.appendChild(jobEl);
     });
+    updateNotificationCenter();
   } catch (err) {
     if (!isSilent) container.innerHTML = '<div class="empty-state">Error loading posted jobs.</div>';
   }
@@ -2060,26 +2410,24 @@ window.rejectApplication = async function(appId) {
   }
 };
 
+function switchAppTab(targetTab) {
+  appTab = targetTab;
+  $$('.tab-btn[data-tab]').forEach(b => {
+    b.classList.toggle('active', b.dataset.tab === targetTab);
+  });
+
+  if ($('#posted-jobs-list')) $('#posted-jobs-list').classList.toggle('hidden', targetTab !== 'posted');
+  if ($('#my-applications-list')) $('#my-applications-list').classList.toggle('hidden', targetTab !== 'applied');
+  if ($('#mentoring-requests-list')) $('#mentoring-requests-list').classList.toggle('hidden', targetTab !== 'mentoring');
+
+  loadApplications();
+}
+
 function setupApplicationTabs() {
   $$('.tab-btn[data-tab]').forEach(btn => {
     btn.addEventListener('click', (e) => {
       e.preventDefault();
-      appTab = btn.dataset.tab;
-      $$('.tab-btn[data-tab]').forEach(b => b.classList.remove('active'));
-      btn.classList.add('active');
-
-      hide($('#posted-jobs-list'));
-      hide($('#my-applications-list'));
-      hide($('#mentoring-requests-list'));
-
-      if (appTab === 'posted') {
-        show($('#posted-jobs-list'));
-      } else if (appTab === 'applied') {
-        show($('#my-applications-list'));
-      } else if (appTab === 'mentoring') {
-        show($('#mentoring-requests-list'));
-      }
-      loadApplications();
+      switchAppTab(btn.dataset.tab);
     });
   });
 }
@@ -2428,6 +2776,8 @@ async function selectConversation(convId) {
   }
 }
 
+let currentChatAttachment = null;
+
 function renderIncomingMessages(messages) {
   const msgArea = $('#chat-messages');
   if (!msgArea) return;
@@ -2449,6 +2799,10 @@ function renderIncomingMessages(messages) {
         if (tempEl && tempEl.parentNode) {
           tempEl.dataset.msgId = msg.id;
           tempEl.removeAttribute('data-temp');
+          const timeEl = tempEl.querySelector('.message-time');
+          if (timeEl && msg.timestamp) {
+            timeEl.textContent = formatMessageTime(msg.timestamp);
+          }
           pendingTempMessages.splice(tempIdx, 1);
           return;
         }
@@ -2459,7 +2813,15 @@ function renderIncomingMessages(messages) {
       const div = document.createElement('div');
       div.className = `message ${isMe ? 'outgoing' : 'incoming'}`;
       div.dataset.msgId = msg.id;
-      div.innerHTML = `<div class="message-bubble">${msg.content}</div>`;
+      const timeStr = formatMessageTime(msg.timestamp);
+      const attachHtml = msg.attachment ? renderAttachmentHtml(msg.attachment) : '';
+      div.innerHTML = `
+        <div class="message-bubble">
+          ${attachHtml}
+          ${msg.content ? `<div>${escapeHtml(msg.content)}</div>` : ''}
+          ${timeStr ? `<div class="message-time">${timeStr}</div>` : ''}
+        </div>
+      `;
       msgArea.appendChild(div);
     }
   });
@@ -2472,11 +2834,70 @@ function renderIncomingMessages(messages) {
 function setupChat() {
   const input = $('#chat-input');
   const sendBtn = $('#chat-send-btn');
+  const attachBtn = $('#chat-attach-btn');
+  const fileInput = $('#chat-file-input');
+  const cancelAttachBtn = $('#btn-cancel-attachment');
+  const previewBar = $('#chat-attachment-preview');
+  const attachNameEl = $('#attachment-name');
+
+  attachBtn?.addEventListener('click', (e) => {
+    e.preventDefault();
+    fileInput?.click();
+  });
+
+  fileInput?.addEventListener('change', async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 2.5 * 1024 * 1024) {
+      showToast('File size must be under 2.5MB.', 'error');
+      e.target.value = '';
+      return;
+    }
+
+    try {
+      let dataUrl = '';
+      if (file.type.startsWith('image/')) {
+        dataUrl = await compressImage(file);
+      } else {
+        dataUrl = await new Promise((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve(reader.result);
+          reader.onerror = reject;
+          reader.readAsDataURL(file);
+        });
+      }
+
+      currentChatAttachment = {
+        name: file.name,
+        size: formatFileSize(file.size),
+        type: file.type || 'application/octet-stream',
+        dataUrl: dataUrl
+      };
+
+      if (attachNameEl) attachNameEl.textContent = file.name;
+      previewBar?.classList.remove('hidden');
+    } catch (err) {
+      showToast('Could not attach file: ' + err.message, 'error');
+    }
+  });
+
+  cancelAttachBtn?.addEventListener('click', (e) => {
+    e.preventDefault();
+    currentChatAttachment = null;
+    if (fileInput) fileInput.value = '';
+    previewBar?.classList.add('hidden');
+  });
 
   const send = async () => {
     const content = input.value.trim();
-    if (!content || !activeConvId) return;
+    const attachmentToSend = currentChatAttachment;
+    if (!content && !attachmentToSend) return;
+    if (!activeConvId) return;
+
     input.value = '';
+    currentChatAttachment = null;
+    if (fileInput) fileInput.value = '';
+    previewBar?.classList.add('hidden');
 
     const msgArea = $('#chat-messages');
     const emptyState = msgArea.querySelector('.empty-state');
@@ -2486,21 +2907,33 @@ function setupChat() {
     const tempDiv = document.createElement('div');
     tempDiv.className = 'message outgoing';
     tempDiv.dataset.temp = 'true';
-    tempDiv.innerHTML = `<div class="message-bubble">${content}</div>`;
+    const attachHtml = attachmentToSend ? renderAttachmentHtml(attachmentToSend) : '';
+    const timeStr = formatMessageTime(Date.now());
+    tempDiv.innerHTML = `
+      <div class="message-bubble">
+        ${attachHtml}
+        ${content ? `<div>${escapeHtml(content)}</div>` : ''}
+        <div class="message-time">${timeStr}</div>
+      </div>
+    `;
     msgArea.appendChild(tempDiv);
     msgArea.scrollTop = msgArea.scrollHeight;
 
-    const tempObj = { content, el: tempDiv, time: Date.now() };
+    const tempObj = { content, hasAttachment: !!attachmentToSend, el: tempDiv, time: Date.now() };
     pendingTempMessages.push(tempObj);
 
     sendBtn.disabled = true;
     try {
       const sendingConvId = activeConvId;
-      await push(ref(db, `conversations/${sendingConvId}/messages`), {
+      const payload = {
         senderId: userData.id,
-        content: content,
+        content: content || '',
         timestamp: serverTimestamp()
-      });
+      };
+      if (attachmentToSend) {
+        payload.attachment = attachmentToSend;
+      }
+      await push(ref(db, `conversations/${sendingConvId}/messages`), payload);
       touchConversationActivity(sendingConvId, Date.now());
     } catch (err) {
       showToast('Error sending message: ' + err.message, 'error');
@@ -2973,9 +3406,11 @@ async function loadProfile() {
       const data = profileDoc.data();
       userData.bio = data.bio || '';
       userData.skills = data.skills || [];
+      userData.portfolio = data.portfolio || [];
     } else if (profileDoc) {
       userData.bio = '';
       userData.skills = [];
+      userData.portfolio = [];
     }
 
     if (userData.bio !== undefined) {
@@ -3006,9 +3441,105 @@ async function loadProfile() {
       }));
     }
     renderReviewsProfile(reviews);
+    renderPortfolio(userData.portfolio || []);
   } catch (err) {
     console.error('Error loading profile:', err);
   }
+}
+
+function renderPortfolio(items) {
+  const grid = $('#profile-portfolio-grid');
+  if (!grid) return;
+  if (!items || items.length === 0) {
+    grid.innerHTML = '<div class="empty-state text-center text-muted" style="padding: 1.5rem; grid-column: 1/-1;">No projects added to your portfolio yet. Click "+ Add Project" to showcase your work!</div>';
+    return;
+  }
+  grid.innerHTML = items.map((item, idx) => {
+    const tagsHtml = (item.tags || []).map(t => `<span class="portfolio-tag">${escapeHtml(t.trim())}</span>`).join('');
+    return `
+      <div class="portfolio-card" data-idx="${idx}">
+        <div style="display: flex; align-items: flex-start; justify-content: space-between; gap: 0.5rem;">
+          <h4 class="portfolio-card-title">${escapeHtml(item.title)}</h4>
+          <button type="button" class="portfolio-delete-btn" data-idx="${idx}" title="Delete project">✕</button>
+        </div>
+        <p class="portfolio-card-desc">${escapeHtml(item.description)}</p>
+        ${tagsHtml ? `<div class="portfolio-tags">${tagsHtml}</div>` : ''}
+        ${item.link ? `
+          <div class="portfolio-card-footer">
+            <a href="${escapeHtml(item.link)}" target="_blank" rel="noopener noreferrer" class="portfolio-link-btn">View Project ↗</a>
+          </div>
+        ` : ''}
+      </div>
+    `;
+  }).join('');
+
+  grid.querySelectorAll('.portfolio-delete-btn').forEach(btn => {
+    btn.addEventListener('click', async (e) => {
+      e.preventDefault();
+      const idx = parseInt(btn.dataset.idx, 10);
+      if (isNaN(idx)) return;
+      if (!confirm('Are you sure you want to remove this project?')) return;
+      const current = userData.portfolio || [];
+      current.splice(idx, 1);
+      try {
+        await setDoc(doc(firestore, "user_profiles", userData.id), { portfolio: current }, { merge: true });
+        userData.portfolio = current;
+        renderPortfolio(current);
+        showToast('Portfolio project removed.');
+      } catch (err) {
+        showToast('Could not remove: ' + err.message, 'error');
+      }
+    });
+  });
+}
+
+function setupPortfolio() {
+  $('#btn-add-portfolio-item')?.addEventListener('click', (e) => {
+    e.preventDefault();
+    $('#form-add-portfolio')?.reset();
+    $('#dialog-add-portfolio')?.showModal();
+  });
+
+  $('#form-add-portfolio')?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const title = $('#port-title')?.value.trim();
+    const desc = $('#port-desc')?.value.trim();
+    const tagsRaw = $('#port-tags')?.value.trim() || '';
+    const link = $('#port-link')?.value.trim() || '';
+
+    if (!title || !desc) {
+      showToast('Title and description are required.', 'error');
+      return;
+    }
+
+    const tags = tagsRaw ? tagsRaw.split(',').map(s => s.trim()).filter(Boolean) : [];
+    const newProject = {
+      id: 'port_' + Date.now(),
+      title,
+      description: desc,
+      tags,
+      link,
+      createdAt: new Date().toISOString()
+    };
+
+    const saveBtn = $('#btn-save-portfolio');
+    if (saveBtn) { saveBtn.disabled = true; saveBtn.textContent = 'Saving...'; }
+
+    try {
+      const current = [...(userData.portfolio || [])];
+      current.unshift(newProject);
+      await setDoc(doc(firestore, "user_profiles", userData.id), { portfolio: current }, { merge: true });
+      userData.portfolio = current;
+      renderPortfolio(current);
+      $('#dialog-add-portfolio')?.close();
+      e.target.reset();
+      showToast('Project added to portfolio!');
+    } catch (err) {
+      showToast('Could not save project: ' + err.message, 'error');
+    } finally {
+      if (saveBtn) { saveBtn.disabled = false; saveBtn.textContent = 'Add to Portfolio'; }
+    }
+  });
 }
 
 function renderReviewsProfile(reviews) {
@@ -3069,6 +3600,7 @@ window.openViewProfileDialog = async function(userId) {
   if (document.getElementById('vp-faculty')) document.getElementById('vp-faculty').textContent = '';
   if (document.getElementById('vp-bio')) document.getElementById('vp-bio').textContent = '';
   if (document.getElementById('vp-skills')) document.getElementById('vp-skills').innerHTML = '';
+  if (document.getElementById('vp-portfolio-grid')) document.getElementById('vp-portfolio-grid').innerHTML = '<span class="text-sm text-muted">Loading projects...</span>';
   ['vp-app-pending','vp-app-completed','vp-app-terminated','vp-emp-pending','vp-emp-completed','vp-emp-terminated'].forEach(id => { const el = document.getElementById(id); if (el) el.textContent = '0'; });
   
   if (document.getElementById('vp-ratings-list')) document.getElementById('vp-ratings-list').innerHTML = '';
@@ -3130,9 +3662,34 @@ window.openViewProfileDialog = async function(userId) {
             vpSkills.innerHTML = '<span class="text-sm text-muted">No skills listed.</span>';
           }
         }
+
+        const vpPortGrid = document.getElementById('vp-portfolio-grid');
+        if (vpPortGrid) {
+          const portfolio = data.portfolio || [];
+          if (portfolio.length > 0) {
+            vpPortGrid.innerHTML = portfolio.map(item => {
+              const tagsHtml = (item.tags || []).map(t => `<span class="portfolio-tag">${escapeHtml(t.trim())}</span>`).join('');
+              return `
+                <div class="portfolio-card">
+                  <h4 class="portfolio-card-title">${escapeHtml(item.title)}</h4>
+                  <p class="portfolio-card-desc">${escapeHtml(item.description)}</p>
+                  ${tagsHtml ? `<div class="portfolio-tags">${tagsHtml}</div>` : ''}
+                  ${item.link ? `
+                    <div class="portfolio-card-footer">
+                      <a href="${escapeHtml(item.link)}" target="_blank" rel="noopener noreferrer" class="portfolio-link-btn">View Project ↗</a>
+                    </div>
+                  ` : ''}
+                </div>
+              `;
+            }).join('');
+          } else {
+            vpPortGrid.innerHTML = '<span class="text-sm text-muted">No projects listed.</span>';
+          }
+        }
       } else {
         document.getElementById('vp-bio').textContent = 'No bio provided.';
         document.getElementById('vp-skills').innerHTML = '<span class="text-sm text-muted">No skills listed.</span>';
+        if (document.getElementById('vp-portfolio-grid')) document.getElementById('vp-portfolio-grid').innerHTML = '<span class="text-sm text-muted">No projects listed.</span>';
       }
     } catch(e) {
       console.error(e);
@@ -3989,6 +4546,8 @@ document.addEventListener('DOMContentLoaded', () => {
   setupAdminTabs();
   setupAdminSearch();
   setupDialogCloseButtons();
+  setupNotificationCenter();
+  setupPortfolio();
 
   $$('.nav-btn[data-target]').forEach(btn => {
     btn.addEventListener('click', (e) => {
