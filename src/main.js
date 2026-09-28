@@ -259,6 +259,7 @@ function clearUserSessionDOM() {
   conversations = [];
   lastConversationsDigest = '';
   activeAppliedIds = new Set();
+  userApplicationsByRequestId = new Map();
 }
 
 onAuthStateChanged(auth, async (user) => {
@@ -918,6 +919,7 @@ function setupDashboardLinks() {
 // -- Find Services  ------------------------------------------------------------
 let allRequests = [];
 let activeAppliedIds = new Set();
+let userApplicationsByRequestId = new Map();
 let requestFilters = { q: '', category: '', maxPrice: Infinity, sort: 'newest' };
 
 let currentServicesTab = 'offers'; // 'offers' | 'requests'
@@ -1051,10 +1053,13 @@ async function loadServices(isSilent = false) {
       // Ignore if public admin query restricted
     }
 
-    activeAppliedIds = new Set((appRes.data.applications || [])
-      .filter(a => !isJobOffer(a.helpRequest) || ['PENDING', 'APPROVED'].includes(a.status))
-      .map(a => a.helpRequest?.id)
-      .filter(Boolean));
+    userApplicationsByRequestId = new Map();
+    (appRes.data.applications || []).forEach(a => {
+      if (a.helpRequest?.id && ['PENDING', 'APPROVED'].includes(a.status)) {
+        userApplicationsByRequestId.set(a.helpRequest.id, a);
+      }
+    });
+    activeAppliedIds = new Set(userApplicationsByRequestId.keys());
     renderServices(allRequests);
   } catch (err) {
     if (!isSilent) console.error("loadServices error:", err); grid.innerHTML = '<div class="empty-state">Error loading services.</div>';
@@ -1120,22 +1125,26 @@ function renderServices(requests) {
     const card = document.createElement('article');
     card.className = 'request-card';
 
-    let btnText = isOffer ? 'Avail Service' : 'Apply Now';
+    let btnText = isOffer ? 'Avail' : 'Apply';
     let btnClass = 'btn-purple';
     let btnDisabled = false;
+    let actionType = 'apply';
 
     if (isMine) {
-      btnText = isOffer ? 'Your Offer' : 'Your Request';
-      btnClass = 'btn-mine';
-      btnDisabled = true;
+      btnText = 'Delete';
+      btnClass = 'btn-delete-service';
+      btnDisabled = false;
+      actionType = 'delete';
     } else if (hasApplied) {
-      btnText = isOffer ? 'Order Sent' : 'Applied';
-      btnClass = 'btn-applied';
-      btnDisabled = true;
+      btnText = 'Cancel';
+      btnClass = 'btn-cancel-service';
+      btnDisabled = false;
+      actionType = 'cancel';
     } else if (isExpired) {
       btnText = 'Expired';
       btnClass = 'btn-mine';
       btnDisabled = true;
+      actionType = 'none';
     }
 
     const standingOrDeadline = isOffer
@@ -1178,10 +1187,62 @@ function renderServices(requests) {
       </div>
     `;
 
-    if (!isMine && !hasApplied && !isExpired) {
-      card.querySelector('.apply-btn').addEventListener('click', (e) => {
+    const actionBtn = card.querySelector('.apply-btn');
+    if (actionType === 'apply') {
+      actionBtn?.addEventListener('click', (e) => {
         e.preventDefault();
         openApplyDialog(r);
+      });
+    } else if (actionType === 'delete') {
+      actionBtn?.addEventListener('click', async (e) => {
+        e.preventDefault();
+        const itemName = isOffer ? 'service offer' : 'service request';
+        if (!confirm(`Are you sure you want to delete this ${itemName}?`)) return;
+        actionBtn.disabled = true;
+        actionBtn.textContent = 'Deleting...';
+        try {
+          await updateHelpRequestStatus(dc, { id: r.id, status: 'DELETED' });
+          if (isOffer) {
+            knownStandingOfferIds.delete(r.id);
+            try {
+              localStorage.setItem('standing_offer_ids', JSON.stringify(Array.from(knownStandingOfferIds)));
+            } catch (err) {}
+          }
+          showToast(`Deleted ${itemName}.`);
+          loadServices();
+          loadDashboard(true);
+          if (activeSection === 'applications') loadApplications();
+        } catch (err) {
+          showToast('Could not delete: ' + err.message, 'error');
+          actionBtn.disabled = false;
+          actionBtn.textContent = 'Delete';
+        }
+      });
+    } else if (actionType === 'cancel') {
+      actionBtn?.addEventListener('click', async (e) => {
+        e.preventDefault();
+        const itemName = isOffer ? 'order request' : 'application';
+        if (!confirm(`Are you sure you want to cancel your ${itemName}?`)) return;
+        actionBtn.disabled = true;
+        actionBtn.textContent = 'Cancelling...';
+        try {
+          const myApp = userApplicationsByRequestId.get(r.id);
+          if (myApp?.id) {
+            try {
+              await deleteApplication(dc, { id: myApp.id });
+            } catch (delErr) {
+              await updateApplicationStatus(dc, { id: myApp.id, status: 'REJECTED' });
+            }
+          }
+          showToast(`Cancelled ${itemName}.`);
+          loadServices();
+          loadDashboard(true);
+          if (activeSection === 'applications') loadApplications();
+        } catch (err) {
+          showToast('Could not cancel: ' + err.message, 'error');
+          actionBtn.disabled = false;
+          actionBtn.textContent = 'Cancel';
+        }
       });
     }
     grid.appendChild(card);
@@ -1472,9 +1533,10 @@ async function loadPostedJobs(isSilent = false) {
             </h3>
             <small class="text-muted">${isOffer ? 'Standing Service (Always Open for Campus Orders)' : (job.deadline ? `Due: ${job.deadline}` : 'One-Time Request')}</small>
           </div>
-          <div style="display: flex; gap: 0.5rem; align-items: center;">
+          <div style="display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap;">
             <span class="badge badge-normal">${peso(job.budget)} ${isOffer ? 'base' : ''}</span>
             <span class="badge badge-pending">${countLabel}</span>
+            <button type="button" class="btn btn-outline btn-sm delete-job-btn" style="border-color: #ef4444; color: #ef4444; padding: 2px 8px; font-size: 11px;">Delete</button>
           </div>
         </div>
         <div class="candidates-list"></div>
@@ -1505,6 +1567,26 @@ async function loadPostedJobs(isSilent = false) {
           candList.appendChild(row);
         });
       }
+      jobEl.querySelector('.delete-job-btn')?.addEventListener('click', async (e) => {
+        e.preventDefault();
+        const itemName = isOffer ? 'service offer' : 'service request';
+        if (!confirm(`Are you sure you want to delete this ${itemName}?`)) return;
+        try {
+          await updateHelpRequestStatus(dc, { id: job.id, status: 'DELETED' });
+          if (isOffer) {
+            knownStandingOfferIds.delete(job.id);
+            try {
+              localStorage.setItem('standing_offer_ids', JSON.stringify(Array.from(knownStandingOfferIds)));
+            } catch (err) {}
+          }
+          showToast(`Deleted ${itemName}.`);
+          loadPostedJobs();
+          loadServices(true);
+          loadDashboard(true);
+        } catch (err) {
+          showToast('Could not delete: ' + err.message, 'error');
+        }
+      });
       container.appendChild(jobEl);
     });
   } catch (err) {
@@ -1613,8 +1695,29 @@ async function loadMyApplications(isSilent = false) {
             ${app.helpRequest?.requester?.fullName ? ` &bull; ${isOffer ? 'Service Provider' : 'Client / Requester'}: ${app.helpRequest.requester.fullName}` : ''}
           </small>
         </div>
-        <span class="badge ${statusClass}">${statusText}</span>
+        <div style="display: flex; align-items: center; gap: 0.5rem;">
+          <span class="badge ${statusClass}">${statusText}</span>
+          ${app.status === 'PENDING' ? `<button type="button" class="btn btn-outline btn-sm cancel-my-app-btn" style="border-color: #ef4444; color: #ef4444; padding: 2px 8px; font-size: 11px;">Cancel</button>` : ''}
+        </div>
       `;
+      card.querySelector('.cancel-my-app-btn')?.addEventListener('click', async (e) => {
+        e.preventDefault();
+        const itemName = isOffer ? 'order request' : 'application';
+        if (!confirm(`Are you sure you want to cancel this ${itemName}?`)) return;
+        try {
+          try {
+            await deleteApplication(dc, { id: app.id });
+          } catch (delErr) {
+            await updateApplicationStatus(dc, { id: app.id, status: 'REJECTED' });
+          }
+          showToast(`Cancelled ${itemName}.`);
+          loadMyApplications();
+          loadServices(true);
+          loadDashboard(true);
+        } catch (err) {
+          showToast('Could not cancel: ' + err.message, 'error');
+        }
+      });
       container.appendChild(card);
     });
   } catch (err) {
