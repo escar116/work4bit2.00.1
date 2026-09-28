@@ -466,32 +466,72 @@
                      4. SECTION: DASHBOARD (REAL DYNAMIC DATA ONLY)
                      ========================================================================== -->
                 <section id="section-dashboard" class="content-section">
-                    <!-- Top Greeting Header -->
+                    <!-- Top Greeting Header & Quick Actions -->
                     <div class="dashboard-top-header">
                         <div>
                             <h1 class="welcome-heading" id="dashboard-welcome">Welcome back, Student!</h1>
-                            <p class="welcome-subtext">Here's what's happening with your account today.</p>
+                            <p class="welcome-subtext">Manage your campus freelance activity, applications, and student peer services.</p>
                         </div>
-                        
+                        <div class="dashboard-quick-actions">
+                            <button type="button" class="btn btn-purple btn-sm" id="dash-btn-post-offer">+ Post Service Offer</button>
+                            <button type="button" class="btn btn-outline btn-sm" id="dash-btn-post-request">+ Post Service Request</button>
+                        </div>
                     </div>
 
                     <!-- 4 Top Stat Cards (Real dynamic values) -->
                     <div class="dashboard-stats-grid mt-6">
                         <div class="dash-stat-card">
-                            <span class="stat-card-label">Active Applications</span>
+                            <div class="stat-card-header-row">
+                                <span class="stat-card-label">Active Applications</span>
+                                <div class="stat-card-icon icon-purple">
+                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path><rect x="8" y="2" width="8" height="4" rx="1" ry="1"></rect></svg>
+                                </div>
+                            </div>
                             <div class="stat-card-number" id="stat-applied">0</div>
+                            <span class="stat-card-subtext">Pending proposals & orders</span>
                         </div>
                         <div class="dash-stat-card">
-                            <span class="stat-card-label">Jobs Completed</span>
+                            <div class="stat-card-header-row">
+                                <span class="stat-card-label">Jobs Completed</span>
+                                <div class="stat-card-icon icon-green">
+                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
+                                </div>
+                            </div>
                             <div class="stat-card-number text-green" id="stat-completed">0</div>
+                            <span class="stat-card-subtext">Delivered successfully</span>
                         </div>
                         <div class="dash-stat-card">
-                            <span class="stat-card-label">Total Earnings</span>
+                            <div class="stat-card-header-row">
+                                <span class="stat-card-label">Total Earnings</span>
+                                <div class="stat-card-icon icon-cyan">
+                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"></line><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path></svg>
+                                </div>
+                            </div>
                             <div class="stat-card-number" id="stat-earnings">₱0</div>
+                            <span class="stat-card-subtext">Net campus freelance funds</span>
                         </div>
                         <div class="dash-stat-card">
-                            <span class="stat-card-label">Average Rating</span>
+                            <div class="stat-card-header-row">
+                                <span class="stat-card-label">Average Rating</span>
+                                <div class="stat-card-icon icon-amber">
+                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>
+                                </div>
+                            </div>
                             <div class="stat-card-number" id="stat-rating">0.0 <span class="text-amber">★</span></div>
+                            <span class="stat-card-subtext">Peer reviews & ratings</span>
+                        </div>
+                    </div>
+
+                    <!-- Campus Quick Discovery Bar -->
+                    <div class="dashboard-discovery-bar mt-4">
+                        <span class="discovery-bar-label">Explore Campus Skills:</span>
+                        <div class="discovery-pills-wrap">
+                            <button type="button" class="dash-pill-btn" data-category="3D Design">3D Design & Printing</button>
+                            <button type="button" class="dash-pill-btn" data-category="Electronics & Circuit Design">Electronics & Circuits</button>
+                            <button type="button" class="dash-pill-btn" data-category="Embedded Systems">Embedded Systems</button>
+                            <button type="button" class="dash-pill-btn" data-category="Software Development">Software Dev</button>
+                            <button type="button" class="dash-pill-btn" data-category="UI/UX Design">UI/UX Design</button>
+                            <button type="button" class="dash-pill-btn" data-category="CAD & 3D Modeling">CAD Modeling</button>
                         </div>
                     </div>
 
@@ -670,13 +710,7 @@
                     <div class="requests-layout">
                         <!-- Filter Sidebar Panel -->
                         <aside class="filter-panel">
-                            <h3 class="filter-heading">Filters</h3>
-
-                            <div class="form-group mt-3">
-                                <label class="form-label" for="filter-search">Search Keywords</label>
-                                <input type="text" id="filter-search" class="form-control"
-                                    placeholder="Search services...">
-                            </div>
+                            <h3 class="filter-heading mb-3">Filters</h3>
 
                             <div class="form-group">
                                 <label class="form-label" for="filter-category">Category</label>

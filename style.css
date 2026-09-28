@@ -626,6 +626,110 @@ body.light-theme .success-message {
 /* ==========================================================================
    5. DASHBOARD VIEW (SCREEN 4 REPLICA)
    ========================================================================== */
+
+/* Dashboard Top Header Actions */
+.dashboard-quick-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+}
+
+/* Enhanced Stat Cards */
+.stat-card-header-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 0.5rem;
+}
+
+.stat-card-icon {
+    width: 36px;
+    height: 36px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.icon-purple {
+    background: rgba(124, 108, 248, 0.12);
+    color: var(--primary-purple);
+}
+
+.icon-green {
+    background: rgba(34, 197, 94, 0.12);
+    color: var(--color-green);
+}
+
+.icon-cyan {
+    background: rgba(14, 165, 233, 0.12);
+    color: var(--color-cyan);
+}
+
+.icon-amber {
+    background: rgba(245, 158, 11, 0.12);
+    color: var(--color-amber);
+}
+
+.stat-card-subtext {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    margin-top: 0.25rem;
+    opacity: 0.8;
+}
+
+/* Campus Discovery Bar */
+.dashboard-discovery-bar {
+    display: flex;
+    align-items: center;
+    gap: 0.85rem;
+    background: var(--bg-card);
+    border: 1px solid var(--border-card);
+    border-radius: var(--radius-card);
+    padding: 0.85rem 1.25rem;
+    box-shadow: var(--shadow-card);
+    flex-wrap: wrap;
+}
+
+.discovery-bar-label {
+    font-size: 0.82rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--text-muted);
+    flex-shrink: 0;
+}
+
+.discovery-pills-wrap {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+    flex: 1;
+}
+
+.dash-pill-btn {
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid var(--border-light);
+    color: var(--text-main);
+    padding: 0.35rem 0.75rem;
+    border-radius: var(--radius-pill);
+    font-size: 0.8rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: var(--transition);
+    white-space: nowrap;
+}
+
+.dash-pill-btn:hover {
+    background: rgba(124, 108, 248, 0.15);
+    border-color: var(--primary-purple);
+    color: var(--primary-purple);
+    transform: translateY(-1px);
+}
+
 .dashboard-top-header {
     display: flex;
     align-items: center;
@@ -1315,11 +1419,27 @@ body.light-theme .success-message {
 
 .job-card-header {
     display: flex;
-    align-items: center;
-    gap: 1rem;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 1.25rem;
     margin-bottom: 1rem;
     padding-bottom: 0.75rem;
     border-bottom: 1px solid var(--border-light);
+}
+
+.job-card-header-main {
+    flex: 1 1 auto;
+    min-width: 0;
+}
+
+.job-card-header-actions {
+    flex-shrink: 0;
+    margin-left: auto;
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+    flex-wrap: wrap;
+    justify-content: flex-end;
 }
 
 .candidates-list {

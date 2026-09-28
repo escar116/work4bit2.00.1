@@ -719,20 +719,36 @@ async function loadDashboard(isSilent = false) {
       const colors = ['job-icon-green', 'job-icon-purple', 'job-icon-cyan'];
       recommended.slice(0, 3).forEach((r, idx) => {
         const item = document.createElement('div');
-        item.className = 'job-list-item';
+        item.className = 'job-list-item cursor-pointer';
+        const isOffer = isJobOffer(r);
         item.innerHTML = `
           <div class="job-icon-box ${colors[idx % colors.length]}">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline></svg>
           </div>
           <div class="job-item-info">
-            <h3 class="job-item-title">${r.title}</h3>
+            <div class="flex items-center gap-2">
+              <h3 class="job-item-title">${r.title}</h3>
+              <span class="badge ${isOffer ? 'badge-standing' : 'badge-normal'}" style="font-size: 10px; padding: 1px 6px;">${isOffer ? 'Offer' : 'Request'}</span>
+            </div>
             <p class="job-item-subtext">${peso(r.budget)} · ${r.category || 'General'}</p>
           </div>
-          <button type="button" class="bookmark-btn" title="View details">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"></path></svg>
-          </button>
+          <button type="button" class="btn btn-outline btn-sm dash-item-details-btn" style="font-size: 11px; padding: 3px 8px; flex-shrink: 0;">Details</button>
         `;
-        item.addEventListener('click', (e) => { e.preventDefault(); navigateTo('services'); });
+        item.addEventListener('click', (e) => {
+          e.preventDefault();
+          const isMine = r.requester?.id === userData?.id;
+          const hasApplied = activeAppliedIds.has(r.id);
+          let btnText = isOffer ? 'Avail' : 'Apply';
+          let btnClass = 'btn-purple';
+          let btnDisabled = false;
+          let actionType = 'apply';
+          if (isMine) {
+            btnText = 'Delete'; btnClass = 'btn-delete-service'; actionType = 'delete';
+          } else if (hasApplied) {
+            btnText = 'Cancel'; btnClass = 'btn-cancel-service'; actionType = 'cancel';
+          }
+          openServiceDetailsDialog(r, { actionType, btnText, btnClass, btnDisabled });
+        });
         listEl.appendChild(item);
       });
     }
@@ -913,7 +929,36 @@ function setupDashboardLinks() {
   $('#dash-view-all-jobs')?.addEventListener('click', (e) => { e.preventDefault(); navigateTo('services'); });
   $('#dash-view-all-apps')?.addEventListener('click', (e) => { e.preventDefault(); navigateTo('applications'); });
   $('#dash-view-all-messages')?.addEventListener('click', (e) => { e.preventDefault(); navigateTo('messages'); });
+  $('#dash-view-all-mentors')?.addEventListener('click', (e) => { e.preventDefault(); navigateTo('mentoring'); });
   $('#dashboard-avatar-btn')?.addEventListener('click', (e) => { e.preventDefault(); navigateTo('profile'); });
+
+  $('#dash-btn-post-offer')?.addEventListener('click', (e) => {
+    e.preventDefault();
+    setNewListingModalMode('OFFER');
+    $('#dialog-new-request').showModal();
+  });
+
+  $('#dash-btn-post-request')?.addEventListener('click', (e) => {
+    e.preventDefault();
+    setNewListingModalMode('REQUEST');
+    const dl = $('#nr-deadline');
+    if (dl) dl.min = new Date().toISOString().split('T')[0];
+    $('#dialog-new-request').showModal();
+  });
+
+  document.querySelectorAll('.dash-pill-btn').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      e.preventDefault();
+      const cat = btn.getAttribute('data-category');
+      navigateTo('services');
+      if (cat) {
+        requestFilters.category = cat;
+        const catInput = $('#filter-category');
+        if (catInput) catInput.value = cat;
+        renderServices(allRequests);
+      }
+    });
+  });
 }
 
 // -- Find Services  ------------------------------------------------------------
@@ -1252,7 +1297,6 @@ function renderServices(requests) {
     $('#btn-empty-reset-filters')?.addEventListener('click', () => {
       requestFilters = { q: '', category: '', maxPrice: Infinity, sort: 'newest' };
       if ($('#marketplace-search-primary')) $('#marketplace-search-primary').value = '';
-      if ($('#filter-search')) $('#filter-search').value = '';
       if ($('#filter-category')) $('#filter-category').value = '';
       if ($('#filter-budget')) $('#filter-budget').value = '';
       if ($('#filter-sort')) $('#filter-sort').value = 'newest';
@@ -1370,9 +1414,6 @@ function renderServices(requests) {
       </div>
       <h3 class="request-card-title cursor-pointer hover:underline card-open-details">${r.title}</h3>
       <p class="request-card-desc line-clamp-3">${r.description || 'No description provided.'}</p>
-      <div>
-        <a href="#" class="view-details-link card-open-details">View full scope & details →</a>
-      </div>
       <div class="request-card-meta">
         <span class="badge badge-normal">${r.category || 'General'}</span>
         ${standingOrDeadline}
@@ -1436,28 +1477,22 @@ function setupServiceFilters() {
 
   const primarySearch = $('#marketplace-search-primary');
   const clearSearchBtn = $('#btn-search-clear');
-  const sidebarSearch = $('#filter-search');
-
-  const updateSearch = (val) => {
-    requestFilters.q = val;
-    if (primarySearch && primarySearch.value !== val) primarySearch.value = val;
-    if (sidebarSearch && sidebarSearch.value !== val) sidebarSearch.value = val;
-    if (clearSearchBtn) clearSearchBtn.classList.toggle('hidden', !val);
-    renderServices(allRequests);
-  };
 
   primarySearch?.addEventListener('input', (e) => {
-    updateSearch(e.target.value);
-  });
-
-  sidebarSearch?.addEventListener('input', (e) => {
-    updateSearch(e.target.value);
+    requestFilters.q = e.target.value;
+    if (clearSearchBtn) clearSearchBtn.classList.toggle('hidden', !e.target.value);
+    renderServices(allRequests);
   });
 
   clearSearchBtn?.addEventListener('click', (e) => {
     e.preventDefault();
-    updateSearch('');
-    primarySearch?.focus();
+    requestFilters.q = '';
+    if (primarySearch) {
+      primarySearch.value = '';
+      primarySearch.focus();
+    }
+    clearSearchBtn.classList.add('hidden');
+    renderServices(allRequests);
   });
 
   $('#filter-category')?.addEventListener('input', (e) => {
@@ -1479,7 +1514,6 @@ function setupServiceFilters() {
     e.preventDefault();
     requestFilters = { q: '', category: '', maxPrice: Infinity, sort: 'newest' };
     if (primarySearch) primarySearch.value = '';
-    if (sidebarSearch) sidebarSearch.value = '';
     if (clearSearchBtn) clearSearchBtn.classList.add('hidden');
     if ($('#filter-category')) $('#filter-category').value = '';
     if ($('#filter-sort')) $('#filter-sort').value = 'newest';
@@ -1723,16 +1757,16 @@ async function loadPostedJobs(isSilent = false) {
       jobEl.className = 'job-card';
       jobEl.innerHTML = `
         <div class="job-card-header">
-          <div>
+          <div class="job-card-header-main">
             <h3 style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; margin-bottom: 0.25rem;">
-              ${job.title} ${typeBadge}
+              <span>${job.title}</span> ${typeBadge}
             </h3>
             <small class="text-muted">${isOffer ? 'Standing Service (Always Open for Campus Orders)' : (job.deadline ? `Due: ${job.deadline}` : 'One-Time Request')}</small>
           </div>
-          <div style="display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap;">
+          <div class="job-card-header-actions">
             <span class="badge badge-normal">${peso(job.budget)} ${isOffer ? 'base' : ''}</span>
             <span class="badge badge-pending">${countLabel}</span>
-            <button type="button" class="btn btn-outline btn-sm delete-job-btn" style="border-color: #ef4444; color: #ef4444; padding: 2px 8px; font-size: 11px;">Delete</button>
+            <button type="button" class="btn btn-outline btn-sm delete-job-btn btn-delete-service" style="padding: 3px 10px; font-size: 11px;">Delete</button>
           </div>
         </div>
         <div class="candidates-list"></div>
