@@ -388,79 +388,98 @@
                 <button type="button" id="sidebar-close-btn" class="mobile-close-btn">✕</button>
             </div>
 
-            <!-- Primary Navigation Links -->
+            <!-- Primary Navigation Links (Categorized Sidebar Design) -->
             <nav class="nav-links">
-                <button type="button" class="nav-btn active" data-target="dashboard" title="Dashboard">
-                    <svg class="nav-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                        stroke-width="2">
-                        <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
-                        <polyline points="9 22 9 12 15 12 15 22"></polyline>
-                    </svg>
-                    <span class="nav-btn-label">Dashboard</span>
-                </button>
-                <button type="button" class="nav-btn" data-target="services" title="Find Services">
-                    <svg class="nav-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                        stroke-width="2">
-                        <circle cx="11" cy="11" r="8"></circle>
-                        <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
-                    </svg>
-                    <span class="nav-btn-label">Services</span>
-                </button>
-                <button type="button" class="nav-btn" data-target="mentoring" title="Mentoring">
-                    <svg class="nav-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
-                    </svg>
-                    <span class="nav-btn-label">Mentoring</span>
-                </button>
-                <button type="button" class="nav-btn" data-target="applications" title="Applications">
-                    <svg class="nav-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                        stroke-width="2">
-                        <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path>
-                        <rect x="8" y="2" width="8" height="4" rx="1" ry="1"></rect>
-                    </svg>
-                    <span class="nav-btn-label">Applications</span>
-                </button>
-                <button type="button" class="nav-btn" data-target="messages" title="Messages">
-                    <svg class="nav-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                        stroke-width="2">
-                        <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
-                    </svg>
-                    <span class="nav-btn-label">Messages</span>
-                </button>
-                <button type="button" class="nav-btn" data-target="transactions" title="Transactions">
-                    <svg class="nav-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                        stroke-width="2">
-                        <rect x="2" y="5" width="20" height="14" rx="2"></rect>
-                        <line x1="2" y1="10" x2="22" y2="10"></line>
-                    </svg>
-                    <span class="nav-btn-label">Transactions</span>
-                </button>
-                <button type="button" class="nav-btn" data-target="logs" title="Activity Logs">
-                    <svg class="nav-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                        stroke-width="2">
-                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
-                        <polyline points="14 2 14 8 20 8"></polyline>
-                        <line x1="16" y1="13" x2="8" y2="13"></line>
-                        <line x1="16" y1="17" x2="8" y2="17"></line>
-                        <polyline points="10 9 9 9 8 9"></polyline>
-                    </svg>
-                    <span class="nav-btn-label">Logs</span>
-                </button>
-                <button type="button" class="nav-btn" data-target="profile" title="Profile">
-                    <svg class="nav-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                        stroke-width="2">
-                        <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
-                        <circle cx="12" cy="7" r="4"></circle>
-                    </svg>
-                    <span class="nav-btn-label">Profile</span>
-                </button>
-                <button type="button" class="nav-btn hidden" id="nav-admin" data-target="admin" title="Admin">
-                    <svg class="nav-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                        stroke-width="2">
-                        <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
-                    </svg>
-                    <span class="nav-btn-label">Admin</span>
-                </button>
+                <!-- Group 1: Overview / Workspace -->
+                <div class="nav-group">
+                    <span class="nav-group-label">Overview</span>
+                    <button type="button" class="nav-btn active" data-target="dashboard" title="Dashboard">
+                        <svg class="nav-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2">
+                            <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
+                            <polyline points="9 22 9 12 15 12 15 22"></polyline>
+                        </svg>
+                        <span class="nav-btn-label">Dashboard</span>
+                    </button>
+                </div>
+
+                <!-- Group 2: Services & Mentoring (Dedicated Section Separation) -->
+                <div class="nav-group nav-group-marketplace">
+                    <span class="nav-group-label">Services & Mentoring</span>
+                    <button type="button" class="nav-btn" data-target="services" title="Find Services">
+                        <svg class="nav-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2">
+                            <circle cx="11" cy="11" r="8"></circle>
+                            <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                        </svg>
+                        <span class="nav-btn-label">Services</span>
+                    </button>
+                    <button type="button" class="nav-btn" data-target="mentoring" title="Mentoring">
+                        <svg class="nav-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+                        </svg>
+                        <span class="nav-btn-label">Mentoring</span>
+                    </button>
+                </div>
+
+                <!-- Group 3: Collaboration & Activity -->
+                <div class="nav-group">
+                    <span class="nav-group-label">Collaboration</span>
+                    <button type="button" class="nav-btn" data-target="applications" title="Applications">
+                        <svg class="nav-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2">
+                            <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path>
+                            <rect x="8" y="2" width="8" height="4" rx="1" ry="1"></rect>
+                        </svg>
+                        <span class="nav-btn-label">Applications</span>
+                    </button>
+                    <button type="button" class="nav-btn" data-target="messages" title="Messages">
+                        <svg class="nav-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2">
+                            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+                        </svg>
+                        <span class="nav-btn-label">Messages</span>
+                    </button>
+                    <button type="button" class="nav-btn" data-target="transactions" title="Transactions">
+                        <svg class="nav-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2">
+                            <rect x="2" y="5" width="20" height="14" rx="2"></rect>
+                            <line x1="2" y1="10" x2="22" y2="10"></line>
+                        </svg>
+                        <span class="nav-btn-label">Transactions</span>
+                    </button>
+                    <button type="button" class="nav-btn" data-target="logs" title="Activity Logs">
+                        <svg class="nav-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2">
+                            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                            <polyline points="14 2 14 8 20 8"></polyline>
+                            <line x1="16" y1="13" x2="8" y2="13"></line>
+                            <line x1="16" y1="17" x2="8" y2="17"></line>
+                            <polyline points="10 9 9 9 8 9"></polyline>
+                        </svg>
+                        <span class="nav-btn-label">Logs</span>
+                    </button>
+                </div>
+
+                <!-- Group 4: Account & Management -->
+                <div class="nav-group">
+                    <span class="nav-group-label">Account</span>
+                    <button type="button" class="nav-btn" data-target="profile" title="Profile">
+                        <svg class="nav-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2">
+                            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                            <circle cx="12" cy="7" r="4"></circle>
+                        </svg>
+                        <span class="nav-btn-label">Profile</span>
+                    </button>
+                    <button type="button" class="nav-btn hidden" id="nav-admin" data-target="admin" title="Admin">
+                        <svg class="nav-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2">
+                            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
+                        </svg>
+                        <span class="nav-btn-label">Admin</span>
+                    </button>
+                </div>
             </nav>
 
             <!-- Bottom Profile & Logout Footer (Clean Name + Highlight Leave Button, 'Pro' Removed) -->
@@ -1119,11 +1138,15 @@
                             management</p>
                     </div>
 
-                    <!-- 6 Platform-wide Metrics Counters -->
+                    <!-- Platform-wide Metrics Counters (including Active Users & Success Rate) -->
                     <div class="admin-stats-grid mt-6">
                         <div class="dash-stat-card">
                             <span class="stat-card-label">Registered Students</span>
                             <div class="stat-card-number" id="admin-stat-registered">0</div>
+                        </div>
+                        <div class="dash-stat-card">
+                            <span class="stat-card-label"><span class="active-pulse-dot"></span> Active Users</span>
+                            <div class="stat-card-number" style="color: #4f46e5;" id="admin-stat-active-users">0</div>
                         </div>
                         <div class="dash-stat-card">
                             <span class="stat-card-label">Pending Verification</span>
@@ -1145,7 +1168,14 @@
                             <span class="stat-card-label">Total Transactions</span>
                             <div class="stat-card-number" id="admin-stat-total-transactions">₱0</div>
                         </div>
+                        <div class="dash-stat-card">
+                            <span class="stat-card-label">Completion Rate</span>
+                            <div class="stat-card-number text-green" id="admin-stat-success-rate">100%</div>
+                        </div>
                     </div>
+
+                    <!-- Platform Statistical Graphs & Analytics Intelligence -->
+                    <div id="admin-analytics-section" class="admin-analytics-section"></div>
 
                     <!-- Admin Management Tabs -->
                     <div class="tabs mt-6">

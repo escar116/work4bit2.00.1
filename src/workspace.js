@@ -23,8 +23,7 @@ export function setupWorkspace({ navigate, search, getUser, refresh }) {
   profile.addEventListener('keydown', event => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); profile.click(); } });
   app.prepend(header);
   $('.mobile-top-bar')?.remove();
-  const sidebarHeading = document.createElement('span'); sidebarHeading.className = 'sidebar-section-label'; sidebarHeading.textContent = 'WORKSPACE';
-  $('.sidebar-header').prepend(sidebarHeading);
+  // Section headers are now directly organized inside .nav-links groups
   const tools = document.createElement('div'); tools.className = 'workspace-sidebar-tools';
   tools.innerHTML = `<button type="button" class="nav-btn guide-open" title="Getting started">${icon('<path d="M12 3v18M3 5c4-2 6-1 9 1 3-2 5-3 9-1v14c-4-2-6-1-9 1-3-2-5-3-9-1z"/>')}<span class="nav-btn-label">Getting started</span><span id="guide-count" class="guide-count"></span></button><button class="nav-btn sidebar-toggle" type="button" title="Collapse sidebar" aria-label="Collapse sidebar" aria-controls="sidebar" aria-expanded="true">${panelIcon}<span class="nav-btn-label">Collapse</span></button>`;
   sidebar.append(tools);

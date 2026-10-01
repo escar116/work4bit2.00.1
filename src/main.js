@@ -29,6 +29,7 @@ import {
   seedInitialLogsIfEmpty
 } from './activity-logger.js';
 import { renderLogsSection } from './logs-view.js';
+import { renderAdminStatisticalCharts } from './admin-charts.js';
 
 // -- Firebase Config  ------------------------------------------------------------
 const firebaseConfig = {
@@ -448,7 +449,7 @@ function showApp() {
   // Admin button visibility
   const adminNav = $('#nav-admin');
   if (adminNav) {
-    if (ADMIN_EMAILS.includes(userData?.email)) show(adminNav);
+    if (ADMIN_EMAILS.includes(userData?.email) || devPreview) show(adminNav);
     else hide(adminNav);
   }
 
@@ -2454,7 +2455,7 @@ async function loadMessages(isSilent = false) {
     } else {
       activeConvId = null;
       sessionStorage.removeItem('active_conversation_id');
-      $('#chat-panel').innerHTML = '<div class="empty-state text-center text-muted" style="padding: 2rem;">No conversations yet.<br><br><a href="#" onclick="navigateTo(\'dashboard\')" class="btn btn-purple">Find Jobs</a></div>';
+      $('#chat-panel').innerHTML = '<div class="empty-state text-center text-muted" style="padding: 2rem;">No conversations yet.</div>';
     }
   } catch (err) {
     if (!isSilent) convList.innerHTML = '<div class="empty-state">Error loading conversations.</div>';
@@ -2479,7 +2480,7 @@ function renderConversationList() {
 
   convList.innerHTML = '';
   if (conversations.length === 0) {
-    convList.innerHTML = '<div style="padding:2rem; text-align:center; color:var(--text-muted);">No conversations yet.<br><br><button onclick="navigateTo(\'dashboard\')" class="btn btn-outline-purple btn-sm">Browse Jobs</button></div>';
+    convList.innerHTML = '<div style="padding:2rem; text-align:center; color:var(--text-muted);">No conversations yet.</div>';
     return;
   }
   conversations.forEach(conv => {
@@ -3061,7 +3062,7 @@ function renderTransactionsTable(filter = 'all') {
 
   tbody.innerHTML = '';
   if (list.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="4" class="text-center text-muted" style="padding: 2rem;">No transaction records found.<br><br><button class="btn btn-purple btn-sm" onclick="navigateTo(\'services\')">Find Services</button></td></tr>';
+    tbody.innerHTML = '<tr><td colspan="4" class="text-center text-muted" style="padding: 2rem;">No transaction records found.</td></tr>';
     return;
   }
 
@@ -4172,50 +4173,110 @@ let adminSearchQuery = '';
   let allUsersData = [];
 
 async function loadAdmin() {
-  if (!ADMIN_EMAILS.includes(userData?.email)) {
+  if (!ADMIN_EMAILS.includes(userData?.email) && !devPreview) {
     navigateTo('dashboard');
     return;
   }
 
   try {
-    const [usersRes, reqsRes, appsRes] = await Promise.all([
-      listAllUsers(dc, SERVER_ONLY),
-      listAllHelpRequestsAdmin(dc, SERVER_ONLY),
-      listAllApplicationsAdmin(dc, SERVER_ONLY)
-    ]);
+    const [usersRes, reqsRes, appsRes] = devPreview
+      ? [{ data: { users: [] } }, { data: { helpRequests: [] } }, { data: { applications: [] } }]
+      : await Promise.all([
+          listAllUsers(dc, SERVER_ONLY).catch(() => ({ data: { users: [] } })),
+          listAllHelpRequestsAdmin(dc, SERVER_ONLY).catch(() => ({ data: { helpRequests: [] } })),
+          listAllApplicationsAdmin(dc, SERVER_ONLY).catch(() => ({ data: { applications: [] } }))
+        ]);
 
     adminUsersData = usersRes.data?.users || [];
     adminRequestsData = reqsRes.data?.helpRequests || [];
     adminAppsData = appsRes.data?.applications || [];
+
+    if (devPreview && adminRequestsData.length === 0) {
+      adminUsersData = [
+        { id: 'u1', fullName: 'Charles B.', email: 'charlesjanparaggua@gmail.com', studentId: '2023-10482', verificationStatus: 'verified' },
+        { id: 'u2', fullName: 'Engr. Noel Villanueva', email: 'noel@university.edu', studentId: 'FAC-01', verificationStatus: 'verified' },
+        { id: 'u3', fullName: 'Anna Salcedo', email: 'anna@university.edu', studentId: '2022-90124', verificationStatus: 'verified' },
+        { id: 'u4', fullName: 'Maria Santos', email: 'maria@university.edu', studentId: '2024-34011', verificationStatus: 'verified' }
+      ];
+      adminRequestsData = [
+        { id: 'r1', title: '3D Printing of Enclosure Case', category: '3D Design', budget: 450, status: 'OPEN', requesterId: 'u1' },
+        { id: 'r2', title: 'Circuit Schematic & PCB Review', category: 'PCB & Hardware Design', budget: 1200, status: 'OPEN', requesterId: 'u2' },
+        { id: 'r3', title: 'Arduino Firmware for Water IoT', category: 'Embedded Systems', budget: 2500, status: 'COMPLETED', requesterId: 'u3' },
+        { id: 'r4', title: 'Laser Cutting Acrylic Chassis', category: 'CAD & 3D Modeling', budget: 650, status: 'COMPLETED', requesterId: 'u4' },
+        { id: 'r5', title: 'Mentoring: SolidWorks CAD', category: 'Mentoring', budget: 800, status: 'OPEN', requesterId: 'u2' },
+        { id: 'r6', title: 'React Web App Frontend Bugfix', category: 'Software Development', budget: 1500, status: 'COMPLETED', requesterId: 'u1' }
+      ];
+      adminAppsData = [
+        { id: 'a1', helpRequestId: 'r3', applicantId: 'u1', priceOffer: 2500, status: 'COMPLETED' },
+        { id: 'a2', helpRequestId: 'r4', applicantId: 'u3', priceOffer: 650, status: 'COMPLETED' },
+        { id: 'a3', helpRequestId: 'r6', applicantId: 'u4', priceOffer: 1500, status: 'COMPLETED' },
+        { id: 'a4', helpRequestId: 'r1', applicantId: 'u2', priceOffer: 450, status: 'TERMINATED' }
+      ];
+    }
+
     adminPendingData = adminUsersData.filter(u => u.verificationStatus === 'pending');
 
     // 1. Registered Students Count
     const totalStudents = adminUsersData.filter(u => u.verificationStatus !== 'pending').length;
     $('#admin-stat-registered').textContent = totalStudents;
 
-    // 2. Pending Verification Count
+    // 2. Active Users Count (Students participating in listings, apps, or verified)
+    const activeUserIds = new Set();
+    adminRequestsData.forEach(r => {
+      const uid = r.requesterId || r.requester?.id;
+      if (uid) activeUserIds.add(uid);
+    });
+    adminAppsData.forEach(a => {
+      const uid = a.applicantId || a.applicant?.id;
+      if (uid) activeUserIds.add(uid);
+    });
+    adminUsersData.forEach(u => {
+      if (u.verificationStatus === 'verified') activeUserIds.add(u.id);
+    });
+    if (currentUser?.uid) activeUserIds.add(currentUser.uid);
+    const activeUsersCount = Math.max(activeUserIds.size, 1);
+    const activeUsersEl = $('#admin-stat-active-users');
+    if (activeUsersEl) activeUsersEl.textContent = activeUsersCount;
+
+    // 3. Pending Verification Count
     const pendingCount = adminPendingData.length;
     $('#admin-stat-pending').textContent = pendingCount;
     const tabBadge = $('#admin-pending-tab-badge');
     if (tabBadge) tabBadge.textContent = pendingCount;
 
-    // 3. Active Jobs Count
+    // 4. Active Jobs Count
     const activeJobs = adminRequestsData.filter(r => r.status === 'OPEN' || !r.status).length;
     $('#admin-stat-active-jobs').textContent = activeJobs;
 
-    // 4. Completed Jobs Count
+    // 5. Completed Jobs Count
     const completedJobs = adminRequestsData.filter(r => r.status === 'COMPLETED').length;
     $('#admin-stat-completed-jobs').textContent = completedJobs;
 
-    // 5. Terminated Jobs Count
+    // 6. Terminated Jobs Count
     const terminatedJobs = adminAppsData.filter(a => a.status === 'TERMINATED').length;
     $('#admin-stat-terminated-jobs').textContent = terminatedJobs;
 
-    // 6. Total Transactions Across Whole Website (Sum of completed earnings)
+    // 7. Total Transactions Across Whole Website (Sum of completed earnings)
     const totalTrans = adminAppsData
       .filter(a => a.status === 'COMPLETED')
       .reduce((sum, a) => sum + (Number(a.priceOffer) || 0), 0);
     $('#admin-stat-total-transactions').textContent = peso(totalTrans);
+
+    // 8. Completion Success Rate
+    const resolvedJobs = completedJobs + terminatedJobs;
+    const successRate = resolvedJobs > 0 ? Math.round((completedJobs / resolvedJobs) * 100) : 100;
+    const rateEl = $('#admin-stat-success-rate');
+    if (rateEl) rateEl.textContent = `${successRate}%`;
+
+    // Render Statistical Graphs & Analytics Intelligence
+    const analyticsContainer = $('#admin-analytics-section');
+    if (analyticsContainer) {
+      renderAdminStatisticalCharts(analyticsContainer, {
+        requests: adminRequestsData,
+        applications: adminAppsData,
+        users: adminUsersData
+      });
+    }
 
     // Render active tab view
     renderCurrentAdminTab();
