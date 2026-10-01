@@ -1380,6 +1380,41 @@
                         <input type="date" id="nr-deadline" class="form-control">
                     </div>
                 </div>
+
+                <!-- Optional Cover / Reference Image Upload with X remove button -->
+                <div class="form-group" id="nr-image-group">
+                    <div class="flex items-center justify-between mb-1">
+                        <label class="form-label mb-0" id="nr-image-label" for="nr-image-input">Cover / Sample Photo (Optional)</label>
+                        <span class="text-xs text-muted" id="nr-image-hint">PNG, JPG, WebP</span>
+                    </div>
+
+                    <!-- Dropzone state -->
+                    <div id="nr-image-dropzone" class="file-dropzone image-upload-dropzone">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="text-muted" style="margin: 0 auto 0.5rem auto; display: block;">
+                            <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+                            <circle cx="8.5" cy="8.5" r="1.5"></circle>
+                            <polyline points="21 15 16 10 5 21"></polyline>
+                        </svg>
+                        <p class="text-sm font-medium mb-1" id="nr-image-drop-title">Click or drag &amp; drop an image</p>
+                        <span class="text-xs text-muted" id="nr-image-drop-desc">Showcase your tools, finished work, or project diagram</span>
+                        <input type="file" id="nr-image-input" accept="image/*" style="opacity:0; position:absolute; z-index:-1; width:1px; height:1px;">
+                    </div>
+
+                    <!-- Image Preview state with X remove button -->
+                    <div id="nr-image-preview-container" class="image-upload-preview-wrapper hidden">
+                        <div class="image-preview-box">
+                            <img id="nr-image-preview" src="" alt="Listing Image Preview" class="image-upload-preview-img">
+                            <button type="button" id="nr-image-remove-btn" class="image-preview-remove-btn" title="Remove image" aria-label="Remove image">
+                                ✕
+                            </button>
+                        </div>
+                        <div class="image-preview-actions">
+                            <span id="nr-image-filename" class="text-xs text-muted truncate">attached-image.jpg</span>
+                            <button type="button" id="nr-image-change-btn" class="btn btn-outline btn-xs">Change Photo</button>
+                        </div>
+                    </div>
+                </div>
+
                 <div class="modal-footer">
                     <button type="button" class="btn btn-outline dialog-close-btn">Cancel</button>
                     <button type="submit" id="new-request-submit" class="btn btn-purple">Publish Service Offer</button>
@@ -1400,6 +1435,10 @@
             </div>
             
             <div class="service-details-body" style="display: flex; flex-direction: column; gap: 1.25rem; margin-top: 1rem;">
+                <!-- Cover Image Banner if available -->
+                <div id="sd-cover-banner" class="sd-cover-container hidden">
+                    <img id="sd-cover-img" src="" alt="Service Cover Preview" class="sd-cover-image" />
+                </div>
                 <!-- Poster card -->
                 <div class="sd-poster-card flex items-center justify-between" style="background: rgba(255,255,255,0.03); border: 1px solid var(--border-light); border-radius: var(--radius-md); padding: 0.85rem 1.15rem;">
                     <div class="flex items-center gap-3">

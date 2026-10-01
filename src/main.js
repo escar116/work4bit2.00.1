@@ -127,6 +127,55 @@ function compressImage(file) {
   });
 }
 
+// -- Listing Image Attachment & Storage ---------------------------------------
+let currentListingImage = null;
+
+function getListingImage(id) {
+  if (!id) return null;
+  try {
+    const map = JSON.parse(localStorage.getItem('listing_images_map') || '{}');
+    return map[id] || null;
+  } catch (e) {
+    return null;
+  }
+}
+
+function setListingImage(id, imageUrl) {
+  if (!id) return;
+  try {
+    const map = JSON.parse(localStorage.getItem('listing_images_map') || '{}');
+    if (imageUrl) {
+      map[id] = imageUrl;
+    } else {
+      delete map[id];
+    }
+    localStorage.setItem('listing_images_map', JSON.stringify(map));
+  } catch (e) {
+    console.warn('Could not save listing image:', e);
+  }
+}
+
+function updateListingImageUI(imageUrl, filename = 'Attached Photo') {
+  currentListingImage = imageUrl || null;
+  const dropzone = $('#nr-image-dropzone');
+  const previewWrapper = $('#nr-image-preview-container');
+  const previewImg = $('#nr-image-preview');
+  const filenameEl = $('#nr-image-filename');
+  const fileInput = $('#nr-image-input');
+
+  if (imageUrl) {
+    if (previewImg) previewImg.src = imageUrl;
+    if (filenameEl) filenameEl.textContent = filename;
+    if (dropzone) dropzone.classList.add('hidden');
+    if (previewWrapper) previewWrapper.classList.remove('hidden');
+  } else {
+    if (previewImg) previewImg.src = '';
+    if (fileInput) fileInput.value = '';
+    if (previewWrapper) previewWrapper.classList.add('hidden');
+    if (dropzone) dropzone.classList.remove('hidden');
+  }
+}
+
 // -- Online Presence & Realtime Tracking --------------------------------------
 let currentOnlineUserIds = new Set();
 
@@ -1168,9 +1217,16 @@ async function loadServices(isSilent = false) {
       }
     }
 
-    // Cache any existing standing offers
+    // Cache any existing standing offers and restore attached images
     allRequests.forEach(r => {
       if (isJobOffer(r)) markAsStandingOffer(r.id);
+      if (!r.imageUrl) {
+        const localImg = getListingImage(r.id);
+        if (localImg) r.imageUrl = localImg;
+      }
+      if (r.id === 'req_1' && !r.imageUrl) {
+        r.imageUrl = '/images/service_sample_3d.jpg';
+      }
     });
 
     // Auto-restore check: check if any standing offers were closed accidentally by previous bug
@@ -1231,6 +1287,18 @@ function openServiceDetailsDialog(r, actionInfo) {
   const isOffer = isJobOffer(r);
   const isMine = r.requester?.id === userData?.id;
   const isExpired = !isOffer && r.deadline ? new Date(r.deadline + 'T23:59:59') < new Date() : false;
+
+  const coverContainer = $('#sd-cover-banner');
+  const coverImg = $('#sd-cover-img');
+  if (coverContainer && coverImg) {
+    if (r.imageUrl) {
+      coverImg.src = r.imageUrl;
+      coverContainer.classList.remove('hidden');
+    } else {
+      coverImg.src = '';
+      coverContainer.classList.add('hidden');
+    }
+  }
 
   const typeBadge = $('#sd-modal-type-badge');
   if (typeBadge) {
@@ -1422,6 +1490,7 @@ function renderServices(requests) {
     $('#btn-empty-create-listing')?.addEventListener('click', () => {
       editingListing = null;
       $('#new-request-form')?.reset();
+      updateListingImageUI(null);
       setNewListingModalMode(isOffer ? 'OFFER' : 'REQUEST');
       if (!isOffer) {
         const dl = $('#nr-deadline');
@@ -1718,6 +1787,14 @@ function openEditListingDialog(listing) {
     dlInput.value = listing.deadline || '';
   }
 
+  // Populate or clear image preview for edit
+  const existingImg = listing.imageUrl || getListingImage(listing.id);
+  if (existingImg) {
+    updateListingImageUI(existingImg, 'Current Attached Image');
+  } else {
+    updateListingImageUI(null);
+  }
+
   $('#dialog-new-request')?.showModal();
 }
 
@@ -1742,6 +1819,10 @@ function setNewListingModalMode(mode = 'OFFER') {
   const deadlineGroup = $('#nr-deadline-group');
   const submitBtn = $('#new-request-submit');
 
+  const imgLabel = $('#nr-image-label');
+  const imgDropTitle = $('#nr-image-drop-title');
+  const imgDropDesc = $('#nr-image-drop-desc');
+
   if (isOffer) {
     if (titleHeader) titleHeader.textContent = editingListing ? 'Edit Service Offer' : 'Post a Service Offer';
     if (titleDesc) titleDesc.textContent = 'Offer your equipment (3D printing, laser cutting, paper printing) or skills. Standing services stay active continuously for multiple orders.';
@@ -1755,6 +1836,9 @@ function setNewListingModalMode(mode = 'OFFER') {
     if (standingNoteGroup) standingNoteGroup.style.display = 'block';
     if (deadlineGroup) deadlineGroup.style.display = 'none';
     if (submitBtn) submitBtn.textContent = editingListing ? 'Save Changes' : 'Publish Service Offer';
+    if (imgLabel) imgLabel.textContent = 'Service Cover / Sample Photo (Optional)';
+    if (imgDropTitle) imgDropTitle.textContent = 'Click or drag & drop a photo of your equipment or sample work';
+    if (imgDropDesc) imgDropDesc.textContent = 'Showcase your 3D printer, tools, laser cuts, or finished models';
   } else {
     if (titleHeader) titleHeader.textContent = editingListing ? 'Edit Service Request' : 'Post a Service Request';
     if (titleDesc) titleDesc.textContent = 'Describe a task, project, or problem where you need technical help or service from campus peers.';
@@ -1768,14 +1852,104 @@ function setNewListingModalMode(mode = 'OFFER') {
     if (standingNoteGroup) standingNoteGroup.style.display = 'none';
     if (deadlineGroup) deadlineGroup.style.display = 'block';
     if (submitBtn) submitBtn.textContent = editingListing ? 'Save Changes' : 'Publish Service Request';
+    if (imgLabel) imgLabel.textContent = 'Project Reference Photo / Diagram (Optional)';
+    if (imgDropTitle) imgDropTitle.textContent = 'Click or drag & drop a schematic, diagram, or reference photo';
+    if (imgDropDesc) imgDropDesc.textContent = 'Attach wiring diagram, PCB layout, CAD design, or issue screenshot';
   }
 }
 
 function setupNewRequestDialog() {
+  const dropzone = $('#nr-image-dropzone');
+  const fileInput = $('#nr-image-input');
+  const removeBtn = $('#nr-image-remove-btn');
+  const changeBtn = $('#nr-image-change-btn');
+  const dialogNewReq = $('#dialog-new-request');
+
+  // Trigger file chooser
+  dropzone?.addEventListener('click', () => {
+    fileInput?.click();
+  });
+
+  changeBtn?.addEventListener('click', (e) => {
+    e.preventDefault();
+    fileInput?.click();
+  });
+
+  // Remove button: X feature to clear wrong or existing image
+  removeBtn?.addEventListener('click', (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    updateListingImageUI(null);
+    showToast('Image removed.');
+  });
+
+  // Handle image file selection
+  fileInput?.addEventListener('change', async (e) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (!file.type.startsWith('image/')) {
+        showToast('Please select a valid image file (JPG, PNG, WebP).', 'error');
+        return;
+      }
+      try {
+        const compressed = await compressImage(file);
+        updateListingImageUI(compressed, file.name);
+      } catch (err) {
+        showToast('Failed to process image: ' + err.message, 'error');
+      }
+    }
+  });
+
+  // Drag and drop events on dropzone
+  dropzone?.addEventListener('dragover', (e) => {
+    e.preventDefault();
+    dropzone.classList.add('drag-over');
+  });
+
+  dropzone?.addEventListener('dragleave', (e) => {
+    e.preventDefault();
+    dropzone.classList.remove('drag-over');
+  });
+
+  dropzone?.addEventListener('drop', async (e) => {
+    e.preventDefault();
+    dropzone.classList.remove('drag-over');
+    const file = e.dataTransfer?.files?.[0];
+    if (file) {
+      if (!file.type.startsWith('image/')) {
+        showToast('Please drop a valid image file.', 'error');
+        return;
+      }
+      try {
+        const compressed = await compressImage(file);
+        updateListingImageUI(compressed, file.name);
+      } catch (err) {
+        showToast('Failed to process image: ' + err.message, 'error');
+      }
+    }
+  });
+
+  // Clipboard paste inside dialog
+  dialogNewReq?.addEventListener('paste', async (e) => {
+    if (!dialogNewReq.open) return;
+    const file = e.clipboardData?.files?.[0];
+    if (file && file.type.startsWith('image/')) {
+      e.preventDefault();
+      try {
+        const compressed = await compressImage(file);
+        updateListingImageUI(compressed, 'Pasted Photo');
+        showToast('Image attached from clipboard!');
+      } catch (err) {
+        showToast('Failed to process pasted image: ' + err.message, 'error');
+      }
+    }
+  });
+
   $('#btn-post-offer')?.addEventListener('click', (e) => {
     e.preventDefault();
     editingListing = null;
     $('#new-request-form')?.reset();
+    updateListingImageUI(null);
     setNewListingModalMode('OFFER');
     $('#dialog-new-request').showModal();
   });
@@ -1784,6 +1958,7 @@ function setupNewRequestDialog() {
     e.preventDefault();
     editingListing = null;
     $('#new-request-form')?.reset();
+    updateListingImageUI(null);
     setNewListingModalMode('REQUEST');
     const dl = $('#nr-deadline');
     if (dl) dl.min = new Date().toISOString().split('T')[0];
@@ -1836,6 +2011,7 @@ function setupNewRequestDialog() {
     }
 
     const btn = $('#new-request-submit');
+    const finalImage = currentListingImage;
 
     if (editingListing) {
       const prevListing = editingListing;
@@ -1861,9 +2037,45 @@ function setupNewRequestDialog() {
           markAsStandingOffer(newId);
         }
 
+        // Persist image state (update or delete if removed)
+        if (newId) setListingImage(newId, finalImage);
+        setListingImage(prevListing.id, finalImage);
+
+        // Update in-memory models
+        prevListing.title = title;
+        prevListing.description = description;
+        prevListing.budget = budget;
+        prevListing.category = $('#nr-category').value || 'General';
+        prevListing.urgency = urgency;
+        prevListing.deadline = deadline;
+        prevListing.imageUrl = finalImage;
+
+        const memReq = allRequests.find(r => r.id === prevListing.id);
+        if (memReq) {
+          memReq.title = title;
+          memReq.description = description;
+          memReq.budget = budget;
+          memReq.category = $('#nr-category').value || 'General';
+          memReq.urgency = urgency;
+          memReq.deadline = deadline;
+          memReq.imageUrl = finalImage;
+        }
+
+        const memJob = allMyJobs.find(j => j.id === prevListing.id);
+        if (memJob) {
+          memJob.title = title;
+          memJob.description = description;
+          memJob.budget = budget;
+          memJob.category = $('#nr-category').value || 'General';
+          memJob.urgency = urgency;
+          memJob.deadline = deadline;
+          memJob.imageUrl = finalImage;
+        }
+
         showToast(isOffer ? 'Service offer updated!' : 'Service request updated!');
         logUserAction('post', isOffer ? `Updated service offer: "${title}" (₱${Number(budget).toLocaleString()})` : `Updated service request: "${title}" (₱${Number(budget).toLocaleString()})`, requesterId);
         editingListing = null;
+        updateListingImageUI(null);
         $('#dialog-new-request').close();
         e.target.reset();
         setServicesTab(isOffer ? 'offers' : 'requests');
@@ -1881,7 +2093,7 @@ function setupNewRequestDialog() {
 
     btn.disabled = true; btn.textContent = 'Publishing...';
     try {
-      await createHelpRequest(dc, {
+      const createdRes = await createHelpRequest(dc, {
         title,
         description,
         budget: budget,
@@ -1890,8 +2102,38 @@ function setupNewRequestDialog() {
         urgency: urgency,
         deadline: deadline
       });
+
+      const newId = createdRes?.data?.helpRequest_insert?.id;
+      if (isOffer && newId) {
+        markAsStandingOffer(newId);
+      }
+      if (newId && finalImage) {
+        setListingImage(newId, finalImage);
+      }
+
+      if (devPreview) {
+        const mockNew = {
+          id: 'req_' + Date.now(),
+          title,
+          description,
+          budget,
+          category: $('#nr-category').value || 'General',
+          urgency,
+          deadline,
+          imageUrl: finalImage,
+          type: isOffer ? 'OFFER' : 'REQUEST',
+          tags: isOffer ? ['STANDING_OFFER'] : [],
+          requester: { id: requesterId, fullName: userData?.fullName || 'Charles B.' },
+          createdAt: new Date().toISOString()
+        };
+        if (finalImage) setListingImage(mockNew.id, finalImage);
+        allRequests.unshift(mockNew);
+      }
+
       showToast(isOffer ? 'Service offer published! It will stay active for ongoing orders.' : 'Service request published successfully!');
       logUserAction('post', isOffer ? `Posted service offer: "${title}" (₱${Number(budget).toLocaleString()})` : `Posted service request: "${title}" (₱${Number(budget).toLocaleString()})`, requesterId);
+      editingListing = null;
+      updateListingImageUI(null);
       $('#dialog-new-request').close();
       e.target.reset();
       setServicesTab(isOffer ? 'offers' : 'requests');
@@ -2067,6 +2309,13 @@ async function loadPostedJobs(isSilent = false) {
     jobs.forEach(job => {
       const isOffer = isJobOffer(job);
       if (isOffer) markAsStandingOffer(job.id);
+      if (!job.imageUrl) {
+        const localImg = getListingImage(job.id);
+        if (localImg) job.imageUrl = localImg;
+      }
+      if (job.id === 'req_1' && !job.imageUrl) {
+        job.imageUrl = '/images/service_sample_3d.jpg';
+      }
       const typeBadge = isOffer
         ? `<span class="badge badge-standing">Service Offer</span>`
         : `<span class="badge badge-request">Service Request</span>`;
@@ -2077,11 +2326,16 @@ async function loadPostedJobs(isSilent = false) {
       jobEl.className = 'job-card';
       jobEl.innerHTML = `
         <div class="job-card-header">
-          <div class="job-card-header-main">
-            <h3 style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; margin-bottom: 0.25rem;">
-              <span>${job.title}</span> ${typeBadge}
-            </h3>
-            <small class="text-muted">${isOffer ? 'Standing Service (Always Open for Campus Orders)' : (job.deadline ? `Due: ${job.deadline}` : 'One-Time Request')}</small>
+          <div class="job-card-header-main" style="display: flex; gap: 0.75rem; align-items: flex-start;">
+            ${job.imageUrl ? `
+              <img src="${job.imageUrl}" alt="" style="width: 50px; height: 50px; border-radius: 8px; object-fit: cover; border: 1px solid var(--border-light); flex-shrink: 0;" />
+            ` : ''}
+            <div>
+              <h3 style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; margin-bottom: 0.25rem;">
+                <span>${job.title}</span> ${typeBadge}
+              </h3>
+              <small class="text-muted">${isOffer ? 'Standing Service (Always Open for Campus Orders)' : (job.deadline ? `Due: ${job.deadline}` : 'One-Time Request')}</small>
+            </div>
           </div>
           <div class="job-card-header-actions">
             <span class="badge badge-normal">${peso(job.budget)} ${isOffer ? 'base' : ''}</span>

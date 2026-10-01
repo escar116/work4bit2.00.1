@@ -432,6 +432,168 @@ body.light-theme .success-message {
     max-width: 100%;
 }
 
+/* Listing Cover / Reference Image Dropzone & Preview */
+#dialog-new-request {
+    max-width: 580px;
+    width: 94%;
+    max-height: 92vh;
+}
+
+#dialog-new-request .modal-content {
+    padding: 1.25rem 1.6rem;
+}
+
+#dialog-new-request .modal-header {
+    margin-bottom: 0.5rem;
+}
+
+#dialog-new-request p#new-listing-modal-desc {
+    margin-bottom: 0.6rem !important;
+}
+
+#dialog-new-request .tabs {
+    margin-bottom: 0.65rem !important;
+}
+
+#dialog-new-request .form-group {
+    margin-bottom: 0.65rem;
+}
+
+#dialog-new-request textarea {
+    min-height: 65px;
+    height: 65px;
+    resize: vertical;
+}
+
+#dialog-new-request .modal-footer {
+    margin-top: 0.85rem;
+}
+
+.image-upload-dropzone {
+    border: 2px dashed #cbd5e1;
+    border-radius: 12px;
+    padding: 0.65rem 0.85rem;
+    text-align: center;
+    background: #f8fafc;
+    cursor: pointer;
+    transition: var(--transition);
+    position: relative;
+    user-select: none;
+}
+
+.image-upload-dropzone:hover,
+.image-upload-dropzone.drag-over {
+    border-color: var(--primary-purple);
+    background: #fdfdfd;
+}
+
+body.dark-theme .image-upload-dropzone {
+    border-color: rgba(255, 255, 255, 0.15);
+    background: rgba(255, 255, 255, 0.02);
+}
+
+body.dark-theme .image-upload-dropzone:hover,
+body.dark-theme .image-upload-dropzone.drag-over {
+    border-color: var(--primary-purple);
+    background: rgba(124, 108, 248, 0.06);
+}
+
+.image-upload-preview-wrapper {
+    margin-top: 0.25rem;
+}
+
+.image-preview-box {
+    position: relative;
+    width: 100%;
+    max-height: 145px;
+    border-radius: 12px;
+    overflow: hidden;
+    background: #0f172a;
+    border: 1px solid var(--border-card);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+}
+
+.image-upload-preview-img {
+    width: 100%;
+    max-height: 145px;
+    object-fit: cover;
+    display: block;
+}
+
+/* Clear / X remove button for attached image */
+.image-preview-remove-btn {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: rgba(15, 23, 42, 0.78);
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+    color: #ffffff;
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    font-size: 14px;
+    font-weight: 700;
+    line-height: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.35);
+    z-index: 10;
+}
+
+.image-preview-remove-btn:hover {
+    background: #ef4444;
+    border-color: #ef4444;
+    color: #ffffff;
+    transform: scale(1.12);
+    box-shadow: 0 4px 14px rgba(239, 68, 68, 0.5);
+}
+
+.image-preview-remove-btn:active {
+    transform: scale(0.96);
+}
+
+.image-preview-actions {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    margin-top: 0.5rem;
+    padding: 0 0.25rem;
+}
+
+.btn-xs {
+    padding: 0.25rem 0.65rem;
+    font-size: 0.75rem;
+    line-height: 1.2;
+    border-radius: 6px;
+}
+
+/* Service Details Modal Cover Banner */
+.sd-cover-container {
+    width: 100%;
+    max-height: 240px;
+    border-radius: 12px;
+    overflow: hidden;
+    border: 1px solid var(--border-light);
+    background: #0f172a;
+}
+
+.sd-cover-image {
+    width: 100%;
+    height: 100%;
+    max-height: 240px;
+    object-fit: cover;
+    display: block;
+}
+
 .verification-status-pill {
     display: inline-block;
     padding: 0.35rem 1rem;
