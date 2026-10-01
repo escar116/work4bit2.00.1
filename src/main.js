@@ -1773,6 +1773,19 @@ function setupNewRequestDialog() {
       return;
     }
 
+    const title = $('#nr-title').value.trim();
+    const description = $('#nr-description').value.trim();
+    const requesterId = userData?.id || currentUser?.uid;
+
+    if (!title) {
+      showToast('Title is required.', 'error');
+      return;
+    }
+    if (!requesterId) {
+      showToast('Please sign in to publish listings.', 'error');
+      return;
+    }
+
     const mode = $('#nr-listing-type')?.value || 'OFFER';
     const isOffer = mode === 'OFFER';
     const urgency = isOffer ? 'OFFER' : ($('#nr-urgency').value || 'Normal');
@@ -1795,10 +1808,10 @@ function setupNewRequestDialog() {
         }
 
         const newReq = await createHelpRequest(dc, {
-          title: $('#nr-title').value.trim(),
-          description: $('#nr-description').value.trim(),
+          title,
+          description,
           budget: budget,
-          requesterId: userData.id,
+          requesterId: requesterId,
           category: $('#nr-category').value || null,
           urgency: urgency,
           deadline: deadline
@@ -1810,6 +1823,7 @@ function setupNewRequestDialog() {
         }
 
         showToast(isOffer ? 'Service offer updated!' : 'Service request updated!');
+        logUserAction('post', isOffer ? `Updated service offer: "${title}" (₱${Number(budget).toLocaleString()})` : `Updated service request: "${title}" (₱${Number(budget).toLocaleString()})`, requesterId);
         editingListing = null;
         $('#dialog-new-request').close();
         e.target.reset();
@@ -1829,16 +1843,16 @@ function setupNewRequestDialog() {
     btn.disabled = true; btn.textContent = 'Publishing...';
     try {
       await createHelpRequest(dc, {
-        title: $('#nr-title').value.trim(),
-        description: $('#nr-description').value.trim(),
+        title,
+        description,
         budget: budget,
-        requesterId: userData.id,
+        requesterId: requesterId,
         category: $('#nr-category').value || null,
         urgency: urgency,
         deadline: deadline
       });
       showToast(isOffer ? 'Service offer published! It will stay active for ongoing orders.' : 'Service request published successfully!');
-      logUserAction('post', isOffer ? `Posted service offer: "${title}" (₱${Number(budget).toLocaleString()})` : `Posted service request: "${title}" (₱${Number(budget).toLocaleString()})`, currentUser?.uid || userData?.id);
+      logUserAction('post', isOffer ? `Posted service offer: "${title}" (₱${Number(budget).toLocaleString()})` : `Posted service request: "${title}" (₱${Number(budget).toLocaleString()})`, requesterId);
       $('#dialog-new-request').close();
       e.target.reset();
       setServicesTab(isOffer ? 'offers' : 'requests');
