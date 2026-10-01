@@ -2427,6 +2427,8 @@ body.light-theme .success-message {
     border-radius: var(--radius-pill);
     font-size: 0.75rem;
     font-weight: 600;
+    white-space: nowrap;
+    flex-shrink: 0;
 }
 
 .badge-urgent { background: #fee2e2; color: #ef4444; }
@@ -2953,6 +2955,7 @@ button, input, select, textarea, .nav-btn, .tab-btn, .icon-button {
     }
     .services-header-info {
         width: 100%;
+        flex: 0 1 auto !important;
     }
     .services-header-actions {
         width: 100%;
@@ -3118,8 +3121,65 @@ button, input, select, textarea, .nav-btn, .tab-btn, .icon-button {
         cursor: pointer;
     }
     .chat-header {
-        padding: 0.6rem 0.85rem;
-        gap: 0.6rem;
+        display: flex !important;
+        flex-wrap: wrap !important;
+        align-items: center !important;
+        padding: 0.65rem 0.75rem !important;
+        gap: 0.5rem !important;
+    }
+    #chat-back-btn {
+        flex-shrink: 0 !important;
+        padding: 0.35rem 0.6rem !important;
+        height: auto !important;
+        min-height: 32px !important;
+    }
+    .chat-header-content {
+        display: contents !important;
+    }
+    .chat-header-user-info {
+        display: flex !important;
+        align-items: center !important;
+        gap: 0.65rem !important;
+        min-width: 0 !important;
+        flex: 1 1 0 !important;
+    }
+    .chat-header-user-text {
+        min-width: 0 !important;
+        flex: 1 1 auto !important;
+        overflow: hidden !important;
+    }
+    .chat-header-user-text strong {
+        display: block !important;
+        font-size: 0.95rem !important;
+        white-space: nowrap !important;
+        overflow: hidden !important;
+        text-overflow: ellipsis !important;
+    }
+    .chat-header-user-text small {
+        display: inline-block !important;
+        max-width: 170px !important;
+        font-size: 0.78rem !important;
+        white-space: nowrap !important;
+        overflow: hidden !important;
+        text-overflow: ellipsis !important;
+        vertical-align: middle !important;
+    }
+    .chat-header-actions {
+        order: 3 !important;
+        width: 100% !important;
+        display: flex !important;
+        align-items: center !important;
+        gap: 0.5rem !important;
+        padding-top: 0.5rem !important;
+        border-top: 1px solid var(--border-light) !important;
+        margin-top: 0.2rem !important;
+    }
+    .chat-header-actions .btn {
+        flex: 1 1 0 !important;
+        padding: 0.45rem 0.65rem !important;
+        font-size: 0.82rem !important;
+        justify-content: center !important;
+        white-space: nowrap !important;
     }
     .chat-messages {
         padding: 0.85rem 0.65rem;
@@ -3131,6 +3191,10 @@ button, input, select, textarea, .nav-btn, .tab-btn, .icon-button {
     .chat-input-row {
         padding: 0.65rem 0.75rem;
         gap: 0.5rem;
+    }
+    .chat-input-row input {
+        min-width: 0;
+        flex: 1 1 auto;
     }
 
     /* Transactions & Ledgers */
