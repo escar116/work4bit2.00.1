@@ -1048,6 +1048,7 @@ function markAsStandingOffer(id) {
 
 function isJobOffer(job) {
   if (!job) return false;
+  if (String(job.category || '').toUpperCase() === 'MENTORING' || /^mentoring\s*:/i.test(job.title || '')) return false;
   const urg = (job.urgency || '').toUpperCase();
   if (urg === 'OFFER' || urg === 'STANDING') return true;
   if (job.id && knownStandingOfferIds.has(job.id)) return true;

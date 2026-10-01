@@ -5613,3 +5613,18 @@ dialog.workspace-guide::backdrop {
 @media(min-width:1500px) { .db-donut-layout { grid-template-columns:1fr 1fr; align-items:center; gap:24px; padding-top:44px; } .db-main-charts { grid-template-columns:minmax(0,1.6fr) minmax(0,1fr); } }
 @media(max-width:1050px) { .db-kpis { grid-template-columns:repeat(3,minmax(0,1fr)); } .db-main-charts { grid-template-columns:1fr; } .db-donut-layout { grid-template-columns:1fr 1fr; align-items:center; padding-top:18px; } .db-bottom { grid-template-columns:1fr; } }
 @media(max-width:600px) { .db-banner { padding:20px; align-items:flex-start; flex-direction:column; gap:14px; } .db-banner-date { text-align:left; } .db-kpis { grid-template-columns:repeat(2,minmax(0,1fr)); } .db-kpi:last-child { grid-column:1/-1; } .db-support { grid-template-columns:repeat(2,minmax(0,1fr)); } .db-panel { padding:15px; } .db-panel-head { flex-wrap:wrap; } .db-attention { flex-wrap:wrap; } .db-attention a { margin-left:28px; } .db-segment button { padding:8px 10px; font-size:.72rem; } .db-donut { width:128px; height:128px; } .db-donut>div { width:94px; height:94px; } .db-money-row { grid-template-columns:35px minmax(0,1fr) 85px; } .db-kpi>strong { font-size:1.3rem; } }
+
+@media (max-width: 480px) {
+    .workspace-header {
+        padding-left: max(8px, env(safe-area-inset-left, 0px));
+        padding-right: max(8px, env(safe-area-inset-right, 0px));
+        gap: 6px;
+    }
+    .workspace-brand { gap: 5px; min-width: 0; }
+    .workspace-brand .brand-logo-img { width: 26px; height: 26px; }
+    .workspace-brand .logo-text { font-size: 0.92rem; gap: 3px; white-space: nowrap; }
+    .workspace-brand .logo-badge { font-size: 0.65rem; padding: 0 4px; }
+    .workspace-actions { gap: 4px; }
+    .workspace-actions .icon-button,
+    .workspace-actions .btn-notification-bell { width: 32px; height: 32px; flex-basis: 32px; }
+}

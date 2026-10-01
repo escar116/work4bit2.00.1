@@ -72,10 +72,9 @@ export function summarizeDashboard(submitted = [], received = [], listings = [],
         side,
         status: String(application.status || 'UNKNOWN').toUpperCase(),
         mentoring: isMentoring(job),
-        // Mentoring flows use requests/proposals instead of the service-offer
-        // flag: proposals received are mentor earnings, and proposals sent are
-        // learner spend. Service listings continue to use offer/request roles.
-        earning: isMentoring(job) ? side === 'received' : side === 'received' ? isOffer(job) : !isOffer(job),
+        // Mentoring proposals are stored as applications to service requests.
+        // Apply the same earning/payment rule used by the Transactions page.
+        earning: side === 'received' ? isOffer(job) : !isOffer(job),
         amount: Number.isFinite(amount) && amount >= 0 ? amount : null,
         date: validDate(application.createdAt),
       });
