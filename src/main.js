@@ -1506,7 +1506,7 @@ function renderServices(requests) {
         ${standingOrDeadline}
       </div>
       <div class="request-card-footer">
-        <div>
+        <div class="request-card-price-row">
           <small class="text-muted">${isOffer ? 'Starting Rate' : 'Budget'}</small>
           <div class="request-card-price">${peso(r.budget)}</div>
         </div>
@@ -4790,7 +4790,7 @@ document.addEventListener('DOMContentLoaded', () => {
       role: 'Offer My Skills'
     };
     allRequests = [
-      { id: 'req_1', title: '3D Printing of Enclosure Case (ABS/PLA)', category: '3D Design', budget: 450, type: 'OFFER', tags: ['STANDING_OFFER'], requester: { fullName: 'Charles B.' }, createdAt: new Date(Date.now() - 3600000*24).toISOString() },
+      { id: 'req_1', title: '3D Printing of Enclosure Case (ABS/PLA)', category: '3D Design', budget: 450, type: 'OFFER', tags: ['STANDING_OFFER'], requester: { id: 'dev_student_1', fullName: 'Charles B.' }, createdAt: new Date(Date.now() - 3600000*24).toISOString() },
       { id: 'req_2', title: 'Circuit Schematic & PCB Layout Review', category: 'PCB & Hardware Design', budget: 1200, type: 'OFFER', tags: ['STANDING_OFFER'], requester: { fullName: 'Engr. Noel V.' }, createdAt: new Date(Date.now() - 3600000*48).toISOString() },
       { id: 'req_3', title: 'Need Arduino Firmware for Water Monitoring IoT', category: 'Embedded Systems', budget: 2500, type: 'REQUEST', requester: { fullName: 'Maria Santos' }, createdAt: new Date(Date.now() - 3600000*12).toISOString() },
       { id: 'req_4', title: 'Laser Cutting Acrylic Chassis Plates', category: 'CAD & 3D Modeling', budget: 650, type: 'OFFER', tags: ['STANDING_OFFER'], requester: { fullName: 'Tech Lab Guild' }, createdAt: new Date(Date.now() - 3600000*72).toISOString() }
