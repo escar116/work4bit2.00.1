@@ -127,6 +127,38 @@ function compressImage(file) {
   });
 }
 
+// -- Online Presence & Realtime Tracking --------------------------------------
+let currentOnlineUserIds = new Set();
+
+function recordUserPresence(uid) {
+  if (!uid) return;
+  try {
+    const raw = localStorage.getItem('user_presence_map');
+    const map = raw ? JSON.parse(raw) : {};
+    map[uid] = Date.now();
+    localStorage.setItem('user_presence_map', JSON.stringify(map));
+  } catch (e) {}
+}
+
+function getOnlineUserIds(timeoutMs = 5 * 60 * 1000) {
+  const onlineIds = new Set();
+  const now = Date.now();
+  try {
+    const raw = localStorage.getItem('user_presence_map');
+    if (raw) {
+      const map = JSON.parse(raw);
+      for (const [uid, ts] of Object.entries(map)) {
+        if (now - Number(ts) < timeoutMs) {
+          onlineIds.add(uid);
+        }
+      }
+    }
+  } catch (e) {}
+  if (currentUser?.uid) onlineIds.add(currentUser.uid);
+  if (userData?.id) onlineIds.add(userData.id);
+  return onlineIds;
+}
+
 function escapeHtml(str) {
   if (!str) return '';
   return String(str)
@@ -1489,6 +1521,11 @@ function renderServices(requests) {
     const actionInfo = { actionType, btnText, btnClass, btnDisabled, triggerDelete, triggerCancel };
 
     card.innerHTML = `
+      ${r.imageUrl ? `
+        <div class="request-card-cover card-open-details cursor-pointer">
+          <img src="${r.imageUrl}" alt="${escapeHtml(r.title || 'Service Cover')}" class="request-card-img" loading="lazy" />
+        </div>
+      ` : ''}
       <div class="request-card-header">
         <div class="avatar avatar-sm cursor-pointer flex-shrink-0" onclick="openViewProfileDialog('${r.requester?.id}')">${initials(r.requester?.fullName || 'S')}</div>
         <div class="request-card-user">
@@ -4220,7 +4257,19 @@ async function loadAdmin() {
     const totalStudents = adminUsersData.filter(u => u.verificationStatus !== 'pending').length;
     $('#admin-stat-registered').textContent = totalStudents;
 
-    // 2. Active Users Count (Students participating in listings, apps, or verified)
+    // 2. Online Users Count (Real-time active sessions within 5 minutes)
+    recordUserPresence(currentUser?.uid || userData?.id);
+    currentOnlineUserIds = getOnlineUserIds();
+    if (devPreview) {
+      currentOnlineUserIds.add('dev_student_1');
+      currentOnlineUserIds.add('u1');
+      currentOnlineUserIds.add('u2');
+    }
+    const onlineUsersCount = Math.max(currentOnlineUserIds.size, 1);
+    const onlineUsersEl = $('#admin-stat-online-users');
+    if (onlineUsersEl) onlineUsersEl.textContent = onlineUsersCount;
+
+    // 3. Active Users Count (Students participating in listings, apps, or verified)
     const activeUserIds = new Set();
     adminRequestsData.forEach(r => {
       const uid = r.requesterId || r.requester?.id;
@@ -4401,6 +4450,7 @@ function renderAdminUsers() {
     const tr = document.createElement('tr');
     const isVerified = u.verificationStatus === 'verified';
     const isPending = u.verificationStatus === 'pending';
+    const isOnline = currentOnlineUserIds.has(u.id) || u.email === currentUser?.email || u.email === userData?.email;
     const badgeClass = isVerified ? 'badge-approved' : isPending ? 'badge-pending' : 'badge-rejected';
 
     tr.innerHTML = `
@@ -4408,7 +4458,10 @@ function renderAdminUsers() {
         <div class="flex items-center gap-2">
           <div class="avatar avatar-sm">${initials(u.fullName)}</div>
           <div>
-            <strong>${u.fullName}</strong>
+            <div class="flex items-center gap-1.5">
+              <strong>${u.fullName}</strong>
+              ${isOnline ? '<span class="online-indicator-pill"><span class="active-pulse-dot" style="margin:0;width:6px;height:6px;"></span> Online</span>' : ''}
+            </div>
             <div class="text-xs text-muted">${u.email}</div>
           </div>
         </div>
@@ -4790,7 +4843,7 @@ document.addEventListener('DOMContentLoaded', () => {
       role: 'Offer My Skills'
     };
     allRequests = [
-      { id: 'req_1', title: '3D Printing of Enclosure Case (ABS/PLA)', category: '3D Design', budget: 450, type: 'OFFER', tags: ['STANDING_OFFER'], requester: { id: 'dev_student_1', fullName: 'Charles B.' }, createdAt: new Date(Date.now() - 3600000*24).toISOString() },
+      { id: 'req_1', title: '3D Printing of Enclosure Case (ABS/PLA)', imageUrl: '/images/service_sample_3d.jpg', category: '3D Design', budget: 450, type: 'OFFER', tags: ['STANDING_OFFER'], requester: { id: 'dev_student_1', fullName: 'Charles B.' }, createdAt: new Date(Date.now() - 3600000*24).toISOString() },
       { id: 'req_2', title: 'Circuit Schematic & PCB Layout Review', category: 'PCB & Hardware Design', budget: 1200, type: 'OFFER', tags: ['STANDING_OFFER'], requester: { fullName: 'Engr. Noel V.' }, createdAt: new Date(Date.now() - 3600000*48).toISOString() },
       { id: 'req_3', title: 'Need Arduino Firmware for Water Monitoring IoT', category: 'Embedded Systems', budget: 2500, type: 'REQUEST', requester: { fullName: 'Maria Santos' }, createdAt: new Date(Date.now() - 3600000*12).toISOString() },
       { id: 'req_4', title: 'Laser Cutting Acrylic Chassis Plates', category: 'CAD & 3D Modeling', budget: 650, type: 'OFFER', tags: ['STANDING_OFFER'], requester: { fullName: 'Tech Lab Guild' }, createdAt: new Date(Date.now() - 3600000*72).toISOString() }
