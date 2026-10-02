@@ -106,20 +106,27 @@ function showToast(message, type = 'success') {
 
 function compressImage(file) {
   return new Promise((resolve) => {
+    if (!file || !file.type.startsWith('image/')) {
+      resolve('');
+      return;
+    }
     const reader = new FileReader();
+    reader.onerror = () => resolve('');
     reader.onload = (e) => {
       const img = new Image();
+      img.onerror = () => resolve('');
       img.onload = () => {
         const canvas = document.createElement('canvas');
-        const max = 800;
+        const max = 720;
         let w = img.width, h = img.height;
         if (w > max || h > max) {
           if (w > h) { h = Math.round(h * max / w); w = max; }
           else { w = Math.round(w * max / h); h = max; }
         }
         canvas.width = w; canvas.height = h;
-        canvas.getContext('2d').drawImage(img, 0, 0, w, h);
-        resolve(canvas.toDataURL('image/jpeg', 0.6));
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, w, h);
+        resolve(canvas.toDataURL('image/jpeg', 0.65));
       };
       img.src = e.target.result;
     };
@@ -127,8 +134,31 @@ function compressImage(file) {
   });
 }
 
-// -- Listing Image Attachment & Storage ---------------------------------------
+// -- Listing Image Attachment & Cross-User Storage ----------------------------
 let currentListingImage = null;
+
+function parseListingDescriptionAndImage(r) {
+  if (!r) return;
+  if (!r.description) {
+    if (!r.imageUrl && r.id) {
+      const local = getListingImage(r.id);
+      if (local) r.imageUrl = local;
+    }
+    return;
+  }
+  const match = r.description.match(/\[IMG_URL:([\s\S]*?)\]/);
+  if (match) {
+    const foundImg = match[1].trim();
+    if (foundImg) {
+      r.imageUrl = foundImg;
+      if (r.id) setListingImage(r.id, foundImg);
+    }
+    r.description = r.description.replace(/\n*\[IMG_URL:[\s\S]*?\]/, '').trim();
+  } else if (!r.imageUrl && r.id) {
+    const local = getListingImage(r.id);
+    if (local) r.imageUrl = local;
+  }
+}
 
 function getListingImage(id) {
   if (!id) return null;
@@ -153,6 +183,20 @@ function setListingImage(id, imageUrl) {
   } catch (e) {
     console.warn('Could not save listing image:', e);
   }
+}
+
+async function syncAuthorListingImages() {
+  const uid = userData?.id || currentUser?.uid;
+  if (!uid || devPreview) return;
+  try {
+    const map = JSON.parse(localStorage.getItem('listing_images_map') || '{}');
+    const validKeys = Object.keys(map);
+    if (validKeys.length > 0) {
+      await setDoc(doc(firestore, "user_profiles", uid), {
+        listingImages: map
+      }, { merge: true }).catch(() => {});
+    }
+  } catch (e) {}
 }
 
 function updateListingImageUI(imageUrl, filename = 'Attached Photo') {
@@ -526,6 +570,7 @@ function showApp() {
   hide($('#auth-views'));
   hide($('#loading-screen'));
   show($('#app-views'));
+  syncAuthorListingImages();
 
   // Admin button visibility
   const adminNav = $('#nav-admin');
@@ -1108,6 +1153,7 @@ function setupDashboardLinks() {
 
 // -- Find Services  ------------------------------------------------------------
 let allRequests = [];
+let allMyJobs = [];
 let activeAppliedIds = new Set();
 let userApplicationsByRequestId = new Map();
 let requestFilters = { q: '', category: '', maxPrice: Infinity, sort: 'newest' };
@@ -1217,8 +1263,9 @@ async function loadServices(isSilent = false) {
       }
     }
 
-    // Cache any existing standing offers and restore attached images
+    // Cache any existing standing offers and restore attached images (from description or profile)
     allRequests.forEach(r => {
+      parseListingDescriptionAndImage(r);
       if (isJobOffer(r)) markAsStandingOffer(r.id);
       if (!r.imageUrl) {
         const localImg = getListingImage(r.id);
@@ -1228,6 +1275,34 @@ async function loadServices(isSilent = false) {
         r.imageUrl = '/images/service_sample_3d.jpg';
       }
     });
+
+    // Cross-user sync: check if any listings without an image have an image stored in author's user_profiles
+    const missingReqs = allRequests.filter(r => !r.imageUrl && r.requester?.id);
+    if (missingReqs.length > 0 && !devPreview) {
+      try {
+        const uniqueRequesterIds = [...new Set(missingReqs.map(r => r.requester.id))];
+        const snaps = await Promise.all(
+          uniqueRequesterIds.map(uid => getDoc(doc(firestore, "user_profiles", uid)).catch(() => null))
+        );
+        for (const snap of snaps) {
+          if (snap && snap.exists()) {
+            const data = snap.data();
+            const imagesMap = data.listingImages || {};
+            for (const [listingId, imgUrl] of Object.entries(imagesMap)) {
+              if (imgUrl) {
+                setListingImage(listingId, imgUrl);
+                const req = allRequests.find(r => r.id === listingId);
+                if (req && !req.imageUrl) {
+                  req.imageUrl = imgUrl;
+                }
+              }
+            }
+          }
+        }
+      } catch (e) {
+        console.warn('Error fetching profile listing images:', e);
+      }
+    }
 
     // Auto-restore check: check if any standing offers were closed accidentally by previous bug
     if (userData?.id) {
@@ -1278,12 +1353,15 @@ async function loadServices(isSilent = false) {
     });
     activeAppliedIds = new Set(userApplicationsByRequestId.keys());
     renderServices(allRequests);
+    syncAuthorListingImages();
   } catch (err) {
     if (!isSilent) console.error("loadServices error:", err); grid.innerHTML = '<div class="empty-state">Error loading services.</div>';
   }
 }
 
 function openServiceDetailsDialog(r, actionInfo) {
+  if (!r) return;
+  parseListingDescriptionAndImage(r);
   const isOffer = isJobOffer(r);
   const isMine = r.requester?.id === userData?.id;
   const isExpired = !isOffer && r.deadline ? new Date(r.deadline + 'T23:59:59') < new Date() : false;
@@ -1761,6 +1839,7 @@ let editingListing = null;
 
 function openEditListingDialog(listing) {
   if (!listing) return;
+  parseListingDescriptionAndImage(listing);
   editingListing = listing;
   const isOffer = isJobOffer(listing);
   setNewListingModalMode(isOffer ? 'OFFER' : 'REQUEST');
@@ -2011,28 +2090,48 @@ function setupNewRequestDialog() {
     }
 
     const btn = $('#new-request-submit');
-    const finalImage = currentListingImage;
+    let finalImage = currentListingImage;
+    if (!finalImage) {
+      const previewImg = $('#nr-image-preview');
+      const previewContainer = $('#nr-image-preview-container');
+      if (previewContainer && !previewContainer.classList.contains('hidden') && previewImg?.src && !previewImg.src.endsWith('/')) {
+        finalImage = previewImg.src;
+      }
+    }
+    const cleanDesc = description.replace(/\n*\[IMG_URL:[\s\S]*?\]/, '').trim();
+    const payloadDescription = finalImage ? `${cleanDesc}\n\n[IMG_URL:${finalImage}]` : cleanDesc;
 
     if (editingListing) {
       const prevListing = editingListing;
       btn.disabled = true; btn.textContent = 'Saving Changes...';
       try {
-        await updateHelpRequestStatus(dc, { id: prevListing.id, status: 'DELETED' });
-        if (knownStandingOfferIds.has(prevListing.id)) {
-          knownStandingOfferIds.delete(prevListing.id);
+        let newId = null;
+        if (!devPreview && !prevListing.id?.startsWith('req_')) {
+          await updateHelpRequestStatus(dc, { id: prevListing.id, status: 'DELETED' }).catch((e) => {
+            console.warn('Could not mark previous request as deleted:', e);
+          });
+          if (knownStandingOfferIds.has(prevListing.id)) {
+            knownStandingOfferIds.delete(prevListing.id);
+          }
+
+          const newReq = await createHelpRequest(dc, {
+            title,
+            description: payloadDescription,
+            budget: budget,
+            requesterId: requesterId,
+            category: $('#nr-category').value || null,
+            urgency: urgency,
+            deadline: deadline
+          }).catch((e) => {
+            console.warn('Could not create updated help request:', e);
+            return null;
+          });
+
+          newId = newReq?.data?.helpRequest_insert?.id;
+        } else {
+          newId = prevListing.id;
         }
 
-        const newReq = await createHelpRequest(dc, {
-          title,
-          description,
-          budget: budget,
-          requesterId: requesterId,
-          category: $('#nr-category').value || null,
-          urgency: urgency,
-          deadline: deadline
-        });
-
-        const newId = newReq?.data?.helpRequest_insert?.id;
         if (isOffer && newId) {
           markAsStandingOffer(newId);
         }
@@ -2041,19 +2140,29 @@ function setupNewRequestDialog() {
         if (newId) setListingImage(newId, finalImage);
         setListingImage(prevListing.id, finalImage);
 
+        // Backup to public user_profile in Firestore for cross-user loading
+        if (requesterId && !devPreview && (newId || prevListing.id)) {
+          const profileDocRef = doc(firestore, "user_profiles", requesterId);
+          const updatePayload = {};
+          if (newId) updatePayload[`listingImages.${newId}`] = finalImage || null;
+          if (prevListing.id) updatePayload[`listingImages.${prevListing.id}`] = finalImage || null;
+          setDoc(profileDocRef, updatePayload, { merge: true }).catch(() => {});
+        }
+
         // Update in-memory models
         prevListing.title = title;
-        prevListing.description = description;
+        prevListing.description = cleanDesc;
         prevListing.budget = budget;
         prevListing.category = $('#nr-category').value || 'General';
         prevListing.urgency = urgency;
         prevListing.deadline = deadline;
         prevListing.imageUrl = finalImage;
 
-        const memReq = allRequests.find(r => r.id === prevListing.id);
+        const memReq = Array.isArray(allRequests) ? allRequests.find(r => r.id === prevListing.id) : null;
         if (memReq) {
+          if (newId) memReq.id = newId;
           memReq.title = title;
-          memReq.description = description;
+          memReq.description = cleanDesc;
           memReq.budget = budget;
           memReq.category = $('#nr-category').value || 'General';
           memReq.urgency = urgency;
@@ -2061,10 +2170,11 @@ function setupNewRequestDialog() {
           memReq.imageUrl = finalImage;
         }
 
-        const memJob = allMyJobs.find(j => j.id === prevListing.id);
+        const memJob = Array.isArray(allMyJobs) ? allMyJobs.find(j => j.id === prevListing.id) : null;
         if (memJob) {
+          if (newId) memJob.id = newId;
           memJob.title = title;
-          memJob.description = description;
+          memJob.description = cleanDesc;
           memJob.budget = budget;
           memJob.category = $('#nr-category').value || 'General';
           memJob.urgency = urgency;
@@ -2093,15 +2203,18 @@ function setupNewRequestDialog() {
 
     btn.disabled = true; btn.textContent = 'Publishing...';
     try {
-      const createdRes = await createHelpRequest(dc, {
+      const createdRes = !devPreview ? await createHelpRequest(dc, {
         title,
-        description,
+        description: payloadDescription,
         budget: budget,
         requesterId: requesterId,
         category: $('#nr-category').value || null,
         urgency: urgency,
         deadline: deadline
-      });
+      }).catch((e) => {
+        console.warn('Backend createHelpRequest failed:', e);
+        return null;
+      }) : null;
 
       const newId = createdRes?.data?.helpRequest_insert?.id;
       if (isOffer && newId) {
@@ -2110,12 +2223,18 @@ function setupNewRequestDialog() {
       if (newId && finalImage) {
         setListingImage(newId, finalImage);
       }
+      if (requesterId && newId && !devPreview) {
+        const profileDocRef = doc(firestore, "user_profiles", requesterId);
+        const updatePayload = {};
+        updatePayload[`listingImages.${newId}`] = finalImage || null;
+        setDoc(profileDocRef, updatePayload, { merge: true }).catch(() => {});
+      }
 
       if (devPreview) {
         const mockNew = {
           id: 'req_' + Date.now(),
           title,
-          description,
+          description: cleanDesc,
           budget,
           category: $('#nr-category').value || 'General',
           urgency,
@@ -2258,13 +2377,14 @@ async function loadPostedJobs(isSilent = false) {
   if (!isSilent) container.innerHTML = '<div class="loader"></div>';
   try {
     const res = await listMyHelpRequestsWithApplications(dc, { userId: userData?.id }, SERVER_ONLY).catch(() => ({ data: { helpRequests: [] } }));
-    let allMyJobs = res.data?.helpRequests || [];
+    allMyJobs = res.data?.helpRequests || [];
 
     if (devPreview && allMyJobs.length === 0) {
       allMyJobs = [
         {
           id: 'req_1',
           title: '3D Printing of Enclosure Case (ABS/PLA)',
+          description: 'High-quality ABS and PLA 3D printing for electronics enclosures, robotics chassis, and prototype casings.',
           category: '3D Design',
           budget: 450,
           type: 'OFFER',
@@ -2307,6 +2427,7 @@ async function loadPostedJobs(isSilent = false) {
       return;
     }
     jobs.forEach(job => {
+      parseListingDescriptionAndImage(job);
       const isOffer = isJobOffer(job);
       if (isOffer) markAsStandingOffer(job.id);
       if (!job.imageUrl) {
@@ -5097,10 +5218,10 @@ document.addEventListener('DOMContentLoaded', () => {
       role: 'Offer My Skills'
     };
     allRequests = [
-      { id: 'req_1', title: '3D Printing of Enclosure Case (ABS/PLA)', imageUrl: '/images/service_sample_3d.jpg', category: '3D Design', budget: 450, type: 'OFFER', tags: ['STANDING_OFFER'], requester: { id: 'dev_student_1', fullName: 'Charles B.' }, createdAt: new Date(Date.now() - 3600000*24).toISOString() },
-      { id: 'req_2', title: 'Circuit Schematic & PCB Layout Review', category: 'PCB & Hardware Design', budget: 1200, type: 'OFFER', tags: ['STANDING_OFFER'], requester: { fullName: 'Engr. Noel V.' }, createdAt: new Date(Date.now() - 3600000*48).toISOString() },
-      { id: 'req_3', title: 'Need Arduino Firmware for Water Monitoring IoT', category: 'Embedded Systems', budget: 2500, type: 'REQUEST', requester: { fullName: 'Maria Santos' }, createdAt: new Date(Date.now() - 3600000*12).toISOString() },
-      { id: 'req_4', title: 'Laser Cutting Acrylic Chassis Plates', category: 'CAD & 3D Modeling', budget: 650, type: 'OFFER', tags: ['STANDING_OFFER'], requester: { fullName: 'Tech Lab Guild' }, createdAt: new Date(Date.now() - 3600000*72).toISOString() }
+      { id: 'req_1', title: '3D Printing of Enclosure Case (ABS/PLA)', description: 'High-quality ABS and PLA 3D printing for electronics enclosures, robotics chassis, and prototype casings.', imageUrl: '/images/service_sample_3d.jpg', category: '3D Design', budget: 450, type: 'OFFER', tags: ['STANDING_OFFER'], requester: { id: 'dev_student_1', fullName: 'Charles B.' }, createdAt: new Date(Date.now() - 3600000*24).toISOString() },
+      { id: 'req_2', title: 'Circuit Schematic & PCB Layout Review', description: 'Comprehensive design review for EAGLE, KiCad, and Altium schematics and multilayer PCB layouts.', category: 'PCB & Hardware Design', budget: 1200, type: 'OFFER', tags: ['STANDING_OFFER'], requester: { fullName: 'Engr. Noel V.' }, createdAt: new Date(Date.now() - 3600000*48).toISOString() },
+      { id: 'req_3', title: 'Need Arduino Firmware for Water Monitoring IoT', description: 'Looking for a skilled developer to write C++ firmware for ESP32/Arduino with turbidity and pH sensors.', category: 'Embedded Systems', budget: 2500, type: 'REQUEST', requester: { fullName: 'Maria Santos' }, createdAt: new Date(Date.now() - 3600000*12).toISOString() },
+      { id: 'req_4', title: 'Laser Cutting Acrylic Chassis Plates', description: 'Precision CO2 laser cutting for acrylic panels, robot bases, and front panel bezels.', category: 'CAD & 3D Modeling', budget: 650, type: 'OFFER', tags: ['STANDING_OFFER'], requester: { fullName: 'Tech Lab Guild' }, createdAt: new Date(Date.now() - 3600000*72).toISOString() }
     ];
     allUsersData = [
       { id: 'user_m1', fullName: 'Engr. Noel Villanueva', preferredRole: 'Offer My Skills', bio: 'Senior embedded hardware engineer & PCB routing specialist.', skills: ['PCB & Hardware Design', 'Embedded Systems', 'C++', 'Electronics & Circuit Design'], rating: '5.0' },
