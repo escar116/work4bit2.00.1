@@ -6,7 +6,7 @@ import {
   signOut, sendPasswordResetEmail
 } from 'firebase/auth';
 import { getDataConnect, subscribe } from 'firebase/data-connect';
-import { getDatabase, ref, push, onChildAdded, serverTimestamp, off, get, query as databaseQuery, limitToLast } from 'firebase/database';
+import { getDatabase, ref, set, onDisconnect, onValue, remove, push, onChildAdded, serverTimestamp, off, get, query as databaseQuery, limitToLast } from 'firebase/database';
 import { getFirestore, collection, addDoc, getDocs, query, where, serverTimestamp as firestoreTimestamp, setDoc, doc, getDoc } from 'firebase/firestore';
 import {
   connectorConfig, getUser, createUser, listHelpRequests, createHelpRequest,
@@ -79,8 +79,12 @@ let autoRefreshTimer = null;
 let chatPollTimer = null;
 let activeConvId = null;
 let messageSubscription = null;
+let chatUnsubscribe = null;
 let conversationsSubscription = null;
 let renderedMsgIds = new Set();
+let renderedAcceptanceTexts = new Set();
+const approvingAppIds = new Set();
+const rejectingAppIds = new Set();
 let pendingTempMessages = [];
 let lastConversationsDigest = '';
 
@@ -220,36 +224,158 @@ function updateListingImageUI(imageUrl, filename = 'Attached Photo') {
   }
 }
 
-// -- Online Presence & Realtime Tracking --------------------------------------
+// -- Online Presence & Realtime Distributed Tracking --------------------------------------
 let currentOnlineUserIds = new Set();
+let currentOnlineEmails = new Set();
 
-function recordUserPresence(uid) {
-  if (!uid) return;
+async function recordUserPresence(uid) {
+  const activeUid = uid || currentUser?.uid;
+  if (!activeUid) return;
+  const now = Date.now();
+  const email = (currentUser?.email || userData?.email || '').toLowerCase();
+  const name = userData?.fullName || currentUser?.displayName || 'Student';
+
+  // 1. Firebase Realtime Database with automatic onDisconnect cleanup
+  try {
+    const userPresenceRef = ref(db, `presence/${activeUid}`);
+    onDisconnect(userPresenceRef).remove().catch(() => {});
+    await set(userPresenceRef, {
+      uid: activeUid,
+      email: email,
+      fullName: name,
+      lastSeen: now,
+      online: true
+    });
+  } catch (e) {}
+
+  // 2. Firebase Firestore user_profiles sync
+  try {
+    if (activeUid) {
+      setDoc(doc(firestore, "user_profiles", activeUid), {
+        lastSeen: now,
+        isOnline: true
+      }, { merge: true }).catch(() => {});
+    }
+  } catch (e) {}
+
+  // 3. Local fallback for current browser session
   try {
     const raw = localStorage.getItem('user_presence_map');
     const map = raw ? JSON.parse(raw) : {};
-    map[uid] = Date.now();
+    map[activeUid] = now;
     localStorage.setItem('user_presence_map', JSON.stringify(map));
   } catch (e) {}
 }
 
-function getOnlineUserIds(timeoutMs = 5 * 60 * 1000) {
+async function getOnlineUserIds(timeoutMs = 3 * 60 * 1000) {
   const onlineIds = new Set();
+  const onlineEmails = new Set();
   const now = Date.now();
+
+  // 1. Fetch live connected users from Firebase Realtime Database
   try {
-    const raw = localStorage.getItem('user_presence_map');
-    if (raw) {
-      const map = JSON.parse(raw);
-      for (const [uid, ts] of Object.entries(map)) {
-        if (now - Number(ts) < timeoutMs) {
-          onlineIds.add(uid);
+    const snap = await get(ref(db, 'presence'));
+    if (snap.exists()) {
+      const val = snap.val();
+      if (val && typeof val === 'object') {
+        for (const [uid, p] of Object.entries(val)) {
+          if (p && (p.online === true || (p.lastSeen && (now - Number(p.lastSeen)) < timeoutMs))) {
+            onlineIds.add(uid);
+            if (p.email) onlineEmails.add(p.email.toLowerCase());
+          }
         }
       }
     }
   } catch (e) {}
-  if (currentUser?.uid) onlineIds.add(currentUser.uid);
-  if (userData?.id) onlineIds.add(userData.id);
-  return onlineIds;
+
+  // 2. Fallback check on Firestore user_profiles
+  try {
+    const profilesSnap = await getDocs(collection(firestore, "user_profiles"));
+    profilesSnap.forEach(d => {
+      const data = d.data();
+      if (data && data.lastSeen && (now - Number(data.lastSeen)) < timeoutMs && data.isOnline !== false) {
+        onlineIds.add(d.id);
+        if (data.email) onlineEmails.add(data.email.toLowerCase());
+      }
+    });
+  } catch (e) {}
+
+  // 3. Ensure current authenticated user is included
+  if (currentUser?.uid) {
+    onlineIds.add(currentUser.uid);
+    if (currentUser.email) onlineEmails.add(currentUser.email.toLowerCase());
+  }
+  if (userData?.id) {
+    onlineIds.add(userData.id);
+    if (userData.email) onlineEmails.add(userData.email.toLowerCase());
+  }
+
+  currentOnlineUserIds = onlineIds;
+  currentOnlineEmails = onlineEmails;
+  return { ids: onlineIds, emails: onlineEmails };
+}
+
+function initLivePresenceTracking() {
+  if (window._presenceInitialized) return;
+  window._presenceInitialized = true;
+
+  // Heartbeat every 40s to keep lastSeen fresh while user is active
+  setInterval(() => {
+    if (currentUser?.uid || userData?.id) {
+      recordUserPresence(currentUser?.uid || userData?.id);
+    }
+  }, 40000);
+
+  // Clean disconnect on tab unload
+  window.addEventListener('beforeunload', () => {
+    const uid = currentUser?.uid || userData?.id;
+    if (uid) {
+      try {
+        remove(ref(db, `presence/${uid}`));
+      } catch (e) {}
+    }
+  });
+
+  // Real-time listener for multi-device presence updates
+  try {
+    onValue(ref(db, 'presence'), (snap) => {
+      const now = Date.now();
+      const val = snap.val();
+      const ids = new Set();
+      const emails = new Set();
+      if (val && typeof val === 'object') {
+        for (const [uid, p] of Object.entries(val)) {
+          if (p && (p.online === true || (p.lastSeen && (now - Number(p.lastSeen)) < 3 * 60 * 1000))) {
+            ids.add(uid);
+            if (p.email) emails.add(p.email.toLowerCase());
+          }
+        }
+      }
+      if (currentUser?.uid) {
+        ids.add(currentUser.uid);
+        if (currentUser.email) emails.add(currentUser.email.toLowerCase());
+      }
+      currentOnlineUserIds = ids;
+      currentOnlineEmails = emails;
+
+      const onlineCountEl = $('#admin-stat-online-users');
+      if (onlineCountEl) {
+        onlineCountEl.textContent = Math.max(currentOnlineUserIds.size, (currentUser ? 1 : 0));
+      }
+
+      // Update online status pills in active admin table if rendered
+      document.querySelectorAll('#admin-all-users-tbody tr').forEach(tr => {
+        const uid = tr.dataset.userId;
+        const email = tr.dataset.userEmail;
+        const isOnline = (uid && currentOnlineUserIds.has(uid)) ||
+          (email && currentOnlineEmails.has(email.toLowerCase())) ||
+          (currentUser?.email && email && email.toLowerCase() === currentUser.email.toLowerCase());
+        const pill = tr.querySelector('.online-indicator-pill');
+        const offlineText = tr.querySelector('.offline-indicator-text');
+        if (pill && !isOnline) pill.remove();
+      });
+    });
+  } catch (e) {}
 }
 
 function escapeHtml(str) {
@@ -2488,8 +2614,10 @@ async function loadPostedJobs(isSilent = false) {
               <button type="button" class="btn btn-purple btn-sm approve-btn">${isOffer ? 'Accept Order' : 'Approve'}</button>
             </div>
           `;
-          row.querySelector('.approve-btn').addEventListener('click', (e) => { e.preventDefault(); handleApprove(app, job); });
-          row.querySelector('.reject-btn').addEventListener('click', (e) => { e.preventDefault(); handleReject(app); });
+          const approveBtn = row.querySelector('.approve-btn');
+          const rejectBtn = row.querySelector('.reject-btn');
+          approveBtn?.addEventListener('click', (e) => { e.preventDefault(); handleApprove(app, job, approveBtn, rejectBtn); });
+          rejectBtn?.addEventListener('click', (e) => { e.preventDefault(); handleReject(app, rejectBtn, approveBtn); });
           candList.appendChild(row);
         });
       }
@@ -2580,8 +2708,10 @@ async function loadMentoringRequests(isSilent = false) {
               <button type="button" class="btn btn-purple btn-sm approve-btn">Accept</button>
             </div>
           `;
-          row.querySelector('.approve-btn').addEventListener('click', (e) => { e.preventDefault(); handleApprove(app, job); });
-          row.querySelector('.reject-btn').addEventListener('click', (e) => { e.preventDefault(); handleReject(app); });
+          const approveBtn = row.querySelector('.approve-btn');
+          const rejectBtn = row.querySelector('.reject-btn');
+          approveBtn?.addEventListener('click', (e) => { e.preventDefault(); handleApprove(app, job, approveBtn, rejectBtn); });
+          rejectBtn?.addEventListener('click', (e) => { e.preventDefault(); handleReject(app, rejectBtn, approveBtn); });
           candList.appendChild(row);
         });
       }
@@ -2670,7 +2800,21 @@ async function loadMyApplications(isSilent = false) {
   }
 }
 
-async function handleApprove(application, job) {
+async function handleApprove(application, job, approveBtn = null, rejectBtn = null) {
+  if (!application?.id || approvingAppIds.has(application.id)) return;
+  approvingAppIds.add(application.id);
+
+  if (approveBtn) {
+    approveBtn.disabled = true;
+    approveBtn.textContent = 'Accepting...';
+    approveBtn.style.opacity = '0.6';
+    approveBtn.style.pointerEvents = 'none';
+  }
+  if (rejectBtn) {
+    rejectBtn.disabled = true;
+    rejectBtn.style.pointerEvents = 'none';
+  }
+
   try {
     const isOffer = isJobOffer(job);
     await updateApplicationStatus(dc, { id: application.id, status: 'APPROVED' });
@@ -2683,22 +2827,49 @@ async function handleApprove(application, job) {
       markAsStandingOffer(job.id);
     }
 
-    const convRes = await createConversation(dc, {
-      applicationId: application.id,
-      posterId: userData.id,
-      applicantId: application.applicant.id
-    });
-    const convId = convRes.data.conversation_insert?.id;
-    if (convId) {
-      const initialText = isOffer
-        ? `Service Order Accepted\n\nAgreed Budget: ${peso(application.priceOffer)}\nOrder Scope & Details: ${application.message}`
-        : `Application Accepted\n\nProposed Rate: ${peso(application.priceOffer)}\nProposal: ${application.message}`;
+    // Check if a conversation already exists in Data Connect for this application to avoid inserting duplicates
+    let convId = null;
+    try {
+      const listRes = await listConversations(dc, { userId: userData.id }, SERVER_ONLY);
+      const existing = (listRes.data?.conversations || []).find(c => c.application?.id === application.id);
+      if (existing) {
+        convId = existing.id;
+      }
+    } catch (checkErr) {
+      console.warn('Could not check existing conversations:', checkErr);
+    }
 
-      await push(ref(db, `conversations/${convId}/messages`), {
-        senderId: application.applicant.id,
-        content: initialText,
-        timestamp: serverTimestamp()
+    if (!convId) {
+      const convRes = await createConversation(dc, {
+        applicationId: application.id,
+        posterId: userData.id,
+        applicantId: application.applicant.id
       });
+      convId = convRes.data?.conversation_insert?.id;
+    }
+
+    if (convId) {
+      // Idempotency: verify if initial messages already exist in this conversation in Realtime Database
+      let hasExistingMessages = false;
+      try {
+        const msgSnap = await get(ref(db, `conversations/${convId}/messages`));
+        hasExistingMessages = msgSnap.exists() && msgSnap.hasChildren();
+      } catch (snapErr) {
+        console.warn('Could not inspect conversation messages:', snapErr);
+      }
+
+      if (!hasExistingMessages) {
+        const initialText = isOffer
+          ? `Service Order Accepted\n\nAgreed Budget: ${peso(application.priceOffer)}\nOrder Scope & Details: ${application.message}`
+          : `Application Accepted\n\nProposed Rate: ${peso(application.priceOffer)}\nProposal: ${application.message}`;
+
+        await push(ref(db, `conversations/${convId}/messages`), {
+          senderId: application.applicant.id,
+          content: initialText,
+          timestamp: serverTimestamp()
+        });
+      }
+
       activeConvId = convId;
       sessionStorage.setItem('active_conversation_id', convId);
 
@@ -2730,20 +2901,58 @@ async function handleApprove(application, job) {
     navigateTo('messages');
   } catch (err) {
     showToast('Error: ' + err.message, 'error');
+    if (approveBtn) {
+      approveBtn.disabled = false;
+      approveBtn.textContent = isJobOffer(job) ? 'Accept Order' : 'Approve';
+      approveBtn.style.opacity = '1';
+      approveBtn.style.pointerEvents = 'auto';
+    }
+    if (rejectBtn) {
+      rejectBtn.disabled = false;
+      rejectBtn.style.pointerEvents = 'auto';
+    }
+  } finally {
+    approvingAppIds.delete(application.id);
   }
 }
 
-async function handleReject(application) {
+async function handleReject(application, rejectBtn = null, approveBtn = null) {
+  if (!application?.id || rejectingAppIds.has(application.id)) return;
+  rejectingAppIds.add(application.id);
+
+  if (rejectBtn) {
+    rejectBtn.disabled = true;
+    rejectBtn.textContent = 'Declining...';
+    rejectBtn.style.pointerEvents = 'none';
+  }
+  if (approveBtn) {
+    approveBtn.disabled = true;
+    approveBtn.style.pointerEvents = 'none';
+  }
+
   try {
     await updateApplicationStatus(dc, { id: application.id, status: 'REJECTED' });
     showToast('Application rejected.');
     loadApplications();
   } catch (err) {
     showToast('Error: ' + err.message, 'error');
+    if (rejectBtn) {
+      rejectBtn.disabled = false;
+      rejectBtn.textContent = 'Decline';
+      rejectBtn.style.pointerEvents = 'auto';
+    }
+    if (approveBtn) {
+      approveBtn.disabled = false;
+      approveBtn.style.pointerEvents = 'auto';
+    }
+  } finally {
+    rejectingAppIds.delete(application.id);
   }
 }
 
 window.approveApplication = async function(appId, jobId) {
+  if (!appId || approvingAppIds.has(appId)) return;
+  approvingAppIds.add(appId);
   try {
     const res = await listMyHelpRequestsWithApplications(dc, { userId: userData.id }, SERVER_ONLY);
     const jobs = res.data.helpRequests || [];
@@ -2765,16 +2974,22 @@ window.approveApplication = async function(appId, jobId) {
     }
   } catch (err) {
     showToast('Error: ' + err.message, 'error');
+  } finally {
+    approvingAppIds.delete(appId);
   }
 };
 
 window.rejectApplication = async function(appId) {
+  if (!appId || rejectingAppIds.has(appId)) return;
+  rejectingAppIds.add(appId);
   try {
     await updateApplicationStatus(dc, { id: appId, status: 'REJECTED' });
     showToast('Application rejected.');
     loadApplications();
   } catch (err) {
     showToast('Error: ' + err.message, 'error');
+  } finally {
+    rejectingAppIds.delete(appId);
   }
 };
 
@@ -2839,15 +3054,25 @@ async function loadMessages(isSilent = false) {
   if (!isSilent && convList.children.length === 0) convList.innerHTML = '<div class="loader"></div>';
   try {
     const res = await listConversations(dc, { userId: userData.id }, SERVER_ONLY);
-    const fetched = (res.data.conversations || []).filter(c =>
+    const rawFetched = (res.data.conversations || []).filter(c =>
       c.application?.status !== 'TERMINATED'
     );
-    // If activeConvId was just created and not yet in fetched, preserve it from local memory
+    // If activeConvId was just created and not yet in rawFetched, preserve it from local memory
     const activeFromMemory = conversations.find(c => c.id === activeConvId);
-    if (activeFromMemory && !fetched.some(c => c.id === activeConvId)) {
-      fetched.unshift(activeFromMemory);
+    if (activeFromMemory && !rawFetched.some(c => c.id === activeConvId)) {
+      rawFetched.unshift(activeFromMemory);
     }
-    conversations = await sortConversationsByActivity(fetched);
+    const seenAppIds = new Set();
+    const dedupedFetched = [];
+    for (const c of rawFetched) {
+      const aId = c.application?.id;
+      if (aId) {
+        if (seenAppIds.has(aId)) continue;
+        seenAppIds.add(aId);
+      }
+      dedupedFetched.push(c);
+    }
+    conversations = await sortConversationsByActivity(dedupedFetched);
     renderConversationList();
 
     if (!activeConvId) {
@@ -2925,6 +3150,7 @@ async function selectConversation(convId) {
   const isNewSelection = (activeSubscriptionConvId !== convId) || !messageSubscription;
   if (isNewSelection) {
     renderedMsgIds.clear();
+    renderedAcceptanceTexts.clear();
     pendingTempMessages = [];
     const msgArea = $('#chat-messages');
     if (msgArea) msgArea.innerHTML = '<div class="loader"></div>';
@@ -2939,7 +3165,9 @@ async function selectConversation(convId) {
   const conv = conversations.find(c => c.id === convId);
   if (!conv) return;
 
-  const isPoster = conv.poster?.id === userData?.id;
+  const myId = userData?.id || currentUser?.uid;
+  const posterId = conv.poster?.id || conv.application?.helpRequest?.requesterId || conv.application?.helpRequest?.requester?.id;
+  const isPoster = posterId && myId && String(posterId) === String(myId);
   const otherUser = isPoster ? conv.applicant : conv.poster;
 
   // Pre-resolve application price in background if missing
@@ -2971,8 +3199,18 @@ async function selectConversation(convId) {
   }
 
   const isCompleted = conv.application?.helpRequest?.status === 'COMPLETED' || conv.application?.status === 'COMPLETED';
+  const isTerminated = conv.application?.status === 'TERMINATED';
   const isOffer = isJobOffer(conv.application?.helpRequest);
-  const isClient = (!isOffer && isPoster) || (isOffer && !isPoster);
+
+  // Role Access Rule:
+  // On Service Offer: The poster is the service provider. The applicant/buyer is the Customer. ONLY Customer can Complete.
+  // On Service Request: The poster is the client in need of help. ONLY Poster can Complete.
+  // BOTH parties have access to Terminate.
+  const isCustomerOnOffer = isOffer && !isPoster;
+  const isPosterOnRequest = !isOffer && isPoster;
+  const canComplete = isCustomerOnOffer || isPosterOnRequest;
+  const isClient = canComplete;
+
   const typeTag = isOffer
     ? '<span class="badge badge-standing" style="font-size: 10px; padding: 2px 7px;">Service Offer</span>'
     : '<span class="badge badge-request" style="font-size: 10px; padding: 2px 7px;">Service Request</span>';
@@ -2992,15 +3230,23 @@ async function selectConversation(convId) {
     <div class="chat-header-actions">
       ${isCompleted 
         ? '<span class="badge badge-approved" style="padding: 4px 10px; font-size: 12px;">Completed</span>'
-        : `<button type="button" class="btn btn-terminate" id="btn-terminate">Terminate</button>
-           <button type="button" class="btn btn-complete" id="btn-complete">Complete</button>`
+        : isTerminated
+          ? '<span class="badge badge-rejected" style="padding: 4px 10px; font-size: 12px;">Terminated</span>'
+          : `<button type="button" class="btn btn-terminate" id="btn-terminate">Terminate</button>
+             ${canComplete ? '<button type="button" class="btn btn-complete" id="btn-complete">Complete</button>' : ''}`
       }
     </div>
   `;
 
   $('#btn-terminate')?.addEventListener('click', async (e) => {
     e.preventDefault();
+    const btn = $('#btn-terminate');
     if (!confirm('Are you sure you want to terminate this job?')) return;
+    if (btn) {
+      btn.disabled = true;
+      btn.textContent = 'Terminating...';
+      btn.style.pointerEvents = 'none';
+    }
     try {
       await terminateJob(dc, { applicationId: conv.application.id, helpRequestId: conv.application.helpRequest.id });
       showToast('Job terminated.');
@@ -3012,6 +3258,11 @@ async function selectConversation(convId) {
       loadMessages();
     } catch (err) {
       showToast('Error: ' + err.message, 'error');
+      if (btn) {
+        btn.disabled = false;
+        btn.textContent = 'Terminate';
+        btn.style.pointerEvents = 'auto';
+      }
     }
   });
 
@@ -3123,8 +3374,12 @@ async function selectConversation(convId) {
   });
 
   if (isNewSelection) {
+    if (typeof chatUnsubscribe === 'function') {
+      chatUnsubscribe();
+      chatUnsubscribe = null;
+    }
     if (messageSubscription) {
-      off(messageSubscription);
+      try { off(messageSubscription); } catch (e) {}
       messageSubscription = null;
     }
     activeSubscriptionConvId = convId;
@@ -3134,8 +3389,9 @@ async function selectConversation(convId) {
       
       const messagesRef = ref(db, `conversations/${convId}/messages`);
       messageSubscription = messagesRef;
-      onChildAdded(messagesRef, (snapshot) => {
+      chatUnsubscribe = onChildAdded(messagesRef, (snapshot) => {
         const msg = snapshot.val();
+        if (!msg) return;
         msg.id = snapshot.key;
         renderIncomingMessages([msg]);
         touchConversationActivity(convId, msg.timestamp);
@@ -3159,36 +3415,64 @@ function renderIncomingMessages(messages) {
 
   let hasNew = false;
   messages.forEach(msg => {
-    if (!renderedMsgIds.has(msg.id)) {
+    if (!msg || !msg.id) return;
+    if (renderedMsgIds.has(msg.id)) return;
+
+    // Guard against DOM duplicate
+    if (msgArea.querySelector(`[data-msg-id="${msg.id}"]`)) {
       renderedMsgIds.add(msg.id);
-      hasNew = true;
-
-      const tempIdx = pendingTempMessages.findIndex(t => t.content === msg.content);
-      if (tempIdx !== -1) {
-        const tempEl = pendingTempMessages[tempIdx].el;
-        if (tempEl && tempEl.parentNode) {
-          tempEl.dataset.msgId = msg.id;
-          tempEl.removeAttribute('data-temp');
-          const timeEl = tempEl.querySelector('.message-time');
-          if (timeEl && msg.timestamp) {
-            timeEl.textContent = formatMessageTime(msg.timestamp);
-          }
-          pendingTempMessages.splice(tempIdx, 1);
-          return;
-        }
-      }
-
-      const senderId = msg.sender?.id || msg.senderId;
-      const isMe = senderId === userData?.id;
-      const div = document.createElement('div');
-      div.className = `message ${isMe ? 'outgoing' : 'incoming'}`;
-      div.dataset.msgId = msg.id;
-      const timeStr = formatMessageTime(msg.timestamp);
-      const attachHtml = msg.attachment ? renderAttachmentHtml(msg.attachment) : '';
-      const content = typeof msg.content === 'string' ? msg.content.trim() : '';
-      div.innerHTML = `<div class="message-bubble">${attachHtml}${content ? `<div class="message-text">${escapeHtml(content)}</div>` : ''}</div>${timeStr ? `<time class="message-time">${timeStr}</time>` : ''}`;
-      msgArea.appendChild(div);
+      return;
     }
+
+    const content = typeof msg.content === 'string' ? msg.content.trim() : '';
+
+    // De-duplicate acceptance banner messages (e.g. from previous double clicks)
+    const isAcceptanceBanner = content.startsWith('Service Order Accepted') || content.startsWith('Application Accepted');
+    if (isAcceptanceBanner) {
+      if (renderedAcceptanceTexts.has(content)) {
+        renderedMsgIds.add(msg.id);
+        return;
+      }
+      renderedAcceptanceTexts.add(content);
+    }
+
+    // Match clientMsgId first, then content
+    let tempIdx = -1;
+    if (msg.clientMsgId) {
+      tempIdx = pendingTempMessages.findIndex(t => t.clientMsgId === msg.clientMsgId);
+    }
+    if (tempIdx === -1 && content) {
+      tempIdx = pendingTempMessages.findIndex(t => t.content === content);
+    }
+
+    if (tempIdx !== -1) {
+      const tempEl = pendingTempMessages[tempIdx].el;
+      if (tempEl && tempEl.parentNode) {
+        tempEl.dataset.msgId = msg.id;
+        tempEl.removeAttribute('data-temp');
+        const timeEl = tempEl.querySelector('.message-time');
+        if (timeEl && msg.timestamp) {
+          timeEl.textContent = formatMessageTime(msg.timestamp);
+        }
+        pendingTempMessages.splice(tempIdx, 1);
+        renderedMsgIds.add(msg.id);
+        return;
+      }
+    }
+
+    renderedMsgIds.add(msg.id);
+    hasNew = true;
+
+    const senderId = msg.sender?.id || msg.senderId;
+    const isMe = senderId === userData?.id;
+    const div = document.createElement('div');
+    div.className = `message ${isMe ? 'outgoing' : 'incoming'}`;
+    div.dataset.msgId = msg.id;
+    if (msg.clientMsgId) div.dataset.clientMsgId = msg.clientMsgId;
+    const timeStr = formatMessageTime(msg.timestamp);
+    const attachHtml = msg.attachment ? renderAttachmentHtml(msg.attachment) : '';
+    div.innerHTML = `<div class="message-bubble">${attachHtml}${content ? `<div class="message-text">${escapeHtml(content)}</div>` : ''}</div>${timeStr ? `<time class="message-time">${timeStr}</time>` : ''}`;
+    msgArea.appendChild(div);
   });
 
   if (hasNew) {
@@ -3253,11 +3537,17 @@ function setupChat() {
     previewBar?.classList.add('hidden');
   });
 
+  let isSendingMessage = false;
+
   const send = async () => {
+    if (isSendingMessage) return;
     const content = input.value.trim();
     const attachmentToSend = currentChatAttachment;
     if (!content && !attachmentToSend) return;
     if (!activeConvId) return;
+
+    isSendingMessage = true;
+    sendBtn.disabled = true;
 
     input.value = '';
     currentChatAttachment = null;
@@ -3268,23 +3558,26 @@ function setupChat() {
     const emptyState = msgArea.querySelector('.empty-state');
     if (emptyState) emptyState.remove();
 
+    const clientMsgId = 'cmsg_' + Date.now() + '_' + Math.random().toString(36).substring(2, 9);
+
     // Instant local outgoing bubble
     const tempDiv = document.createElement('div');
     tempDiv.className = 'message outgoing';
     tempDiv.dataset.temp = 'true';
+    tempDiv.dataset.clientMsgId = clientMsgId;
     const attachHtml = attachmentToSend ? renderAttachmentHtml(attachmentToSend) : '';
     const timeStr = formatMessageTime(Date.now());
     tempDiv.innerHTML = `<div class="message-bubble">${attachHtml}${content ? `<div class="message-text">${escapeHtml(content)}</div>` : ''}</div><time class="message-time">${timeStr}</time>`;
     msgArea.appendChild(tempDiv);
     msgArea.scrollTop = msgArea.scrollHeight;
 
-    const tempObj = { content, hasAttachment: !!attachmentToSend, el: tempDiv, time: Date.now() };
+    const tempObj = { clientMsgId, content, hasAttachment: !!attachmentToSend, el: tempDiv, time: Date.now() };
     pendingTempMessages.push(tempObj);
 
-    sendBtn.disabled = true;
     try {
       const sendingConvId = activeConvId;
       const payload = {
+        clientMsgId,
         senderId: userData.id,
         content: content || '',
         timestamp: serverTimestamp()
@@ -3301,6 +3594,7 @@ function setupChat() {
       const idx = pendingTempMessages.indexOf(tempObj);
       if (idx !== -1) pendingTempMessages.splice(idx, 1);
     } finally {
+      isSendingMessage = false;
       sendBtn.disabled = false;
       input.focus();
     }
@@ -3310,7 +3604,7 @@ function setupChat() {
   input?.addEventListener('keydown', (e) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
-      send();
+      if (!isSendingMessage) send();
     }
   });
 
@@ -4591,19 +4885,18 @@ async function loadAdmin() {
   }
 
   try {
-    const [usersRes, reqsRes, appsRes] = devPreview
-      ? [{ data: { users: [] } }, { data: { helpRequests: [] } }, { data: { applications: [] } }]
-      : await Promise.all([
-          listAllUsers(dc, SERVER_ONLY).catch(() => ({ data: { users: [] } })),
-          listAllHelpRequestsAdmin(dc, SERVER_ONLY).catch(() => ({ data: { helpRequests: [] } })),
-          listAllApplicationsAdmin(dc, SERVER_ONLY).catch(() => ({ data: { applications: [] } }))
-        ]);
+    const [usersRes, reqsRes, appsRes] = await Promise.all([
+      listAllUsers(dc, SERVER_ONLY).catch(() => ({ data: { users: [] } })),
+      listAllHelpRequestsAdmin(dc, SERVER_ONLY).catch(() => ({ data: { helpRequests: [] } })),
+      listAllApplicationsAdmin(dc, SERVER_ONLY).catch(() => ({ data: { applications: [] } }))
+    ]);
 
     adminUsersData = usersRes.data?.users || [];
     adminRequestsData = reqsRes.data?.helpRequests || [];
     adminAppsData = appsRes.data?.applications || [];
 
-    if (devPreview && adminRequestsData.length === 0) {
+    // Fallback ONLY if DataConnect returned zero records and devPreview is active
+    if (devPreview && adminUsersData.length === 0 && adminRequestsData.length === 0) {
       adminUsersData = [
         { id: 'u1', fullName: 'Charles B.', email: 'charlesjanparaggua@gmail.com', studentId: '2023-10482', verificationStatus: 'verified' },
         { id: 'u2', fullName: 'Engr. Noel Villanueva', email: 'noel@university.edu', studentId: 'FAC-01', verificationStatus: 'verified' },
@@ -4632,15 +4925,12 @@ async function loadAdmin() {
     const totalStudents = adminUsersData.filter(u => u.verificationStatus !== 'pending').length;
     $('#admin-stat-registered').textContent = totalStudents;
 
-    // 2. Online Users Count (Real-time active sessions within 5 minutes)
-    recordUserPresence(currentUser?.uid || userData?.id);
-    currentOnlineUserIds = getOnlineUserIds();
-    if (devPreview) {
-      currentOnlineUserIds.add('dev_student_1');
-      currentOnlineUserIds.add('u1');
-      currentOnlineUserIds.add('u2');
-    }
-    const onlineUsersCount = Math.max(currentOnlineUserIds.size, 1);
+    // 2. Online Users Count (Real-time active sessions across all devices)
+    await recordUserPresence(currentUser?.uid || userData?.id);
+    const onlineData = await getOnlineUserIds();
+    currentOnlineUserIds = onlineData.ids;
+    currentOnlineEmails = onlineData.emails;
+    const onlineUsersCount = Math.max(currentOnlineUserIds.size, (currentUser ? 1 : 0));
     const onlineUsersEl = $('#admin-stat-online-users');
     if (onlineUsersEl) onlineUsersEl.textContent = onlineUsersCount;
 
@@ -4823,9 +5113,13 @@ function renderAdminUsers() {
 
   list.forEach(u => {
     const tr = document.createElement('tr');
+    tr.dataset.userId = u.id;
+    tr.dataset.userEmail = (u.email || '').toLowerCase();
     const isVerified = u.verificationStatus === 'verified';
     const isPending = u.verificationStatus === 'pending';
-    const isOnline = currentOnlineUserIds.has(u.id) || u.email === currentUser?.email || u.email === userData?.email;
+    const isOnline = currentOnlineUserIds.has(u.id) ||
+      (u.email && currentOnlineEmails.has(u.email.toLowerCase())) ||
+      (currentUser?.email && u.email && u.email.toLowerCase() === currentUser.email.toLowerCase());
     const badgeClass = isVerified ? 'badge-approved' : isPending ? 'badge-pending' : 'badge-rejected';
 
     tr.innerHTML = `
@@ -5070,6 +5364,10 @@ function setupLogout() {
       messageSubscription = null; 
     }
     if (conversationsSubscription) { conversationsSubscription(); conversationsSubscription = null; }
+    if (currentUser?.uid) {
+      try { await remove(ref(db, `presence/${currentUser.uid}`)); } catch (e) {}
+      try { await setDoc(doc(firestore, "user_profiles", currentUser.uid), { isOnline: false }, { merge: true }); } catch (e) {}
+    }
     clearUserSessionDOM();
     history.pushState(null, '', '/');
     await signOut(auth);
