@@ -7,7 +7,7 @@ import {
 } from 'firebase/auth';
 import { getDataConnect, subscribe } from 'firebase/data-connect';
 import { getDatabase, ref, set, onDisconnect, onValue, remove, push, onChildAdded, serverTimestamp, off, get, query as databaseQuery, limitToLast } from 'firebase/database';
-import { getFirestore, collection, addDoc, getDocs, query, where, serverTimestamp as firestoreTimestamp, setDoc, doc, getDoc } from 'firebase/firestore';
+import { getFirestore, collection, addDoc, getDocs, query, where, serverTimestamp as firestoreTimestamp, setDoc, doc, getDoc, onSnapshot } from 'firebase/firestore';
 import {
   connectorConfig, getUser, createUser, listHelpRequests, createHelpRequest,
   listApplicationsByApplicant, listMyHelpRequestsWithApplications, listApplicationsForMyRequests,
@@ -55,10 +55,16 @@ googleProvider.setCustomParameters({ prompt: 'select_account' });
 const ADMIN_EMAILS = [
   'charlesjanparaggua@gmail.com',
   'anryurmanita@gmail.com',
-  'taguinodanathasia@gmail.com'
+  'taguinodanathasia@gmail.com',
+  'test4@email.com'
   // Add new admin emails here separated by commas:
   // 'anotheradmin@email.com'
 ];
+function isAdminUser(userOrEmail) {
+  const email = typeof userOrEmail === 'string' ? userOrEmail : (userOrEmail?.email || '');
+  if (!email) return false;
+  return ADMIN_EMAILS.some(adminEmail => adminEmail.toLowerCase() === email.trim().toLowerCase());
+}
 const SERVER_ONLY = { fetchPolicy: 'SERVER_ONLY' };
 
 // -- State  ------------------------------------------------------------
@@ -319,24 +325,83 @@ function initLivePresenceTracking() {
   if (window._presenceInitialized) return;
   window._presenceInitialized = true;
 
-  // Heartbeat every 40s to keep lastSeen fresh while user is active
-  setInterval(() => {
-    if (currentUser?.uid || userData?.id) {
-      recordUserPresence(currentUser?.uid || userData?.id);
-    }
-  }, 40000);
+  const heartbeat = () => {
+    const uid = currentUser?.uid || userData?.id;
+    if (uid) recordUserPresence(uid);
+  };
+
+  // Heartbeat every 30s to keep lastSeen fresh while user is active
+  setInterval(heartbeat, 30000);
+
+  // Instant refresh on user focus or visibility change
+  window.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') heartbeat();
+  });
+  window.addEventListener('focus', heartbeat);
 
   // Clean disconnect on tab unload
   window.addEventListener('beforeunload', () => {
     const uid = currentUser?.uid || userData?.id;
     if (uid) {
-      try {
-        remove(ref(db, `presence/${uid}`));
-      } catch (e) {}
+      try { remove(ref(db, `presence/${uid}`)); } catch (e) {}
+      try { setDoc(doc(firestore, "user_profiles", uid), { isOnline: false, lastSeen: Date.now() }, { merge: true }).catch(() => {}); } catch (e) {}
     }
   });
 
-  // Real-time listener for multi-device presence updates
+  // Real-time listener for Firestore presence updates
+  try {
+    onSnapshot(collection(firestore, "user_profiles"), (snapshot) => {
+      const now = Date.now();
+      const ids = new Set();
+      const emails = new Set();
+      snapshot.forEach(docSnap => {
+        const p = docSnap.data();
+        if (p && (p.isOnline === true || (p.lastSeen && (now - Number(p.lastSeen)) < 3 * 60 * 1000))) {
+          ids.add(docSnap.id);
+          if (p.uid) ids.add(p.uid);
+          if (p.email) emails.add(p.email.toLowerCase());
+        }
+      });
+      if (currentUser?.uid) {
+        ids.add(currentUser.uid);
+        if (currentUser.email) emails.add(currentUser.email.toLowerCase());
+      }
+      if (userData?.id) {
+        ids.add(userData.id);
+        if (userData.email) emails.add(userData.email.toLowerCase());
+      }
+
+      currentOnlineUserIds = ids;
+      currentOnlineEmails = emails;
+
+      const onlineCountEl = $('#admin-stat-online-users');
+      if (onlineCountEl) {
+        onlineCountEl.textContent = Math.max(currentOnlineUserIds.size, (currentUser ? 1 : 0));
+      }
+
+      // Update online status pills in active admin table if rendered
+      document.querySelectorAll('#admin-all-users-tbody tr').forEach(tr => {
+        const uid = tr.dataset.userId;
+        const email = (tr.dataset.userEmail || '').toLowerCase();
+        const isOnline = (uid && currentOnlineUserIds.has(uid)) ||
+          (email && currentOnlineEmails.has(email)) ||
+          (currentUser?.email && email && email === currentUser.email.toLowerCase()) ||
+          (userData?.email && email && email === userData.email.toLowerCase());
+        const pill = tr.querySelector('.online-indicator-pill');
+        const nameContainer = tr.querySelector('.admin-user-name-cell') || tr.querySelector('strong')?.parentElement;
+        if (pill && !isOnline) {
+          pill.remove();
+        } else if (!pill && isOnline && nameContainer) {
+          const newPill = document.createElement('span');
+          newPill.className = 'online-indicator-pill';
+          newPill.innerHTML = '<span class="active-pulse-dot" style="margin:0;width:6px;height:6px;"></span> Online';
+          nameContainer.appendChild(newPill);
+        }
+      });
+    });
+  } catch (e) {}
+
+  // Real-time listener for Realtime Database presence updates (fallback)
   try {
     onValue(ref(db, 'presence'), (snap) => {
       const now = Date.now();
@@ -355,8 +420,13 @@ function initLivePresenceTracking() {
         ids.add(currentUser.uid);
         if (currentUser.email) emails.add(currentUser.email.toLowerCase());
       }
-      currentOnlineUserIds = ids;
-      currentOnlineEmails = emails;
+      if (userData?.id) {
+        ids.add(userData.id);
+        if (userData.email) emails.add(userData.email.toLowerCase());
+      }
+
+      currentOnlineUserIds = new Set([...currentOnlineUserIds, ...ids]);
+      currentOnlineEmails = new Set([...currentOnlineEmails, ...emails]);
 
       const onlineCountEl = $('#admin-stat-online-users');
       if (onlineCountEl) {
@@ -366,16 +436,191 @@ function initLivePresenceTracking() {
       // Update online status pills in active admin table if rendered
       document.querySelectorAll('#admin-all-users-tbody tr').forEach(tr => {
         const uid = tr.dataset.userId;
-        const email = tr.dataset.userEmail;
+        const email = (tr.dataset.userEmail || '').toLowerCase();
         const isOnline = (uid && currentOnlineUserIds.has(uid)) ||
-          (email && currentOnlineEmails.has(email.toLowerCase())) ||
-          (currentUser?.email && email && email.toLowerCase() === currentUser.email.toLowerCase());
+          (email && currentOnlineEmails.has(email)) ||
+          (currentUser?.email && email && email === currentUser.email.toLowerCase()) ||
+          (userData?.email && email && email === userData.email.toLowerCase());
         const pill = tr.querySelector('.online-indicator-pill');
-        const offlineText = tr.querySelector('.offline-indicator-text');
-        if (pill && !isOnline) pill.remove();
+        const nameContainer = tr.querySelector('.admin-user-name-cell') || tr.querySelector('strong')?.parentElement;
+        if (pill && !isOnline) {
+          pill.remove();
+        } else if (!pill && isOnline && nameContainer) {
+          const newPill = document.createElement('span');
+          newPill.className = 'online-indicator-pill';
+          newPill.innerHTML = '<span class="active-pulse-dot" style="margin:0;width:6px;height:6px;"></span> Online';
+          nameContainer.appendChild(newPill);
+        }
       });
     });
   } catch (e) {}
+}
+
+// -- Skeleton Loading Generators for Tabs ----------------------------------------------------
+function getSkeletonCardsHtml(count = 6) {
+  const card = `
+    <div class="job-card" style="box-shadow: none; border: 1px solid var(--border-light); padding: 1.25rem;">
+      <div class="flex items-center gap-3 mb-3">
+        <div class="skeleton-loader skeleton-avatar" style="width: 42px; height: 42px; flex-shrink: 0;"></div>
+        <div style="flex: 1;">
+          <div class="skeleton-loader skeleton-line-short" style="margin-bottom: 6px; width: 60%;"></div>
+          <div class="skeleton-loader skeleton-line-xs" style="margin-bottom: 0; width: 40%;"></div>
+        </div>
+      </div>
+      <div class="skeleton-loader skeleton-line" style="margin-bottom: 8px; width: 85%;"></div>
+      <div class="skeleton-loader skeleton-line" style="margin-bottom: 12px; width: 65%;"></div>
+      <div class="flex gap-2 mb-4">
+        <div class="skeleton-loader skeleton-badge" style="width: 55px; height: 22px;"></div>
+        <div class="skeleton-loader skeleton-badge" style="width: 65px; height: 22px;"></div>
+      </div>
+      <div class="flex justify-between items-center pt-3 border-t" style="border-color: var(--border-light);">
+        <div class="skeleton-loader" style="width: 65px; height: 18px;"></div>
+        <div class="skeleton-loader" style="width: 80px; height: 32px; border-radius: 8px;"></div>
+      </div>
+    </div>
+  `;
+  return card.repeat(count);
+}
+
+function getSkeletonDashboardHtml() {
+  return `
+    <div class="dashboard-skeleton-view" style="display: flex; flex-direction: column; gap: 1.5rem;">
+      <div class="stats-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1.25rem;">
+        ${Array(4).fill(0).map(() => `
+          <div class="dash-stat-card" style="padding: 1.5rem; display: flex; flex-direction: column; gap: 0.75rem;">
+            <div class="skeleton-loader skeleton-line-xs" style="width: 50%; height: 12px; margin: 0;"></div>
+            <div class="skeleton-loader" style="width: 40%; height: 28px; border-radius: 6px;"></div>
+          </div>
+        `).join('')}
+      </div>
+      <div class="dash-stat-card" style="padding: 1.5rem; display: flex; flex-direction: column; gap: 1rem;">
+        <div class="skeleton-loader skeleton-line-short" style="width: 30%; height: 18px;"></div>
+        <div class="skeleton-loader skeleton-block" style="height: 180px; border-radius: 12px;"></div>
+      </div>
+      <div class="dash-stat-card" style="padding: 1.5rem; display: flex; flex-direction: column; gap: 1rem;">
+        <div class="skeleton-loader skeleton-line-short" style="width: 25%; height: 16px;"></div>
+        ${Array(3).fill(0).map(() => `
+          <div class="flex items-center justify-between" style="padding: 0.75rem 0; border-bottom: 1px solid var(--border-light);">
+            <div class="flex items-center gap-3" style="flex: 1;">
+              <div class="skeleton-loader skeleton-avatar" style="width: 36px; height: 36px;"></div>
+              <div style="flex: 1;">
+                <div class="skeleton-loader skeleton-line" style="width: 50%; height: 14px; margin-bottom: 4px;"></div>
+                <div class="skeleton-loader skeleton-line-xs" style="width: 30%; height: 11px; margin: 0;"></div>
+              </div>
+            </div>
+            <div class="skeleton-loader skeleton-badge" style="width: 60px; height: 22px;"></div>
+          </div>
+        `).join('')}
+      </div>
+    </div>
+  `;
+}
+
+function getSkeletonApplicationsHtml(count = 3) {
+  const item = `
+    <div class="job-card mb-4" style="box-shadow: none; border: 1px solid var(--border-light); padding: 1.25rem;">
+      <div class="flex justify-between items-start gap-3 mb-3">
+        <div style="flex: 1;">
+          <div class="skeleton-loader skeleton-line" style="width: 60%; height: 18px; margin-bottom: 8px;"></div>
+          <div class="skeleton-loader skeleton-line-short" style="width: 40%; height: 12px; margin-bottom: 0;"></div>
+        </div>
+        <div class="skeleton-loader skeleton-badge" style="width: 70px; height: 24px;"></div>
+      </div>
+      <div class="border-t pt-3 mt-3" style="border-color: var(--border-light); display: flex; align-items: center; justify-content: space-between;">
+        <div class="skeleton-loader" style="width: 90px; height: 18px;"></div>
+        <div class="flex gap-2">
+          <div class="skeleton-loader" style="width: 75px; height: 30px; border-radius: 6px;"></div>
+          <div class="skeleton-loader" style="width: 75px; height: 30px; border-radius: 6px;"></div>
+        </div>
+      </div>
+    </div>
+  `;
+  return item.repeat(count);
+}
+
+function getSkeletonConversationsHtml(count = 5) {
+  const item = `
+    <div class="conversation-item" style="padding: 0.85rem 1rem; border-bottom: 1px solid var(--border-light); display: flex; align-items: center; gap: 0.75rem;">
+      <div class="skeleton-loader skeleton-avatar" style="width: 40px; height: 40px; flex-shrink: 0;"></div>
+      <div style="flex: 1; min-width: 0;">
+        <div class="skeleton-loader skeleton-line" style="width: 65%; height: 14px; margin-bottom: 6px;"></div>
+        <div class="skeleton-loader skeleton-line-xs" style="width: 85%; height: 11px; margin: 0;"></div>
+      </div>
+      <div class="skeleton-loader" style="width: 35px; height: 10px; align-self: flex-start; margin-top: 4px;"></div>
+    </div>
+  `;
+  return item.repeat(count);
+}
+
+function getSkeletonChatMessagesHtml() {
+  return `
+    <div class="chat-skeleton-container" style="display: flex; flex-direction: column; gap: 1rem; padding: 1.5rem 1rem;">
+      <div class="flex items-start gap-2" style="max-width: 65%;">
+        <div class="skeleton-loader skeleton-avatar" style="width: 32px; height: 32px; flex-shrink: 0;"></div>
+        <div class="skeleton-loader skeleton-block" style="height: 48px; border-radius: 12px; margin: 0; flex: 1;"></div>
+      </div>
+      <div class="flex items-start gap-2 self-end justify-end" style="max-width: 65%; margin-left: auto;">
+        <div class="skeleton-loader skeleton-block" style="height: 40px; border-radius: 12px; margin: 0; flex: 1; background: rgba(124, 108, 248, 0.2);"></div>
+        <div class="skeleton-loader skeleton-avatar" style="width: 32px; height: 32px; flex-shrink: 0;"></div>
+      </div>
+      <div class="flex items-start gap-2" style="max-width: 55%;">
+        <div class="skeleton-loader skeleton-avatar" style="width: 32px; height: 32px; flex-shrink: 0;"></div>
+        <div class="skeleton-loader skeleton-block" style="height: 56px; border-radius: 12px; margin: 0; flex: 1;"></div>
+      </div>
+    </div>
+  `;
+}
+
+function getSkeletonTableRowsHtml(cols = 4, rows = 5) {
+  let html = '';
+  for (let r = 0; r < rows; r++) {
+    html += '<tr>';
+    for (let c = 0; c < cols; c++) {
+      html += `
+        <td style="padding: 1rem 0.75rem;">
+          <div class="skeleton-loader skeleton-line" style="width: ${c === 0 ? '70%' : c === 1 ? '50%' : '80%'}; height: 14px; margin: 0;"></div>
+        </td>
+      `;
+    }
+    html += '</tr>';
+  }
+  return html;
+}
+
+function getSkeletonAdminPendingHtml(count = 3) {
+  const item = `
+    <div class="admin-card mb-3" style="box-shadow: none; border: 1px solid var(--border-light); padding: 1.25rem; display: flex; align-items: center; justify-content: space-between; gap: 1rem;">
+      <div class="flex items-center gap-3" style="flex: 1;">
+        <div class="skeleton-loader skeleton-avatar" style="width: 44px; height: 44px; flex-shrink: 0;"></div>
+        <div style="flex: 1;">
+          <div class="skeleton-loader skeleton-line" style="width: 50%; height: 15px; margin-bottom: 6px;"></div>
+          <div class="skeleton-loader skeleton-line-xs" style="width: 70%; height: 11px; margin-bottom: 0;"></div>
+        </div>
+      </div>
+      <div class="flex gap-2">
+        <div class="skeleton-loader" style="width: 70px; height: 32px; border-radius: 6px;"></div>
+        <div class="skeleton-loader" style="width: 70px; height: 32px; border-radius: 6px;"></div>
+      </div>
+    </div>
+  `;
+  return item.repeat(count);
+}
+
+function getSkeletonLogsHtml(count = 4) {
+  return `
+    <div style="display: flex; flex-direction: column; gap: 1rem; padding: 1rem 0;">
+      ${Array(count).fill(0).map(() => `
+        <div class="dash-stat-card" style="padding: 1rem 1.25rem; display: flex; align-items: center; gap: 1rem; border: 1px solid var(--border-light);">
+          <div class="skeleton-loader skeleton-avatar" style="width: 36px; height: 36px; border-radius: 8px; flex-shrink: 0;"></div>
+          <div style="flex: 1;">
+            <div class="skeleton-loader skeleton-line" style="width: 45%; height: 14px; margin-bottom: 5px;"></div>
+            <div class="skeleton-loader skeleton-line-xs" style="width: 65%; height: 11px; margin: 0;"></div>
+          </div>
+          <div class="skeleton-loader skeleton-badge" style="width: 70px; height: 22px;"></div>
+        </div>
+      `).join('')}
+    </div>
+  `;
 }
 
 function escapeHtml(str) {
@@ -701,7 +946,7 @@ function showApp() {
   // Admin button visibility
   const adminNav = $('#nav-admin');
   if (adminNav) {
-    if (ADMIN_EMAILS.includes(userData?.email) || devPreview) show(adminNav);
+    if (isAdminUser(userData?.email) || isAdminUser(currentUser?.email) || devPreview) show(adminNav);
     else hide(adminNav);
   }
 
@@ -789,10 +1034,13 @@ onAuthStateChanged(auth, async (user) => {
     }
     currentUser = user;
     window.__currentUser = user;
+    recordUserPresence(user.uid);
+    initLivePresenceTracking();
     try {
       const res = await getUser(dc, { id: user.uid }, SERVER_ONLY);
       if (res.data.user) {
         userData = { id: user.uid, ...res.data.user };
+        recordUserPresence(user.uid);
         if (userData.verificationStatus === 'pending') {
           showAuth('pending');
         } else {
@@ -808,6 +1056,10 @@ onAuthStateChanged(auth, async (user) => {
       showAuth('register');
     }
   } else {
+    if (currentUser?.uid) {
+      try { remove(ref(db, `presence/${currentUser.uid}`)); } catch (e) {}
+      try { setDoc(doc(firestore, "user_profiles", currentUser.uid), { isOnline: false, lastSeen: Date.now() }, { merge: true }).catch(() => {}); } catch (e) {}
+    }
     currentUser = null;
     userData = null;
     window.__currentUser = null;
@@ -1157,12 +1409,7 @@ async function loadDashboard(isSilent = false) {
   if (!container) return;
 
   if (!isSilent && !container.querySelector('.db-board')) {
-    container.innerHTML = `
-      <div class="text-center text-muted" style="padding: 3rem 0;">
-        <div class="loader" style="margin: 0 auto 1rem;"></div>
-        <p>Calculating your freelance statistics...</p>
-      </div>
-    `;
+    container.innerHTML = getSkeletonDashboardHtml();
   }
 
   if (!userData?.id) {
@@ -1368,7 +1615,7 @@ async function loadServices(isSilent = false) {
     renderServices(allRequests);
     return;
   }
-  if (!isSilent) grid.innerHTML = '<div class="loader"></div>';
+  if (!isSilent) grid.innerHTML = getSkeletonCardsHtml(6);
   try {
     const [reqRes, appRes] = await Promise.all([
       listHelpRequests(dc, SERVER_ONLY),
@@ -2500,7 +2747,7 @@ async function loadApplications(isSilent = false) {
 
 async function loadPostedJobs(isSilent = false) {
   const container = $('#posted-jobs-list');
-  if (!isSilent) container.innerHTML = '<div class="loader"></div>';
+  if (!isSilent) container.innerHTML = getSkeletonApplicationsHtml(3);
   try {
     const res = await listMyHelpRequestsWithApplications(dc, { userId: userData?.id }, SERVER_ONLY).catch(() => ({ data: { helpRequests: [] } }));
     allMyJobs = res.data?.helpRequests || [];
@@ -2656,7 +2903,7 @@ async function loadPostedJobs(isSilent = false) {
 async function loadMentoringRequests(isSilent = false) {
   const container = document.getElementById('mentoring-requests-list');
   if (!container) return;
-  if (!isSilent) container.innerHTML = '<div class="loader"></div>';
+  if (!isSilent) container.innerHTML = getSkeletonApplicationsHtml(3);
   try {
     const res = await listMyHelpRequestsWithApplications(dc, { userId: userData.id }, SERVER_ONLY);
     const jobs = (res.data.helpRequests || []).filter(j => {
@@ -2725,7 +2972,7 @@ async function loadMentoringRequests(isSilent = false) {
 
 async function loadMyApplications(isSilent = false) {
   const container = $('#my-applications-list');
-  if (!isSilent) container.innerHTML = '<div class="loader"></div>';
+  if (!isSilent) container.innerHTML = getSkeletonApplicationsHtml(3);
   try {
     const res = await listApplicationsByApplicant(dc, { userId: userData?.id }, SERVER_ONLY).catch(() => ({ data: { applications: [] } }));
     let apps = (res.data?.applications || []).filter(a => a.status !== 'REJECTED');
@@ -3051,7 +3298,7 @@ function touchConversationActivity(convId, timestamp) {
 
 async function loadMessages(isSilent = false) {
   const convList = $('#conversations-list');
-  if (!isSilent && convList.children.length === 0) convList.innerHTML = '<div class="loader"></div>';
+  if (!isSilent && convList.children.length === 0) convList.innerHTML = getSkeletonConversationsHtml(5);
   try {
     const res = await listConversations(dc, { userId: userData.id }, SERVER_ONLY);
     const rawFetched = (res.data.conversations || []).filter(c =>
@@ -3385,7 +3632,7 @@ async function selectConversation(convId) {
     activeSubscriptionConvId = convId;
     try {
       const msgArea = $('#chat-messages');
-      if (msgArea) msgArea.innerHTML = '';
+      if (msgArea) msgArea.innerHTML = getSkeletonChatMessagesHtml();
       
       const messagesRef = ref(db, `conversations/${convId}/messages`);
       messageSubscription = messagesRef;
@@ -3411,6 +3658,8 @@ function renderIncomingMessages(messages) {
   if (messages.length > 0 || pendingTempMessages.length > 0) {
     const emptyState = msgArea.querySelector('.empty-state');
     if (emptyState) emptyState.remove();
+    const skeleton = msgArea.querySelector('.chat-skeleton-container');
+    if (skeleton) skeleton.remove();
   }
 
   let hasNew = false;
@@ -3618,7 +3867,7 @@ function setupChat() {
 let allTransactions = [];
 async function loadTransactions() {
   const tbody = $('#transactions-tbody');
-  tbody.innerHTML = '<tr><td colspan="4" class="text-center"><div class="loader"></div></td></tr>';
+  tbody.innerHTML = getSkeletonTableRowsHtml(4, 5);
   try {
     const [appRes, myPostRes, posterAppRes] = await Promise.all([
       listApplicationsByApplicant(dc, { userId: userData.id }, SERVER_ONLY),
@@ -3830,6 +4079,10 @@ let logsSearchQuery = '';
 function loadActivityLogs() {
   const container = $('#logs-container');
   if (!container) return;
+
+  if (container.children.length === 0) {
+    container.innerHTML = getSkeletonLogsHtml(4);
+  }
 
   const uid = currentUser?.uid || 'guest';
   const appsList = Array.from(userApplicationsByRequestId?.values() || []);
@@ -4878,11 +5131,175 @@ let adminSearchQuery = '';
   let activeMentoringTarget = null;
   let allUsersData = [];
 
+let adminPeriod = 'month'; // 'month' | 'all' | 'prev'
+
+function setupAdminPeriodSelect() {
+  const sel = $('#admin-period-select');
+  if (sel && !sel._wired) {
+    sel._wired = true;
+    sel.addEventListener('change', (e) => {
+      adminPeriod = e.target.value;
+      updateAdminDashboardMetrics();
+    });
+  }
+}
+
+function updateAdminDashboardMetrics() {
+  const now = new Date();
+  const currentYear = now.getFullYear();
+  const currentMonth = now.getMonth();
+
+  const startOfThisMonth = new Date(currentYear, currentMonth, 1).getTime();
+  const endOfThisMonth = new Date(currentYear, currentMonth + 1, 0, 23, 59, 59, 999).getTime();
+
+  const startOfPrevMonth = new Date(currentYear, currentMonth - 1, 1).getTime();
+  const endOfPrevMonth = new Date(currentYear, currentMonth, 0, 23, 59, 59, 999).getTime();
+
+  const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+  const currentMonthName = monthNames[currentMonth];
+  const prevMonthName = monthNames[(currentMonth + 11) % 12];
+
+  function isItemInPeriod(item) {
+    if (adminPeriod === 'all') return true;
+    const raw = item?.createdAt || item?.updatedAt || item?.timestamp;
+    let ts = 0;
+    if (raw) {
+      if (typeof raw === 'number') ts = raw;
+      else if (raw.seconds) ts = raw.seconds * 1000;
+      else ts = new Date(raw).getTime();
+    }
+    if (!ts || isNaN(ts)) {
+      return adminPeriod === 'month';
+    }
+    if (adminPeriod === 'month') {
+      return ts >= startOfThisMonth && ts <= endOfThisMonth;
+    }
+    if (adminPeriod === 'prev') {
+      return ts >= startOfPrevMonth && ts <= endOfPrevMonth;
+    }
+    return true;
+  }
+
+  const periodLabel = adminPeriod === 'month'
+    ? `This Month (${currentMonthName} ${currentYear})`
+    : adminPeriod === 'prev'
+      ? `Last Month (${prevMonthName})`
+      : 'All-Time Platform';
+
+  // 1. Registered Students Count (All-Time platform registration)
+  const totalStudents = adminUsersData.filter(u => u.verificationStatus !== 'pending').length;
+  const regEl = $('#admin-stat-registered');
+  if (regEl) regEl.textContent = totalStudents;
+
+  // 2. Online Users Count (Real-time active sessions)
+  const onlineUsersCount = Math.max(currentOnlineUserIds.size, (currentUser ? 1 : 0));
+  const onlineUsersEl = $('#admin-stat-online-users');
+  if (onlineUsersEl) onlineUsersEl.textContent = onlineUsersCount;
+
+  // 3. Filtered Requests & Applications by Period
+  const periodRequests = adminRequestsData.filter(isItemInPeriod);
+  const periodApps = adminAppsData.filter(isItemInPeriod);
+
+  // Active Users for Period
+  const activeUserIds = new Set();
+  periodRequests.forEach(r => {
+    const uid = r.requesterId || r.requester?.id;
+    if (uid) activeUserIds.add(uid);
+  });
+  periodApps.forEach(a => {
+    const uid = a.applicantId || a.applicant?.id;
+    if (uid) activeUserIds.add(uid);
+  });
+  if (adminPeriod === 'month') {
+    currentOnlineUserIds.forEach(id => activeUserIds.add(id));
+    if (currentUser?.uid) activeUserIds.add(currentUser.uid);
+  }
+  adminUsersData.forEach(u => {
+    if (adminPeriod === 'all' && u.verificationStatus === 'verified') activeUserIds.add(u.id);
+  });
+  const activeCount = Math.max(activeUserIds.size, (adminPeriod === 'month' ? onlineUsersCount : (totalStudents > 0 ? 1 : 0)));
+  const activeUsersEl = $('#admin-stat-active-users');
+  if (activeUsersEl) activeUsersEl.textContent = activeCount;
+
+  // Pending Verifications
+  const pendingCount = adminPendingData.length;
+  const pendingEl = $('#admin-stat-pending');
+  if (pendingEl) pendingEl.textContent = pendingCount;
+  const tabBadge = $('#admin-pending-tab-badge');
+  if (tabBadge) tabBadge.textContent = pendingCount;
+
+  // Active Jobs
+  const activeJobs = periodRequests.filter(r => r.status === 'OPEN' || !r.status).length;
+  const activeJobsEl = $('#admin-stat-active-jobs');
+  if (activeJobsEl) activeJobsEl.textContent = activeJobs;
+
+  // Completed Jobs
+  const completedJobs = periodRequests.filter(r => r.status === 'COMPLETED').length ||
+    periodApps.filter(a => a.status === 'COMPLETED').length;
+  const completedEl = $('#admin-stat-completed-jobs');
+  if (completedEl) completedEl.textContent = completedJobs;
+
+  // Terminated Jobs
+  const terminatedJobs = periodApps.filter(a => a.status === 'TERMINATED').length;
+  const termEl = $('#admin-stat-terminated-jobs');
+  if (termEl) termEl.textContent = terminatedJobs;
+
+  // Total Transactions (Volume for period)
+  const totalTrans = periodApps
+    .filter(a => a.status === 'COMPLETED')
+    .reduce((sum, a) => sum + (Number(a.priceOffer) || 0), 0);
+  const totalTransEl = $('#admin-stat-total-transactions');
+  if (totalTransEl) totalTransEl.textContent = peso(totalTrans);
+
+  // Success Rate for Period
+  const resolvedJobs = completedJobs + terminatedJobs;
+  const successRate = resolvedJobs > 0 ? Math.round((completedJobs / resolvedJobs) * 100) : 100;
+  const rateEl = $('#admin-stat-success-rate');
+  if (rateEl) rateEl.textContent = `${successRate}%`;
+
+  // Dynamic Labels
+  const badgeEl = $('#admin-period-badge');
+  if (badgeEl) {
+    badgeEl.textContent = adminPeriod === 'month' ? `Monthly (${currentMonthName})` : adminPeriod === 'prev' ? `Monthly (${prevMonthName})` : 'All-Time';
+  }
+  const lblActive = $('#admin-label-active-users');
+  if (lblActive) lblActive.textContent = adminPeriod === 'month' ? 'Monthly Active Users' : adminPeriod === 'prev' ? 'Last Month Active Users' : 'All-Time Active Users';
+  const lblComp = $('#admin-label-completed-jobs');
+  if (lblComp) lblComp.textContent = adminPeriod === 'month' ? 'Completed This Month' : adminPeriod === 'prev' ? 'Completed Last Month' : 'Completed (All-Time)';
+  const lblTerm = $('#admin-label-terminated-jobs');
+  if (lblTerm) lblTerm.textContent = adminPeriod === 'month' ? 'Terminated This Month' : adminPeriod === 'prev' ? 'Terminated Last Month' : 'Terminated (All-Time)';
+  const lblVol = $('#admin-label-total-transactions');
+  if (lblVol) lblVol.textContent = adminPeriod === 'month' ? 'Monthly Volume' : adminPeriod === 'prev' ? 'Last Month Volume' : 'Total Volume';
+  const lblRate = $('#admin-label-success-rate');
+  if (lblRate) lblRate.textContent = adminPeriod === 'month' ? 'Monthly Success Rate' : adminPeriod === 'prev' ? 'Last Month Success Rate' : 'Completion Rate';
+
+  // Render Statistical Graphs & Analytics Intelligence with periodLabel
+  const analyticsContainer = $('#admin-analytics-section');
+  if (analyticsContainer) {
+    renderAdminStatisticalCharts(analyticsContainer, {
+      requests: periodRequests,
+      applications: periodApps,
+      users: adminUsersData,
+      periodLabel
+    });
+  }
+}
+
 async function loadAdmin() {
-  if (!ADMIN_EMAILS.includes(userData?.email) && !devPreview) {
+  if (!isAdminUser(userData?.email) && !isAdminUser(currentUser?.email) && !devPreview) {
     navigateTo('dashboard');
     return;
   }
+
+  const pendingContainer = $('#admin-list');
+  const allUsersTbody = $('#admin-all-users-tbody');
+  if (pendingContainer && adminPendingData.length === 0) {
+    pendingContainer.innerHTML = getSkeletonAdminPendingHtml(3);
+  }
+  if (allUsersTbody && adminUsersData.length === 0) {
+    allUsersTbody.innerHTML = getSkeletonTableRowsHtml(6, 5);
+  }
+  setupAdminPeriodSelect();
 
   try {
     const [usersRes, reqsRes, appsRes] = await Promise.all([
@@ -4921,76 +5338,12 @@ async function loadAdmin() {
 
     adminPendingData = adminUsersData.filter(u => u.verificationStatus === 'pending');
 
-    // 1. Registered Students Count
-    const totalStudents = adminUsersData.filter(u => u.verificationStatus !== 'pending').length;
-    $('#admin-stat-registered').textContent = totalStudents;
-
-    // 2. Online Users Count (Real-time active sessions across all devices)
     await recordUserPresence(currentUser?.uid || userData?.id);
     const onlineData = await getOnlineUserIds();
     currentOnlineUserIds = onlineData.ids;
     currentOnlineEmails = onlineData.emails;
-    const onlineUsersCount = Math.max(currentOnlineUserIds.size, (currentUser ? 1 : 0));
-    const onlineUsersEl = $('#admin-stat-online-users');
-    if (onlineUsersEl) onlineUsersEl.textContent = onlineUsersCount;
 
-    // 3. Active Users Count (Students participating in listings, apps, or verified)
-    const activeUserIds = new Set();
-    adminRequestsData.forEach(r => {
-      const uid = r.requesterId || r.requester?.id;
-      if (uid) activeUserIds.add(uid);
-    });
-    adminAppsData.forEach(a => {
-      const uid = a.applicantId || a.applicant?.id;
-      if (uid) activeUserIds.add(uid);
-    });
-    adminUsersData.forEach(u => {
-      if (u.verificationStatus === 'verified') activeUserIds.add(u.id);
-    });
-    if (currentUser?.uid) activeUserIds.add(currentUser.uid);
-    const activeUsersCount = Math.max(activeUserIds.size, 1);
-    const activeUsersEl = $('#admin-stat-active-users');
-    if (activeUsersEl) activeUsersEl.textContent = activeUsersCount;
-
-    // 3. Pending Verification Count
-    const pendingCount = adminPendingData.length;
-    $('#admin-stat-pending').textContent = pendingCount;
-    const tabBadge = $('#admin-pending-tab-badge');
-    if (tabBadge) tabBadge.textContent = pendingCount;
-
-    // 4. Active Jobs Count
-    const activeJobs = adminRequestsData.filter(r => r.status === 'OPEN' || !r.status).length;
-    $('#admin-stat-active-jobs').textContent = activeJobs;
-
-    // 5. Completed Jobs Count
-    const completedJobs = adminRequestsData.filter(r => r.status === 'COMPLETED').length;
-    $('#admin-stat-completed-jobs').textContent = completedJobs;
-
-    // 6. Terminated Jobs Count
-    const terminatedJobs = adminAppsData.filter(a => a.status === 'TERMINATED').length;
-    $('#admin-stat-terminated-jobs').textContent = terminatedJobs;
-
-    // 7. Total Transactions Across Whole Website (Sum of completed earnings)
-    const totalTrans = adminAppsData
-      .filter(a => a.status === 'COMPLETED')
-      .reduce((sum, a) => sum + (Number(a.priceOffer) || 0), 0);
-    $('#admin-stat-total-transactions').textContent = peso(totalTrans);
-
-    // 8. Completion Success Rate
-    const resolvedJobs = completedJobs + terminatedJobs;
-    const successRate = resolvedJobs > 0 ? Math.round((completedJobs / resolvedJobs) * 100) : 100;
-    const rateEl = $('#admin-stat-success-rate');
-    if (rateEl) rateEl.textContent = `${successRate}%`;
-
-    // Render Statistical Graphs & Analytics Intelligence
-    const analyticsContainer = $('#admin-analytics-section');
-    if (analyticsContainer) {
-      renderAdminStatisticalCharts(analyticsContainer, {
-        requests: adminRequestsData,
-        applications: adminAppsData,
-        users: adminUsersData
-      });
-    }
+    updateAdminDashboardMetrics();
 
     // Render active tab view
     renderCurrentAdminTab();
@@ -5119,7 +5472,8 @@ function renderAdminUsers() {
     const isPending = u.verificationStatus === 'pending';
     const isOnline = currentOnlineUserIds.has(u.id) ||
       (u.email && currentOnlineEmails.has(u.email.toLowerCase())) ||
-      (currentUser?.email && u.email && u.email.toLowerCase() === currentUser.email.toLowerCase());
+      (currentUser?.email && u.email && u.email.toLowerCase() === currentUser.email.toLowerCase()) ||
+      (userData?.email && u.email && u.email.toLowerCase() === userData.email.toLowerCase());
     const badgeClass = isVerified ? 'badge-approved' : isPending ? 'badge-pending' : 'badge-rejected';
 
     tr.innerHTML = `
@@ -5127,7 +5481,7 @@ function renderAdminUsers() {
         <div class="flex items-center gap-2">
           <div class="avatar avatar-sm">${initials(u.fullName)}</div>
           <div>
-            <div class="flex items-center gap-1.5">
+            <div class="flex items-center gap-1.5 admin-user-name-cell">
               <strong>${u.fullName}</strong>
               ${isOnline ? '<span class="online-indicator-pill"><span class="active-pulse-dot" style="margin:0;width:6px;height:6px;"></span> Online</span>' : ''}
             </div>
@@ -5479,6 +5833,7 @@ document.addEventListener('DOMContentLoaded', () => {
   setupLogout();
   setupAdminTabs();
   setupAdminSearch();
+  setupAdminPeriodSelect();
   setupDialogCloseButtons();
   setupNotificationCenter();
   setupPortfolio();

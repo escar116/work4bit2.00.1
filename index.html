@@ -1130,16 +1130,26 @@
                      11. SECTION: ADMINISTRATOR DASHBOARD
                      ========================================================================== -->
                 <section id="section-admin" class="content-section hidden">
-                    <div class="page-header">
-                        <h1 class="page-title">Administrator Dashboard</h1>
-                        <p class="text-muted">Comprehensive platform analytics, user directory, and verification
-                            management</p>
+                    <div class="page-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
+                        <div>
+                            <h1 class="page-title">Administrator Dashboard</h1>
+                            <p class="text-muted">Comprehensive platform analytics, user directory, and verification management</p>
+                        </div>
+                        <div class="admin-period-control" style="display: flex; align-items: center; gap: 0.75rem; background: var(--bg-card); padding: 0.45rem 1rem; border-radius: 12px; border: 1px solid var(--border-light);">
+                            <span class="text-xs text-muted" style="font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em;">Measure:</span>
+                            <select id="admin-period-select" class="form-control" style="padding: 0.35rem 0.75rem; font-size: 0.85rem; font-weight: 600; border-radius: 8px; width: auto; background: var(--bg-main);">
+                                <option value="month" selected>This Month (October 2026)</option>
+                                <option value="all">All-Time Platform</option>
+                                <option value="prev">Last Month (September 2026)</option>
+                            </select>
+                            <span class="badge badge-normal" id="admin-period-badge" style="font-size: 11px; padding: 3px 9px;">Monthly</span>
+                        </div>
                     </div>
 
                     <!-- Platform-wide Metrics Counters (including Active & Online Users & Success Rate) -->
                     <div class="admin-stats-grid mt-6">
                         <div class="dash-stat-card">
-                            <span class="stat-card-label">Registered Students</span>
+                            <span class="stat-card-label" id="admin-label-registered">Registered Students</span>
                             <div class="stat-card-number" id="admin-stat-registered">0</div>
                         </div>
                         <div class="dash-stat-card admin-stat-card-online">
@@ -1147,31 +1157,31 @@
                             <div class="stat-card-number text-green" id="admin-stat-online-users">1</div>
                         </div>
                         <div class="dash-stat-card">
-                            <span class="stat-card-label">Active Users</span>
+                            <span class="stat-card-label" id="admin-label-active-users">Monthly Active Users</span>
                             <div class="stat-card-number" style="color: #4f46e5;" id="admin-stat-active-users">0</div>
                         </div>
                         <div class="dash-stat-card">
-                            <span class="stat-card-label">Pending Verification</span>
+                            <span class="stat-card-label" id="admin-label-pending">Pending Verification</span>
                             <div class="stat-card-number text-amber" id="admin-stat-pending">0</div>
                         </div>
                         <div class="dash-stat-card">
-                            <span class="stat-card-label">Active Jobs</span>
+                            <span class="stat-card-label" id="admin-label-active-jobs">Active Jobs</span>
                             <div class="stat-card-number" id="admin-stat-active-jobs">0</div>
                         </div>
                         <div class="dash-stat-card">
-                            <span class="stat-card-label">Completed Jobs</span>
+                            <span class="stat-card-label" id="admin-label-completed-jobs">Completed This Month</span>
                             <div class="stat-card-number text-green" id="admin-stat-completed-jobs">0</div>
                         </div>
                         <div class="dash-stat-card">
-                            <span class="stat-card-label">Terminated Jobs</span>
+                            <span class="stat-card-label" id="admin-label-terminated-jobs">Terminated This Month</span>
                             <div class="stat-card-number text-red" id="admin-stat-terminated-jobs">0</div>
                         </div>
                         <div class="dash-stat-card">
-                            <span class="stat-card-label">Total Transactions</span>
+                            <span class="stat-card-label" id="admin-label-total-transactions">Monthly Volume</span>
                             <div class="stat-card-number" id="admin-stat-total-transactions">₱0</div>
                         </div>
                         <div class="dash-stat-card">
-                            <span class="stat-card-label">Completion Rate</span>
+                            <span class="stat-card-label" id="admin-label-success-rate">Monthly Success Rate</span>
                             <div class="stat-card-number text-green" id="admin-stat-success-rate">100%</div>
                         </div>
                     </div>

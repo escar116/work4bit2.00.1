@@ -1,7 +1,7 @@
 // Admin Dashboard Statistical Charts & Analytics Visualizations
 // work4abit platform intelligence
 
-export function renderAdminStatisticalCharts(container, { requests = [], applications = [], users = [] } = {}) {
+export function renderAdminStatisticalCharts(container, { requests = [], applications = [], users = [], periodLabel = 'This Month' } = {}) {
   if (!container) return;
 
   const completedJobs = requests.filter(r => r.status === 'COMPLETED').length;
@@ -85,10 +85,10 @@ export function renderAdminStatisticalCharts(container, { requests = [], applica
       <div class="dash-stat-card admin-chart-card">
         <div class="admin-chart-header">
           <div>
-            <h3 class="admin-chart-title">Job & Request Outcomes</h3>
-            <p class="admin-chart-subtitle">Distribution of active, completed, and terminated listings</p>
+            <h3 class="admin-chart-title">Outcomes (${periodLabel})</h3>
+            <p class="admin-chart-subtitle">Distribution of active, completed, and terminated listings for ${periodLabel}</p>
           </div>
-          <span class="badge badge-normal">${totalJobs} Total Listings</span>
+          <span class="badge badge-normal">${totalJobs} Listings</span>
         </div>
 
         <div class="admin-donut-wrapper">
@@ -160,8 +160,8 @@ export function renderAdminStatisticalCharts(container, { requests = [], applica
       <div class="dash-stat-card admin-chart-card">
         <div class="admin-chart-header">
           <div>
-            <h3 class="admin-chart-title">Marketplace Categories</h3>
-            <p class="admin-chart-subtitle">Top technical domains by listings count & value</p>
+            <h3 class="admin-chart-title">Marketplace Categories (${periodLabel})</h3>
+            <p class="admin-chart-subtitle">Top technical domains by listings count & value for ${periodLabel}</p>
           </div>
           <span class="badge badge-normal">${categoryList.length} Categories</span>
         </div>
