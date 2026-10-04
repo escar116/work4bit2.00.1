@@ -21,6 +21,7 @@ import {
 import { summarizeDashboard } from './dashboard-stats.js';
 import { renderDashboard } from './dashboard-view.js';
 import { setupWorkspace } from './workspace.js';
+import { setupLandingPage } from './landing-page.js';
 import {
   logUserAction,
   getUserLogs,
@@ -920,6 +921,7 @@ function navigateTo(section, pushState = true) {
 }
 
 function showAuth(section = 'landing') {
+  $('#lp-sign-in')?.close();
   if (section === 'login') section = 'landing';
   if (autoRefreshTimer) { clearInterval(autoRefreshTimer); autoRefreshTimer = null; }
   if (chatPollTimer) { clearInterval(chatPollTimer); chatPollTimer = null; }
@@ -932,12 +934,14 @@ function showAuth(section = 'landing') {
   hide($('#app-views'));
   hide($('#loading-screen'));
   show($('#auth-views'));
-  $$('#auth-views section').forEach(s => s.classList.add('hidden'));
+  $$('#auth-views > section').forEach(s => s.classList.add('hidden'));
   const target = $(`#section-${section}`);
   if (target) target.classList.remove('hidden');
+  window.scrollTo({ top: 0, behavior: 'instant' });
 }
 
 function showApp() {
+  $('#lp-sign-in')?.close();
   hide($('#auth-views'));
   hide($('#loading-screen'));
   show($('#app-views'));
@@ -1070,6 +1074,7 @@ onAuthStateChanged(auth, async (user) => {
 
 // -- Landing Page  ------------------------------------------------------------
 function setupLanding() {
+  setupLandingPage({ register: () => showAuth('register') });
   const form = $('#landing-quick-login-form');
   const googleBtn = $('#landing-google-btn');
   const errorEl = $('#landing-login-error');
