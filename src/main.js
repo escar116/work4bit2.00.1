@@ -76,7 +76,7 @@ let googleUser = null;
 const devPreview = new URLSearchParams(window.location.search).get('dev_preview');
 let userData = null;
 let workspace = null;
-const VALID_SECTIONS = ['dashboard', 'services', 'mentoring', 'applications', 'messages', 'transactions', 'logs', 'ratings', 'profile', 'admin'];
+const VALID_SECTIONS = ['dashboard', 'services', 'service-offers', 'service-requests', 'mentoring', 'applications', 'messages', 'transactions', 'logs', 'ratings', 'profile', 'admin'];
 const initialPath = window.location.pathname.replace(/^\/|\/$/g, '');
 let activeSection = VALID_SECTIONS.includes(initialPath) ? initialPath : (sessionStorage.getItem('active_section') || 'dashboard');
 if (VALID_SECTIONS.includes(initialPath)) {
@@ -867,7 +867,7 @@ function startBackgroundSync() {
       loadDashboard(true);
     } else if (activeSection === 'applications') {
       loadApplications(true);
-    } else if (activeSection === 'services') {
+    } else if (activeSection === 'services' || activeSection === 'service-offers' || activeSection === 'service-requests') {
       loadServices(true);
     }
   }, 60000);
@@ -883,7 +883,7 @@ document.addEventListener('visibilitychange', () => {
       loadDashboard(true);
     } else if (activeSection === 'applications') {
       loadApplications(true);
-    } else if (activeSection === 'services') {
+    } else if (activeSection === 'services' || activeSection === 'service-offers' || activeSection === 'service-requests') {
       loadServices(true);
     }
   }
@@ -891,33 +891,52 @@ document.addEventListener('visibilitychange', () => {
 
 // -- Navigation  ------------------------------------------------------------
 function navigateTo(section, pushState = true) {
-  activeSection = section;
-  sessionStorage.setItem('active_section', section);
+  let resolvedSection = section;
+  if (section === 'services') {
+    resolvedSection = currentServicesTab === 'requests' ? 'service-requests' : 'service-offers';
+  }
+
+  activeSection = resolvedSection;
+  sessionStorage.setItem('active_section', resolvedSection);
 
   $$('.content-section').forEach(s => s.classList.add('hidden'));
-  const target = $(`#section-${section}`);
+  const targetId = (resolvedSection === 'service-offers' || resolvedSection === 'service-requests')
+    ? 'services'
+    : resolvedSection;
+  const target = $(`#section-${targetId}`);
   if (target) {
     target.classList.remove('hidden');
   }
 
   $$('.nav-btn[data-target]').forEach(b => {
-    b.classList.toggle('active', b.dataset.target === section);
+    b.classList.toggle('active', b.dataset.target === resolvedSection);
   });
 
-  if (pushState && window.location.pathname !== '/' + section) {
-    history.pushState({ section }, '', '/' + section);
+  if (pushState && window.location.pathname !== '/' + resolvedSection) {
+    history.pushState({ section: resolvedSection }, '', '/' + resolvedSection);
   }
 
-  if (section === 'dashboard') loadDashboard();
-  else if (section === 'services') loadServices();
-    else if (section === 'mentoring') loadMentoring();
-  else if (section === 'applications') loadApplications();
-  else if (section === 'messages') loadMessages();
-  else if (section === 'transactions') loadTransactions();
-  else if (section === 'logs') loadActivityLogs();
-  else if (section === 'ratings') loadRatings();
-  else if (section === 'profile') loadProfile();
-  else if (section === 'admin') loadAdmin();
+  if (resolvedSection === 'dashboard') loadDashboard();
+  else if (resolvedSection === 'services') {
+    setServicesTab(currentServicesTab || 'offers');
+    loadServices();
+  }
+  else if (resolvedSection === 'service-offers') {
+    setServicesTab('offers');
+    loadServices();
+  }
+  else if (resolvedSection === 'service-requests') {
+    setServicesTab('requests');
+    loadServices();
+  }
+  else if (resolvedSection === 'mentoring') loadMentoring();
+  else if (resolvedSection === 'applications') loadApplications();
+  else if (resolvedSection === 'messages') loadMessages();
+  else if (resolvedSection === 'transactions') loadTransactions();
+  else if (resolvedSection === 'logs') loadActivityLogs();
+  else if (resolvedSection === 'ratings') loadRatings();
+  else if (resolvedSection === 'profile') loadProfile();
+  else if (resolvedSection === 'admin') loadAdmin();
 }
 
 function showAuth(section = 'landing') {
@@ -1590,11 +1609,31 @@ function setServicesTab(tab) {
   $('#tab-service-offers')?.classList.toggle('active', isOffer);
   $('#tab-service-requests')?.classList.toggle('active', !isOffer);
 
+  // Sync sidebar navigation buttons as well
+  $$('.nav-btn[data-target]').forEach(b => {
+    if (b.dataset.target === 'service-offers') b.classList.toggle('active', isOffer);
+    if (b.dataset.target === 'service-requests') b.classList.toggle('active', !isOffer);
+  });
+
+  const headerTitle = $('.services-header-info .page-title') || $('#services-header-info h1');
+  if (headerTitle) {
+    headerTitle.textContent = isOffer ? 'Service Offers' : 'Service Requests';
+  }
+
   const sub = $('#services-header-subtitle');
   if (sub) {
     sub.textContent = isOffer
       ? 'Standing campus services, printing, and equipment provided by fellow students (3D printing, laser cutting, ink printing, repair).'
       : 'Tasks and projects posted by students in need of assistance or technical talent from campus peers.';
+  }
+
+  // Update activeSection and URL if in services
+  if (activeSection === 'services' || activeSection === 'service-offers' || activeSection === 'service-requests') {
+    activeSection = isOffer ? 'service-offers' : 'service-requests';
+    sessionStorage.setItem('active_section', activeSection);
+    if (window.location.pathname !== '/' + activeSection) {
+      history.replaceState({ section: activeSection }, '', '/' + activeSection);
+    }
   }
 
   // Contextual post buttons: only show the post button relevant to active tab
