@@ -1769,6 +1769,9 @@ async function loadServices(isSilent = false) {
       }
     });
     activeAppliedIds = new Set(userApplicationsByRequestId.keys());
+    allRequests.forEach((r, idx) => {
+      r._dbIndex = idx;
+    });
     renderServices(allRequests);
     syncAuthorListingImages();
   } catch (err) {
@@ -1936,8 +1939,25 @@ function renderServices(requests) {
     return true;
   });
 
-  if (requestFilters.sort === 'price_asc') filtered.sort((a, b) => a.budget - b.budget);
-  else if (requestFilters.sort === 'price_desc') filtered.sort((a, b) => b.budget - a.budget);
+  const getListingTime = (item) => {
+    if (item.createdAt) {
+      const t = new Date(item.createdAt).getTime();
+      if (!isNaN(t) && t > 0) return t;
+    }
+    if (typeof item._dbIndex === 'number') return item._dbIndex;
+    return requests.indexOf(item);
+  };
+
+  if (requestFilters.sort === 'oldest') {
+    filtered.sort((a, b) => getListingTime(a) - getListingTime(b));
+  } else if (requestFilters.sort === 'budget-high' || requestFilters.sort === 'price_desc') {
+    filtered.sort((a, b) => Number(b.budget || 0) - Number(a.budget || 0));
+  } else if (requestFilters.sort === 'budget-low' || requestFilters.sort === 'price_asc') {
+    filtered.sort((a, b) => Number(a.budget || 0) - Number(b.budget || 0));
+  } else {
+    // Default: 'newest' (Newest First)
+    filtered.sort((a, b) => getListingTime(b) - getListingTime(a));
+  }
 
   if ($('#requests-count')) {
     $('#requests-count').textContent = `${filtered.length} ${currentServicesTab === 'offers' ? 'service offer(s)' : 'service request(s)'} found`;
@@ -2837,6 +2857,7 @@ async function loadPostedJobs(isSilent = false) {
       const isMentoring = j.category === 'MENTORING' || (j.title && j.title.toLowerCase().startsWith('mentoring:'));
       return (j.status === 'OPEN' || !j.status) && !isMentoring;
     });
+    jobs.reverse();
 
     container.innerHTML = '';
     if (jobs.length === 0) {
@@ -2954,6 +2975,7 @@ async function loadMentoringRequests(isSilent = false) {
       const isMentoring = j.category === 'MENTORING' || (j.title && j.title.toLowerCase().startsWith('mentoring:'));
       return (j.status === 'OPEN' || !j.status) && isMentoring;
     });
+    jobs.reverse();
     container.innerHTML = '';
     if (jobs.length === 0) {
       container.innerHTML = '<div class="empty-state text-center text-muted" style="padding: 2rem;">No pending mentoring requests received.</div>';
@@ -3020,6 +3042,7 @@ async function loadMyApplications(isSilent = false) {
   try {
     const res = await listApplicationsByApplicant(dc, { userId: userData?.id }, SERVER_ONLY).catch(() => ({ data: { applications: [] } }));
     let apps = (res.data?.applications || []).filter(a => a.status !== 'REJECTED');
+    apps.sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
     if (devPreview && apps.length === 0) {
       apps = [
         {
