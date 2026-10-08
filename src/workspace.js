@@ -101,7 +101,15 @@ export function setupWorkspace({ navigate, search, getUser, refresh }) {
   return {
     updateUser() {
       const avatar = $('#workspace-avatar');
-      if (avatar) avatar.textContent = (getUser()?.fullName || 'Student').split(' ').filter(Boolean).slice(0, 2).map(word => word[0]).join('').toUpperCase();
+      const u = getUser();
+      const photo = u?.photoURL || (u?.id ? localStorage.getItem('cached_photo_' + u.id) : null);
+      if (avatar) {
+        if (photo) {
+          avatar.innerHTML = `<img src="${photo}" alt="${u?.fullName || 'User'}" class="header-avatar-img">`;
+        } else {
+          avatar.textContent = (u?.fullName || 'Student').split(' ').filter(Boolean).slice(0, 2).map(word => word[0]).join('').toUpperCase();
+        }
+      }
       updateGuideBadge();
     },
     reset() {

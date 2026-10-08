@@ -22,6 +22,7 @@ import { summarizeDashboard } from './dashboard-stats.js';
 import { renderDashboard } from './dashboard-view.js';
 import { setupWorkspace } from './workspace.js';
 import { setupLandingPage } from './landing-page.js';
+import './workspace-remodel.css';
 import {
   logUserAction,
   getUserLogs,
@@ -152,6 +153,91 @@ function compressImage(file) {
     };
     reader.readAsDataURL(file);
   });
+}
+
+function compressAvatarImage(file) {
+  return new Promise((resolve) => {
+    if (!file || !file.type.startsWith('image/')) {
+      resolve('');
+      return;
+    }
+    const reader = new FileReader();
+    reader.onerror = () => resolve('');
+    reader.onload = (e) => {
+      const img = new Image();
+      img.onerror = () => resolve('');
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        const max = 400;
+        let w = img.width, h = img.height;
+        if (w > max || h > max) {
+          if (w > h) { h = Math.round(h * max / w); w = max; }
+          else { w = Math.round(w * max / h); h = max; }
+        }
+        canvas.width = w; canvas.height = h;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, w, h);
+        resolve(canvas.toDataURL('image/jpeg', 0.85));
+      };
+      img.src = e.target.result;
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
+function updateAllUserAvatars(photoUrl, fullName) {
+  const name = fullName || userData?.fullName || currentUser?.displayName || 'Student User';
+  const userInitials = initials(name);
+
+  // Profile hero avatar
+  const profileAvatar = document.getElementById('profile-avatar');
+  if (profileAvatar) {
+    if (photoUrl) {
+      profileAvatar.innerHTML = `<img src="${photoUrl}" alt="${name}" class="profile-avatar-img">`;
+    } else {
+      profileAvatar.textContent = userInitials;
+    }
+  }
+
+  // Edit profile dialog avatar preview
+  const editPreview = document.getElementById('edit-avatar-preview');
+  if (editPreview) {
+    if (photoUrl) {
+      editPreview.innerHTML = `<img src="${photoUrl}" alt="${name}" class="profile-avatar-img">`;
+    } else {
+      editPreview.textContent = userInitials;
+    }
+  }
+
+  // Sidebar footer avatar
+  const sidebarAvatar = document.getElementById('sidebar-user-avatar');
+  if (sidebarAvatar) {
+    if (photoUrl) {
+      sidebarAvatar.innerHTML = `<img src="${photoUrl}" alt="${name}" class="sidebar-avatar-img">`;
+    } else {
+      sidebarAvatar.textContent = userInitials;
+    }
+  }
+
+  // Dashboard top avatar
+  const dashAvatar = document.getElementById('dashboard-user-avatar');
+  if (dashAvatar) {
+    if (photoUrl) {
+      dashAvatar.innerHTML = `<img src="${photoUrl}" alt="${name}" class="sidebar-avatar-img">`;
+    } else {
+      dashAvatar.textContent = userInitials;
+    }
+  }
+
+  // Header workspace avatar
+  const workspaceAvatar = document.getElementById('workspace-avatar');
+  if (workspaceAvatar) {
+    if (photoUrl) {
+      workspaceAvatar.innerHTML = `<img src="${photoUrl}" alt="${name}" class="header-avatar-img">`;
+    } else {
+      workspaceAvatar.textContent = userInitials;
+    }
+  }
 }
 
 // -- Listing Image Attachment & Cross-User Storage ----------------------------
@@ -984,15 +1070,25 @@ function showApp() {
 
   // User Profile in Sidebar Footer & Header
   const userName = userData?.fullName || currentUser?.displayName || 'Student User';
-  const userInitials = initials(userName);
 
   const sidebarName = $('#sidebar-user-name');
   if (sidebarName) sidebarName.textContent = userName;
-  const sidebarAvatar = $('#sidebar-user-avatar');
-  if (sidebarAvatar) sidebarAvatar.textContent = userInitials;
 
-  const topAvatar = $('#dashboard-user-avatar');
-  if (topAvatar) topAvatar.textContent = userInitials;
+  const currentPhoto = userData?.photoURL || (userData?.id ? localStorage.getItem(`cached_photo_${userData.id}`) : null);
+  updateAllUserAvatars(currentPhoto, userName);
+  if (!currentPhoto && userData?.id) {
+    getDoc(doc(firestore, "user_profiles", userData.id)).then(pDoc => {
+      if (pDoc.exists()) {
+        const pData = pDoc.data();
+        const pPhoto = pData.photoURL || pData.profilePicture;
+        if (pPhoto) {
+          userData.photoURL = pPhoto;
+          try { localStorage.setItem(`cached_photo_${userData.id}`, pPhoto); } catch(e) {}
+          updateAllUserAvatars(pPhoto, userName);
+        }
+      }
+    }).catch(e => console.warn('Could not load user profile photo:', e));
+  }
 
   if (currentUser?.uid && !sessionStorage.getItem(`w4a_session_logged_in_${currentUser.uid}`)) {
     sessionStorage.setItem(`w4a_session_logged_in_${currentUser.uid}`, 'true');
@@ -1014,6 +1110,8 @@ function clearUserSessionDOM() {
   sessionStorage.removeItem('active_conversation_id');
   activeConvId = null;
 
+  updateAllUserAvatars('', '');
+  const editPreview = $('#edit-avatar-preview'); if (editPreview) editPreview.textContent = '';
   const avatar = $('#profile-avatar'); if (avatar) avatar.textContent = '';
   const name = $('#profile-name'); if (name) name.textContent = '';
   const faculty = $('#profile-faculty'); if (faculty) faculty.textContent = '';
@@ -2037,6 +2135,7 @@ function renderServices(requests) {
     const isExpired = !isOffer && r.deadline ? new Date(r.deadline + 'T23:59:59') < new Date() : false;
     const card = document.createElement('article');
     card.className = 'request-card';
+    card.dataset.listingKind = isOffer ? 'offer' : 'request';
 
     let btnText = isOffer ? 'Avail' : 'Apply';
     let btnClass = 'btn-purple';
@@ -2061,7 +2160,7 @@ function renderServices(requests) {
     }
 
     const standingOrDeadline = isOffer
-      ? `<span class="request-card-deadline" style="color: #4ade80; font-weight: 600;">Standing Service (Always Open)</span>`
+      ? `<span class="request-card-deadline listing-availability">Standing Service (Always Open)</span>`
       : (r.deadline
           ? (isExpired
               ? `<span class="request-card-deadline" style="color: #ef4444; font-weight: 600;">Due ${r.deadline} (Expired)</span>`
@@ -4402,7 +4501,8 @@ function renderReviews(reviews, prefix) {
 
 async function loadProfile() {
   if (!userData) return;
-  $('#profile-avatar').textContent = initials(userData.fullName);
+  const currentPhoto = userData.photoURL || localStorage.getItem(`cached_photo_${userData.id}`) || null;
+  updateAllUserAvatars(currentPhoto, userData.fullName);
   $('#profile-name').textContent = userData.fullName || 'Student User';
   $('#profile-faculty').textContent = userData.facultyReference || 'Not provided';
   $('#profile-student-id').textContent = userData.studentId || 'N/A';
@@ -4452,6 +4552,12 @@ async function loadProfile() {
       userData.bio = data.bio || '';
       userData.skills = data.skills || [];
       userData.portfolio = data.portfolio || [];
+      const docPhoto = data.photoURL || data.profilePicture || '';
+      if (docPhoto) {
+        userData.photoURL = docPhoto;
+        try { localStorage.setItem(`cached_photo_${userData.id}`, docPhoto); } catch(e) {}
+        updateAllUserAvatars(docPhoto, userData.fullName);
+      }
     } else if (profileDoc) {
       userData.bio = '';
       userData.skills = [];
@@ -4698,6 +4804,12 @@ window.openViewProfileDialog = async function(userId) {
         const data = profileDoc.data();
         const vpBio = document.getElementById('vp-bio');
         if (vpBio) vpBio.textContent = data.bio || 'No bio provided.';
+        
+        const photo = data.photoURL || data.profilePicture;
+        const vpAvatar = document.getElementById('vp-avatar');
+        if (vpAvatar && photo) {
+          vpAvatar.innerHTML = `<img src="${photo}" alt="${escapeHtml(user.fullName)}" class="profile-avatar-img">`;
+        }
         
         const vpSkills = document.getElementById('vp-skills');
         if (vpSkills) {
@@ -5119,85 +5231,182 @@ window.openViewProfileDialog = async function(userId) {
   }
 
   function setupEditProfile() {
-  const btnEditProfile = document.getElementById('btn-edit-profile');
-  if (btnEditProfile) {
-    btnEditProfile.addEventListener('click', () => {
-      const bioEl = document.getElementById('edit-bio');
-      if (bioEl) bioEl.value = userData?.bio || '';
-      
-      const userSkills = userData?.skills || [];
-      document.querySelectorAll('#edit-skills-grid input[type="checkbox"]').forEach(cb => {
-        cb.checked = userSkills.includes(cb.value);
-      });
-      
-      const searchEl = document.getElementById('edit-skills-search');
-      if (searchEl) searchEl.value = '';
-      
-      document.querySelectorAll('#edit-skills-grid .skill-pill').forEach(pill => {
-        pill.style.display = 'inline-flex';
-      });
-      
-      const dialog = document.getElementById('dialog-edit-profile');
-      if (dialog) dialog.showModal();
-    });
-  }
+    let pendingAvatarDataUrl = null;
 
-  const searchInput = document.getElementById('edit-skills-search');
-  if (searchInput) {
-    searchInput.addEventListener('input', (e) => {
-      const q = e.target.value.toLowerCase();
-      document.querySelectorAll('#edit-skills-grid .skill-pill').forEach(pill => {
-        const text = pill.textContent.toLowerCase();
-        pill.style.display = text.includes(q) ? 'inline-flex' : 'none';
+    const btnEditProfile = document.getElementById('btn-edit-profile');
+    if (btnEditProfile) {
+      btnEditProfile.addEventListener('click', () => {
+        pendingAvatarDataUrl = null;
+        const currentPhoto = userData?.photoURL || (userData?.id ? localStorage.getItem(`cached_photo_${userData.id}`) : null);
+        const editPreview = document.getElementById('edit-avatar-preview');
+        if (editPreview) {
+          if (currentPhoto) {
+            editPreview.innerHTML = `<img src="${currentPhoto}" alt="Avatar Preview" class="profile-avatar-img">`;
+          } else {
+            editPreview.textContent = initials(userData?.fullName || '');
+          }
+        }
+        const editFileInput = document.getElementById('edit-avatar-file-input');
+        if (editFileInput) editFileInput.value = '';
+
+        const bioEl = document.getElementById('edit-bio');
+        if (bioEl) bioEl.value = userData?.bio || '';
+        
+        const userSkills = userData?.skills || [];
+        document.querySelectorAll('#edit-skills-grid input[type="checkbox"]').forEach(cb => {
+          cb.checked = userSkills.includes(cb.value);
+        });
+        
+        const searchEl = document.getElementById('edit-skills-search');
+        if (searchEl) searchEl.value = '';
+        
+        document.querySelectorAll('#edit-skills-grid .skill-pill').forEach(pill => {
+          pill.style.display = 'inline-flex';
+        });
+        
+        const dialog = document.getElementById('dialog-edit-profile');
+        if (dialog) dialog.showModal();
       });
-    });
-  }
+    }
+
+    // Modal Profile Photo Change & Remove
+    const btnUploadPhoto = document.getElementById('btn-upload-profile-photo');
+    const editFileInput = document.getElementById('edit-avatar-file-input');
+    if (btnUploadPhoto && editFileInput) {
+      btnUploadPhoto.addEventListener('click', () => {
+        editFileInput.click();
+      });
+      editFileInput.addEventListener('change', async (e) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+        const dataUrl = await compressAvatarImage(file);
+        if (dataUrl) {
+          pendingAvatarDataUrl = dataUrl;
+          const editPreview = document.getElementById('edit-avatar-preview');
+          if (editPreview) {
+            editPreview.innerHTML = `<img src="${dataUrl}" alt="Avatar Preview" class="profile-avatar-img">`;
+          }
+        }
+      });
+    }
+
+    const btnRemovePhoto = document.getElementById('btn-remove-profile-photo');
+    if (btnRemovePhoto) {
+      btnRemovePhoto.addEventListener('click', () => {
+        pendingAvatarDataUrl = '';
+        const editPreview = document.getElementById('edit-avatar-preview');
+        if (editPreview) {
+          editPreview.textContent = initials(userData?.fullName || '');
+        }
+        if (editFileInput) editFileInput.value = '';
+      });
+    }
+
+    // Direct Profile Hero Camera Badge & Avatar Click
+    const btnChangeAvatar = document.getElementById('btn-change-avatar');
+    const profileAvatar = document.getElementById('profile-avatar');
+    const profileFileInput = document.getElementById('profile-avatar-file-input');
+    if (profileFileInput) {
+      const triggerAvatarSelect = () => profileFileInput.click();
+      if (btnChangeAvatar) btnChangeAvatar.addEventListener('click', triggerAvatarSelect);
+      if (profileAvatar) profileAvatar.addEventListener('click', triggerAvatarSelect);
+
+      profileFileInput.addEventListener('change', async (e) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+        const dataUrl = await compressAvatarImage(file);
+        if (dataUrl && userData) {
+          userData.photoURL = dataUrl;
+          try { localStorage.setItem(`cached_photo_${userData.id}`, dataUrl); } catch(err) {}
+          updateAllUserAvatars(dataUrl, userData.fullName);
+          try {
+            await setDoc(doc(firestore, "user_profiles", userData.id), {
+              photoURL: dataUrl
+            }, { merge: true });
+            logUserAction('update profile photo', 'Updated profile picture', userData.id);
+            showToast('Profile picture updated successfully!');
+          } catch (err) {
+            console.error('Error saving profile photo:', err);
+            showToast('Failed to save profile picture.', 'error');
+          }
+        }
+        profileFileInput.value = '';
+      });
+    }
+
+    const searchInput = document.getElementById('edit-skills-search');
+    if (searchInput) {
+      searchInput.addEventListener('input', (e) => {
+        const q = e.target.value.toLowerCase();
+        document.querySelectorAll('#edit-skills-grid .skill-pill').forEach(pill => {
+          const text = pill.textContent.toLowerCase();
+          pill.style.display = text.includes(q) ? 'inline-flex' : 'none';
+        });
+      });
+    }
 
   const form = document.getElementById('edit-profile-form');
   if (form) {
-          form.addEventListener('submit', async (e) => {
-        e.preventDefault();
-        const bioEl = document.getElementById('edit-bio');
-        const bio = bioEl ? bioEl.value.trim() : '';
-        
-        const skills = Array.from(document.querySelectorAll('#edit-skills-grid input[type="checkbox"]:checked')).map(cb => cb.value);
-        
-        const btn = form.querySelector('button[type="submit"]');
-        if (btn) { btn.disabled = true; btn.textContent = 'Saving...'; }
-        
-        try {
-          if (userData) {
-            userData.bio = bio;
-            userData.skills = skills;
-            
-            await setDoc(doc(firestore, "user_profiles", userData.id), {
-              bio: bio,
-              skills: skills
-            }, { merge: true });
-          }
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const bioEl = document.getElementById('edit-bio');
+      const bio = bioEl ? bioEl.value.trim() : '';
+      
+      const skills = Array.from(document.querySelectorAll('#edit-skills-grid input[type="checkbox"]:checked')).map(cb => cb.value);
+      
+      const btn = form.querySelector('button[type="submit"]');
+      if (btn) { btn.disabled = true; btn.textContent = 'Saving...'; }
+      
+      try {
+        if (userData) {
+          userData.bio = bio;
+          userData.skills = skills;
           
-          const bioDisplay = document.getElementById('profile-bio-display');
-          if (bioDisplay) bioDisplay.textContent = bio || 'No bio provided yet.';
-          
-          const skillsDisplay = document.getElementById('profile-skills-display');
-          if (skillsDisplay) {
-            if (skills.length === 0) {
-              skillsDisplay.innerHTML = '<p class="text-muted text-sm">No skills added yet.</p>';
+          const updatePayload = {
+            bio: bio,
+            skills: skills
+          };
+
+          if (pendingAvatarDataUrl !== null) {
+            if (pendingAvatarDataUrl === '') {
+              userData.photoURL = '';
+              try { localStorage.removeItem(`cached_photo_${userData.id}`); } catch(err) {}
+              updateAllUserAvatars('', userData.fullName);
+              updatePayload.photoURL = '';
             } else {
-              skillsDisplay.innerHTML = skills.map(s => `<span class="skill-pill" style="display:inline-block; margin:2px; background:var(--accent-purple-light); color:var(--primary-purple); border:1px solid rgba(79, 70, 229, 0.2); font-weight:600; padding:4px 10px; border-radius:999px; font-size:12px;">${s}</span>`).join('');
+              userData.photoURL = pendingAvatarDataUrl;
+              try { localStorage.setItem(`cached_photo_${userData.id}`, pendingAvatarDataUrl); } catch(err) {}
+              updateAllUserAvatars(pendingAvatarDataUrl, userData.fullName);
+              updatePayload.photoURL = pendingAvatarDataUrl;
             }
           }
           
-          showToast('Profile successfully updated!');
-          const dialog = document.getElementById('dialog-edit-profile');
-          if (dialog) dialog.close();
-        } catch (err) {
-          console.error(err);
-          showToast('Failed to save profile.', 'error');
-        } finally {
-          if (btn) { btn.disabled = false; btn.textContent = 'Save Changes'; }
+          await setDoc(doc(firestore, "user_profiles", userData.id), updatePayload, { merge: true });
+          logUserAction('update profile', 'Updated profile details' + (pendingAvatarDataUrl !== null ? ' and profile picture' : ''), userData.id);
         }
-      });
+        
+        const bioDisplay = document.getElementById('profile-bio-display');
+        if (bioDisplay) bioDisplay.textContent = bio || 'No bio provided yet.';
+        
+        const skillsDisplay = document.getElementById('profile-skills-display');
+        if (skillsDisplay) {
+          if (skills.length === 0) {
+            skillsDisplay.innerHTML = '<p class="text-muted text-sm">No skills added yet.</p>';
+          } else {
+            skillsDisplay.innerHTML = skills.map(s => `<span class="skill-pill" style="display:inline-block; margin:2px; background:var(--accent-purple-light); color:var(--primary-purple); border:1px solid rgba(79, 70, 229, 0.2); font-weight:600; padding:4px 10px; border-radius:999px; font-size:12px;">${s}</span>`).join('');
+          }
+        }
+        
+        showToast('Profile successfully updated!');
+        const dialog = document.getElementById('dialog-edit-profile');
+        if (dialog) dialog.close();
+      } catch (err) {
+        console.error(err);
+        showToast('Failed to save profile.', 'error');
+      } finally {
+        if (btn) { btn.disabled = false; btn.textContent = 'Save Changes'; }
+      }
+    });
   }
 }
 

@@ -1,0 +1,161 @@
+/* Content redesign. Sidebar geometry, navigation, branding and header controls
+   intentionally remain owned by workspace.js and the existing stylesheet. */
+#app-views .main-content {
+  --primary-purple: #5543ed;
+  --primary-purple-hover: #4431d8;
+  --bg-card: #fff;
+  --border-card: #e0e3f1;
+  --border-light: #edf0f7;
+  --text-heading: #192036;
+  --text-body: #39445e;
+  --text-muted: #657086;
+  background: #f6f7fc;
+  min-height: calc(100dvh - 64px);
+}
+#app-views .workspace-header { background-color: #252a45; border-bottom-color: #ffffff12; }
+#app-views .main-content .page-title { font-size:clamp(1.65rem,2.4vw,2.15rem); letter-spacing:-.045em; line-height:1.2; }
+#app-views .main-content .page-header { margin-bottom:24px; }
+#app-views .main-content .page-header > p { margin-top:8px; max-width:680px; line-height:1.7; }
+#app-views .main-content .btn { border-radius:9px; font-weight:650; box-shadow:none; }
+#app-views .main-content .btn-purple { background:var(--primary-purple); }
+#app-views .main-content .btn-outline { background:white; border-color:#dce1ef; }
+#app-views .main-content :is(button,a,input,select,textarea):focus-visible { outline:3px solid #998af4; outline-offset:3px; }
+#app-views .main-content :is(.form-control,.marketplace-search-input) { color:var(--text-heading); }
+#app-views .main-content .form-control { border-color:#dce1ef; background:white; }
+#app-views .main-content .badge { border-radius:6px; padding:4px 8px; font-size:.72rem; }
+#app-views .main-content .badge-normal { background:#f0edff; color:#5846af; border:1px solid #e4defa; }
+#app-views .main-content .empty-state { border:1px dashed #d7dced; border-radius:14px; background:#fff; color:var(--text-muted); padding:48px 24px; }
+
+/* Analytics: compact context, substantial charts, consistent metric hierarchy. */
+#section-dashboard .dashboard-top-header { margin-bottom:20px; }
+#section-dashboard .db-board { gap:20px; }
+#section-dashboard .db-context { display:flex; justify-content:space-between; gap:16px; align-items:center; color:var(--text-muted); font-size:.8rem; padding-bottom:4px; }
+#section-dashboard .db-context strong { color:var(--text-heading); font-weight:600; }
+#section-dashboard .db-context time { white-space:nowrap; }
+#section-dashboard .db-toolbar { padding:0; }
+#section-dashboard .db-kpis { grid-template-columns:repeat(4,minmax(0,1fr)); gap:16px; }
+#section-dashboard .db-kpi { display:grid; grid-template-columns:minmax(0,1fr) 38px; position:relative; padding:22px; gap:10px; }
+#section-dashboard .db-kpi h3 { grid-row:1; grid-column:1; margin:0; font-size:.85rem; }
+#section-dashboard .db-icon { grid-column:2; grid-row:1 / 3; margin:0; width:38px; height:38px; border-radius:50%; }
+#section-dashboard .db-kpi > strong { grid-row:2; grid-column:1; font-size:clamp(1.6rem,2.3vw,2.25rem); line-height:1.2; color:#5543ed; }
+#section-dashboard .db-kpi:nth-child(2)>strong { color:#148c89; }
+#section-dashboard .db-kpi p { grid-column:1 / -1; font-size:.75rem; margin:0; }
+#section-dashboard :is(.db-panel,.db-kpi,.db-support article) { border-color:#e0e3f1; box-shadow:0 3px 12px #22283e03; border-radius:13px; }
+#section-dashboard .db-main-charts { grid-template-columns:minmax(0,1.8fr) minmax(290px,1fr); gap:20px; }
+#section-dashboard .db-panel { padding:24px; }
+#section-dashboard .db-line-chart { min-height:220px; }
+#section-dashboard .db-grid-line { stroke-dasharray:none; stroke:#edf0f7; }
+#section-dashboard .db-donut { width:168px; height:168px; }
+#section-dashboard .db-donut > div { width:124px; height:124px; }
+#section-dashboard .db-attention { border-radius:10px; padding:14px 18px; }
+#section-dashboard .db-attention.has-pending { background:#fff9ed; border-color:#f1dca9; }
+#section-dashboard .db-support article { border-top:3px solid #e6e0ff; padding:20px; }
+#section-dashboard .db-support strong { font-size:1.65rem; }
+#section-dashboard .db-bottom { gap:20px; }
+#section-dashboard .db-money-row > div { height:12px; }
+
+/* Offers and requests keep their existing filters, actions and data. */
+#section-services .services-header-wrapper { padding:0 0 22px; border-bottom:1px solid var(--border-card); margin-bottom:24px; }
+#section-services .services-header-info p { max-width:620px; line-height:1.75; margin-top:10px; }
+#section-services .marketplace-tabs-container { margin-top:24px; border-radius:11px; padding:5px; background:#eceefa; box-shadow:none; border:1px solid #e1e4f2; }
+#section-services .marketplace-tab-btn { border-radius:8px; padding:10px 18px; }
+#section-services .marketplace-tab-btn.active { box-shadow:0 2px 4px #5543ed12; }
+#app-views .main-content .marketplace-search-combined-bar { background:white; border:1px solid #dce1ef; border-radius:12px; box-shadow:0 3px 12px #22283e03; min-height:56px; }
+#app-views .main-content .marketplace-filter-drawer { background:white; border:1px solid var(--border-card); border-radius:12px; margin-top:10px; box-shadow:none; }
+#app-views .main-content .marketplace-search-input { font-size:.9rem; }
+#section-services .requests-grid { grid-template-columns:repeat(auto-fill,minmax(min(100%,300px),1fr)); gap:22px; align-items:stretch; }
+#section-services .request-card { padding:22px; border-radius:14px; border:1px solid #dfe3f0; box-shadow:0 3px 12px #22283e04; gap:14px; overflow:hidden; }
+#section-services .request-card:hover { border-color:#b8adeb; box-shadow:0 9px 22px #34315a0c; }
+#section-services .request-card-cover { height:180px; margin:-22px -22px 5px; border-radius:0; }
+#section-services .request-card-img { height:100%; width:100%; object-fit:cover; }
+#section-services .request-card-header { padding-bottom:14px; border-bottom:1px solid #edf0f7; gap:10px; }
+#section-services .request-card-title { font-size:1.13rem; line-height:1.45; letter-spacing:-.025em; }
+#section-services .request-card-desc { color:#657086; font-size:.84rem; line-height:1.75; }
+#section-services .request-card-meta { gap:8px; }
+#section-services .request-card-footer { border-top:1px solid #edf0f7; padding-top:16px; gap:14px; align-items:flex-start; flex-wrap:wrap; }
+#section-services .request-card-price { color:#5543ed; font-size:1.35rem; font-weight:750; }
+#section-services .request-card-price-row { flex-direction:column; align-items:flex-start; gap:3px; }
+#section-services .request-card-btn-group { flex-wrap:wrap; gap:6px; }
+#section-services .request-card .listing-availability { color:#157f72!important; background:#e9f7f2; padding:4px 7px; border-radius:5px; font-size:.72rem; }
+#section-services .request-card[data-listing-kind="request"] { border-top:3px solid #23a6a0; }
+#section-services .marketplace-empty-card { border:1px dashed #d7dced; border-radius:14px; background:white; padding:48px 24px; }
+
+/* Mentoring, application tracking and financial records. */
+#section-mentoring .page-header { padding:24px 28px; border:1px solid #dddff2; border-left:4px solid #23a6a0; border-radius:12px; background:linear-gradient(110deg,#f0edff,#f3fbf9); }
+#app-views .main-content :is(.mentor-card,.job-card,.application-card,.trans-stat-card,.dash-card,.credentials-card) { border-color:#e0e3f1; border-radius:13px; box-shadow:0 3px 12px #22283e04; background:white; }
+#section-mentoring :is(.mentor-card,.job-card) { padding:24px; }
+#section-applications .job-card { border-left:3px solid #c2b8f3; padding:24px; }
+#section-applications .application-card { background:#fafbff; border-color:#e8eaf4; }
+#app-views .main-content .tabs { border-bottom:1px solid #dfe3ef; gap:8px; margin-bottom:24px; }
+#app-views .main-content .tab-btn { padding:12px 16px; font-weight:650; color:#657086; }
+#app-views .main-content .tab-btn.active { color:#5543ed; border-bottom-color:#5543ed; background:#f0edff; border-radius:8px 8px 0 0; }
+#section-transactions .transaction-stats-grid { gap:18px; }
+#section-transactions .trans-stat-card { padding:24px; border-top:3px solid #c8bff5; }
+#section-transactions .trans-stat-card:nth-child(3) { border-top-color:#23a6a0; }
+#section-transactions .stat-card-label { color:#657086; font-size:.82rem; font-weight:650; }
+#section-transactions .stat-card-number { font-variant-numeric:tabular-nums; letter-spacing:-.035em; }
+#app-views .main-content .transactions-table-wrapper { border:1px solid #e0e3f1; border-radius:13px; background:white; box-shadow:none; }
+#app-views .main-content table th { background:#f3f4fb; color:#657086; font-size:.72rem; letter-spacing:.07em; padding:16px 20px; }
+#app-views .main-content table td { padding:18px 20px; border-bottom-color:#edf0f7; }
+#app-views .main-content table tbody tr:hover { background:#faf9ff; }
+
+/* Conversation geometry is retained, including compact message bubbles. */
+#section-messages .messages-layout { border-color:#dfe3f0; border-radius:14px; box-shadow:0 4px 18px #22283e06; }
+#section-messages .conversations-sidebar { background:#f9faff; border-color:#e4e7f2; }
+#section-messages :is(.conv-header,.chat-header,.chat-input-row) { background:white; border-color:#e4e7f2; }
+#section-messages .chat-messages { background:#fcfcff; }
+#section-messages .conversation-item.active { background:#ece8ff; border-left-color:#5543ed; }
+#section-profile .profile-hero { background:linear-gradient(115deg,#eeebff 0%,#f7fafc 80%); border:1px solid #dce0f0; border-top:4px solid #5543ed; border-radius:15px; padding:28px; box-shadow:none; }
+#section-profile .profile-user-name { color:#192036; letter-spacing:-.035em; }
+#section-profile .credentials-card { padding:26px; }
+#section-profile .profile-block-heading { font-size:1.05rem; letter-spacing:-.02em; color:#192036; }
+#section-profile .edit-profile-pill-btn { border-radius:9px; background:white; border:1px solid #d8dced; color:#5543ed; }
+#section-logs :is(.dash-card,.job-card) { border:1px solid #e0e3f1; }
+
+/* Carry the approved landing concept through without replacing its branding. */
+#section-landing .hero { background-image:none; background-color:#f8f9ff; }
+#section-landing .hero::before { opacity:.35; }
+#section-landing .hero h1 { font-size:clamp(44px,4.6vw,67px); line-height:1.06; }
+#section-landing .hero h1 em::after { display:none; }
+#section-landing .photo-frame { transform:none; border:0; border-radius:16px; box-shadow:none; }
+#section-landing .service { border-radius:13px; border-color:#dfe3f1; }
+#section-landing .service:nth-child(2) { border-top:3px solid #23a6a0; }
+#section-landing .service:nth-child(1),#section-landing .service:nth-child(3) { border-top:3px solid #8475ed; }
+#section-landing .mission { background:#eeecfa; }
+
+@media(max-width:1100px) {
+  #section-dashboard .db-main-charts { grid-template-columns:minmax(0,1.5fr) minmax(250px,1fr); }
+  #section-dashboard .db-kpi { padding:17px; }
+  #section-dashboard .db-panel { padding:20px; }
+}
+@media(max-width:850px) {
+  #section-dashboard .db-kpis { grid-template-columns:repeat(2,minmax(0,1fr)); }
+  #section-dashboard :is(.db-main-charts,.db-bottom) { grid-template-columns:1fr; }
+  #section-dashboard .db-support { grid-template-columns:repeat(2,minmax(0,1fr)); }
+}
+@media(max-width:560px) {
+  #section-dashboard .db-context { align-items:flex-start; flex-direction:column; gap:4px; }
+  #section-dashboard .db-kpi { padding:16px; grid-template-columns:minmax(0,1fr) 26px; gap:9px; }
+  #section-dashboard .db-icon { width:26px; height:26px; font-size:.9rem; }
+  #section-dashboard .db-kpi > strong { font-size:1.5rem; }
+  #section-dashboard .db-kpi h3 { font-size:.77rem; }
+  #section-dashboard .db-panel { padding:18px 14px; }
+  #section-dashboard .db-panel-head { flex-wrap:wrap; }
+  #section-dashboard .db-line-chart { min-height:0; }
+  #section-dashboard .db-attention { flex-wrap:wrap; }
+  #section-dashboard .db-attention a { margin-left:0; }
+  #section-dashboard .db-segment button { padding:8px 10px; font-size:.77rem; }
+  #section-services .marketplace-tabs-container { display:flex; }
+  #section-services .marketplace-tab-btn { flex:1; justify-content:center; padding:10px 8px; font-size:.8rem; }
+  #section-services .requests-grid { grid-template-columns:minmax(0,1fr); }
+  #section-services .services-header-actions { width:100%; }
+  #section-services .services-header-actions .btn { width:100%; justify-content:center; }
+  #section-mentoring .page-header { padding:20px; }
+  #section-profile :is(.profile-hero,.credentials-card) { padding:20px; }
+  #section-profile .profile-hero-info { min-width:0!important; flex-basis:100%!important; }
+  #section-applications .job-card { padding:18px; }
+  #app-views .main-content .tab-btn { padding:10px 12px; white-space:nowrap; }
+}
+/* Keep currency amounts intact on compact desktop cards. */
+#section-dashboard .db-kpi > strong { grid-column:1 / -1; white-space:nowrap; }
+#section-dashboard .db-icon { grid-row:1; }

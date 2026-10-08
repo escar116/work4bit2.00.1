@@ -992,7 +992,16 @@
 
                     <!-- Hero Profile Card -->
                     <div class="profile-hero" style="display: flex; flex-wrap: wrap; gap: 2rem; position: relative; align-items: center;">
-                        <div class="profile-avatar-circle" id="profile-avatar" style="flex-shrink: 0;">JD</div>
+                        <div class="profile-avatar-wrapper" style="position: relative; flex-shrink: 0; width: 84px; height: 84px;">
+                            <div class="profile-avatar-circle" id="profile-avatar" title="Click to change profile picture">JD</div>
+                            <button type="button" id="btn-change-avatar" class="avatar-camera-badge" title="Change Profile Picture" aria-label="Change Profile Picture">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path>
+                                    <circle cx="12" cy="13" r="4"></circle>
+                                </svg>
+                            </button>
+                            <input type="file" id="profile-avatar-file-input" accept="image/jpeg,image/png,image/webp,image/gif" class="hidden">
+                        </div>
                         <div class="profile-hero-info" style="flex: 1; min-width: 250px;">
                             <div class="flex items-center gap-3 flex-wrap mb-1">
                                 <h2 class="profile-user-name" id="profile-name" style="margin: 0;">Juan Dela Cruz</h2>
@@ -1004,9 +1013,12 @@
                             <p class="text-xs text-muted mt-2">Faculty Reference: <strong id="profile-faculty">Not provided</strong></p>
                         </div>
                         <button type="button" id="btn-edit-profile" class="edit-profile-pill-btn" style="align-self: flex-start;">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-edit-2">
-                                <path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"></path>
-                            </svg> Edit Profile
+                            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+                                <circle cx="8.5" cy="7" r="4"></circle>
+                                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+                            </svg>
+                            Edit Profile
                         </button>
                     </div>
 
@@ -1645,6 +1657,34 @@
                 <button type="button" class="dialog-close-btn">✕</button>
             </div>
             <form id="edit-profile-form">
+                <!-- Profile Picture Upload Section -->
+                <div class="edit-profile-avatar-row mb-5" style="display: flex; align-items: center; gap: 1.25rem; padding-bottom: 1.25rem; border-bottom: 1px solid var(--border-light);">
+                    <div class="edit-avatar-preview-wrapper" style="position: relative; width: 72px; height: 72px; flex-shrink: 0;">
+                        <div id="edit-avatar-preview" class="profile-avatar-circle" style="width: 72px; height: 72px; font-size: 1.5rem; overflow: hidden; margin: 0;">CJ</div>
+                    </div>
+                    <div style="flex: 1; min-width: 0;">
+                        <label class="form-label mb-1" style="font-weight: 700; margin-bottom: 2px;">Profile Picture</label>
+                        <p class="text-muted text-xs mb-3">Upload a custom profile photo (JPEG, PNG, or WebP).</p>
+                        <div class="flex items-center gap-2 flex-wrap">
+                            <button type="button" id="btn-upload-profile-photo" class="btn btn-outline btn-sm" style="display: inline-flex; align-items: center; gap: 0.35rem; font-size: 0.8rem; padding: 0.35rem 0.75rem;">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path>
+                                    <circle cx="12" cy="13" r="4"></circle>
+                                </svg>
+                                Change Picture
+                            </button>
+                            <button type="button" id="btn-remove-profile-photo" class="btn btn-outline btn-sm text-red" style="border-color: rgba(239, 68, 68, 0.35); display: inline-flex; align-items: center; gap: 0.35rem; font-size: 0.8rem; padding: 0.35rem 0.75rem;">
+                                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <polyline points="3 6 5 6 21 6"></polyline>
+                                    <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                                </svg>
+                                Remove
+                            </button>
+                            <input type="file" id="edit-avatar-file-input" accept="image/jpeg,image/png,image/webp,image/gif" class="hidden">
+                        </div>
+                    </div>
+                </div>
+
                 <div class="form-group">
                     <label class="form-label" for="edit-bio">About Me</label>
                     <textarea id="edit-bio" class="form-control" rows="3"

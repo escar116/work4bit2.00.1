@@ -4822,6 +4822,18 @@ dialog#dialog-certificate.modal {
     font-weight: 700;
     font-size: 0.85rem;
     border: 2px solid rgba(255, 255, 255, 0.2);
+    overflow: hidden;
+    padding: 0;
+}
+
+#workspace-avatar {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    overflow: hidden;
 }
 
 .account-toggle:hover {
@@ -6426,4 +6438,82 @@ dialog.workspace-guide::backdrop {
     overflow-wrap: break-word;
     min-width: 250px;
 }
+
+/* ==========================================================================
+   Profile Avatar Editing & Camera Overlay Styling
+   ========================================================================== */
+.profile-avatar-wrapper {
+    position: relative;
+    width: 84px;
+    height: 84px;
+    flex-shrink: 0;
+}
+
+.profile-avatar-wrapper .profile-avatar-circle {
+    width: 84px;
+    height: 84px;
+    cursor: pointer;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    overflow: hidden;
+    position: relative;
+}
+
+.profile-avatar-wrapper:hover .profile-avatar-circle {
+    box-shadow: 0 0 0 3px rgba(124, 108, 248, 0.45);
+}
+
+.avatar-camera-badge {
+    position: absolute;
+    bottom: -2px;
+    right: -2px;
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    background: var(--primary-purple, #7c6cf8);
+    color: #ffffff;
+    border: 2.5px solid #ffffff;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: transform 0.2s ease, background 0.2s ease;
+    z-index: 3;
+    padding: 0;
+}
+
+.avatar-camera-badge:hover {
+    transform: scale(1.15);
+    background: #6366f1;
+}
+
+.profile-avatar-img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    border-radius: 50%;
+    display: block;
+}
+
+.sidebar-avatar-img,
+.header-avatar-img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    border-radius: 50%;
+    display: block;
+}
+
+.edit-profile-avatar-row {
+    background: rgba(255, 255, 255, 0.03);
+    border-radius: 12px;
+    padding: 0.75rem 1rem;
+    border: 1px solid var(--border-light);
+}
+
+.edit-avatar-preview-wrapper {
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    border-radius: 50%;
+}
+
 
