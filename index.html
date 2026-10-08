@@ -1177,6 +1177,7 @@
                     <div id="admin-analytics-section" class="admin-analytics-section"></div>
 
                     <!-- Admin Management Tabs -->
+                    <!-- Admin Management Tabs -->
                     <div class="tabs mt-6">
                         <button type="button" class="tab-btn active admin-tab-btn" data-admintab="pending">Pending
                             Verifications (<span id="admin-pending-tab-badge">0</span>)</button>
@@ -1184,6 +1185,10 @@
                             Students</button>
                         <button type="button" class="tab-btn admin-tab-btn" data-admintab="applications">All
                             Applications & Bids</button>
+                        <button type="button" class="tab-btn admin-tab-btn" data-admintab="audit-logs">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right: 5px; vertical-align: -2px;"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+                            Activity & Audit Logs (<span id="admin-logs-tab-badge">0</span>)
+                        </button>
                     </div>
 
                     <!-- Search Filter for Admin -->
@@ -1240,6 +1245,125 @@
                                     </tr>
                                 </thead>
                                 <tbody id="admin-all-apps-tbody">
+                                    <tr>
+                                        <td colspan="6" class="text-center">
+                                            <div class="loader"></div>
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- Tab 4: Platform Activity & System Audit Logs -->
+                    <div id="admin-tab-audit-logs" class="admin-tab-content hidden">
+                        <div class="dash-card mb-4" style="padding: 1.25rem;">
+                            <!-- Top Metrics Row -->
+                            <div class="audit-quick-stats-row mb-4" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 0.75rem;">
+                                <div class="audit-mini-stat" style="background: rgba(255, 255, 255, 0.03); border: 1px solid var(--border-light); border-radius: 10px; padding: 0.75rem 1rem;">
+                                    <div class="text-xs text-muted" style="font-weight: 700; text-transform: uppercase;">Total Actions</div>
+                                    <div id="admin-audit-stat-total" style="font-size: 1.35rem; font-weight: 800; color: var(--primary-purple); margin-top: 2px;">0</div>
+                                </div>
+                                <div class="audit-mini-stat" style="background: rgba(255, 255, 255, 0.03); border: 1px solid var(--border-light); border-radius: 10px; padding: 0.75rem 1rem;">
+                                    <div class="text-xs text-muted" style="font-weight: 700; text-transform: uppercase;">Users Logged</div>
+                                    <div id="admin-audit-stat-users" style="font-size: 1.35rem; font-weight: 800; color: #38bdf8; margin-top: 2px;">0</div>
+                                </div>
+                                <div class="audit-mini-stat" style="background: rgba(255, 255, 255, 0.03); border: 1px solid var(--border-light); border-radius: 10px; padding: 0.75rem 1rem;">
+                                    <div class="text-xs text-muted" style="font-weight: 700; text-transform: uppercase;">Listings & Bids</div>
+                                    <div id="admin-audit-stat-market" style="font-size: 1.35rem; font-weight: 800; color: #10b981; margin-top: 2px;">0</div>
+                                </div>
+                                <div class="audit-mini-stat" style="background: rgba(255, 255, 255, 0.03); border: 1px solid var(--border-light); border-radius: 10px; padding: 0.75rem 1rem;">
+                                    <div class="text-xs text-muted" style="font-weight: 700; text-transform: uppercase;">Auth & Sessions</div>
+                                    <div id="admin-audit-stat-auth" style="font-size: 1.35rem; font-weight: 800; color: #f59e0b; margin-top: 2px;">0</div>
+                                </div>
+                            </div>
+
+                            <!-- Filter Toolbar -->
+                            <div style="display: flex; flex-wrap: wrap; gap: 0.85rem; justify-content: space-between; align-items: center;">
+                                <div style="display: flex; flex-wrap: wrap; gap: 0.65rem; align-items: center; flex: 1; min-width: 280px;">
+                                    <!-- Action Type Filter -->
+                                    <div style="display: flex; align-items: center; gap: 0.4rem;">
+                                        <span class="text-xs text-muted" style="font-weight: 700; text-transform: uppercase;">Action:</span>
+                                        <select id="admin-audit-action-filter" class="form-control" style="width: auto; padding: 0.35rem 0.75rem; font-size: 0.82rem; border-radius: 8px;">
+                                            <option value="all" selected>All Action Types</option>
+                                            <option value="post">Post (Offers & Requests)</option>
+                                            <option value="apply">Apply / Order</option>
+                                            <option value="get accepted">Approve / Get Accepted</option>
+                                            <option value="complete transaction">Complete Transaction</option>
+                                            <option value="terminate">Terminate Job</option>
+                                            <option value="rate">Rate & Review</option>
+                                            <option value="message">Messages</option>
+                                            <option value="log in">Log In</option>
+                                            <option value="log out">Log Out</option>
+                                            <option value="delete">Delete / Withdraw</option>
+                                        </select>
+                                    </div>
+
+                                    <!-- User Filter -->
+                                    <div style="display: flex; align-items: center; gap: 0.4rem;">
+                                        <span class="text-xs text-muted" style="font-weight: 700; text-transform: uppercase;">User:</span>
+                                        <select id="admin-audit-user-filter" class="form-control" style="width: auto; max-width: 200px; padding: 0.35rem 0.75rem; font-size: 0.82rem; border-radius: 8px;">
+                                            <option value="all" selected>All Users</option>
+                                        </select>
+                                    </div>
+
+                                    <!-- Time Period Filter -->
+                                    <div style="display: flex; align-items: center; gap: 0.4rem;">
+                                        <span class="text-xs text-muted" style="font-weight: 700; text-transform: uppercase;">Time:</span>
+                                        <select id="admin-audit-time-filter" class="form-control" style="width: auto; padding: 0.35rem 0.75rem; font-size: 0.82rem; border-radius: 8px;">
+                                            <option value="all" selected>All Time</option>
+                                            <option value="today">Today</option>
+                                            <option value="yesterday">Yesterday</option>
+                                            <option value="week">Past 7 Days</option>
+                                            <option value="month">This Month</option>
+                                        </select>
+                                    </div>
+                                </div>
+
+                                <!-- Action Buttons: Export & Tools -->
+                                <div style="display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap;">
+                                    <button type="button" id="admin-btn-export-audit-csv" class="btn btn-outline btn-sm" title="Export as CSV spreadsheet" style="display: flex; align-items: center; gap: 0.35rem; font-size: 0.8rem;">
+                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+                                        CSV
+                                    </button>
+                                    <button type="button" id="admin-btn-export-audit-json" class="btn btn-outline btn-sm" title="Export as JSON" style="display: flex; align-items: center; gap: 0.35rem; font-size: 0.8rem;">
+                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline></svg>
+                                        JSON
+                                    </button>
+                                    <button type="button" id="admin-btn-refresh-audit" class="btn btn-outline btn-sm" title="Refresh logs from database" style="display: flex; align-items: center; gap: 0.35rem; font-size: 0.8rem;">
+                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"></polyline><polyline points="1 20 1 14 7 14"></polyline><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path></svg>
+                                        Refresh
+                                    </button>
+                                    <button type="button" id="admin-btn-clear-audit" class="btn btn-outline btn-sm text-red" title="Clear all audit logs" style="border-color: rgba(239, 68, 68, 0.4); font-size: 0.8rem;">
+                                        Clear
+                                    </button>
+                                </div>
+                            </div>
+
+                            <!-- Real-time Live Status Bar -->
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 1rem; padding-top: 0.75rem; border-top: 1px solid var(--border-light); font-size: 0.8rem; color: var(--text-muted);">
+                                <div style="display: flex; align-items: center; gap: 0.5rem;">
+                                    <span class="active-pulse-dot" style="background: #10b981; width: 7px; height: 7px; margin: 0;"></span>
+                                    <span>Real-time platform action tracking active</span>
+                                </div>
+                                <div id="admin-audit-log-stats-text">Showing 0 user activity records</div>
+                            </div>
+                        </div>
+
+                        <!-- Data Table Container -->
+                        <div class="transactions-table-wrapper dash-card">
+                            <table class="data-table" id="admin-audit-logs-table">
+                                <thead>
+                                    <tr>
+                                        <th style="min-width: 155px;">Date & Time</th>
+                                        <th style="min-width: 190px;">User / Performed By</th>
+                                        <th style="min-width: 130px;">Action Type</th>
+                                        <th style="min-width: 250px;">Action Details</th>
+                                        <th style="min-width: 120px;">Module / Scope</th>
+                                        <th style="min-width: 130px;">Client Device</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="admin-audit-logs-tbody">
                                     <tr>
                                         <td colspan="6" class="text-center">
                                             <div class="loader"></div>

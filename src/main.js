@@ -27,9 +27,18 @@ import {
   getUserLogs,
   clearUserLogs,
   exportLogsAsJson,
-  seedInitialLogsIfEmpty
+  seedInitialLogsIfEmpty,
+  getGlobalAuditLogs,
+  saveGlobalAuditLogs,
+  clearGlobalAuditLogs,
+  exportAuditLogsAsCsv,
+  exportAuditLogsAsJson,
+  seedHistoricalAuditLogsIfEmpty,
+  formatFullDateTime,
+  formatRelativeTime,
+  getActionModule
 } from './activity-logger.js';
-import { renderLogsSection } from './logs-view.js';
+import { renderLogsSection, getActionIcon } from './logs-view.js';
 import { renderAdminStatisticalCharts } from './admin-charts.js';
 
 // -- Firebase Config  ------------------------------------------------------------
@@ -1063,6 +1072,7 @@ onAuthStateChanged(auth, async (user) => {
       const res = await getUser(dc, { id: user.uid }, SERVER_ONLY);
       if (res.data.user) {
         userData = { id: user.uid, ...res.data.user };
+        window.__currentUserData = userData;
         recordUserPresence(user.uid);
         if (userData.verificationStatus === 'pending') {
           showAuth('pending');
@@ -1071,11 +1081,13 @@ onAuthStateChanged(auth, async (user) => {
         }
       } else {
         userData = null;
+        window.__currentUserData = null;
         showAuth('register');
       }
     } catch (err) {
       console.error('Data Connect user fetch error:', err);
       userData = null;
+      window.__currentUserData = null;
       showAuth('register');
     }
   } else {
@@ -1086,6 +1098,7 @@ onAuthStateChanged(auth, async (user) => {
     currentUser = null;
     userData = null;
     window.__currentUser = null;
+    window.__currentUserData = null;
     clearUserSessionDOM();
     showAuth('landing');
   }
@@ -5350,6 +5363,10 @@ function updateAdminDashboardMetrics() {
       periodLabel
     });
   }
+
+  const allAuditLogs = getGlobalAuditLogs();
+  const logsBadge = $('#admin-logs-tab-badge');
+  if (logsBadge) logsBadge.textContent = allAuditLogs.length;
 }
 
 async function loadAdmin() {
@@ -5405,6 +5422,14 @@ async function loadAdmin() {
 
     adminPendingData = adminUsersData.filter(u => u.verificationStatus === 'pending');
 
+    window.__usersMap = new Map();
+    adminUsersData.forEach(u => {
+      if (u.id) window.__usersMap.set(u.id, u);
+      if (u.email) window.__usersMap.set(u.email.toLowerCase(), u);
+    });
+
+    seedHistoricalAuditLogsIfEmpty(adminUsersData, adminRequestsData, adminAppsData);
+
     await recordUserPresence(currentUser?.uid || userData?.id);
     const onlineData = await getOnlineUserIds();
     currentOnlineUserIds = onlineData.ids;
@@ -5425,6 +5450,7 @@ function renderCurrentAdminTab() {
   if (adminActiveTab === 'pending') renderAdminPending();
   else if (adminActiveTab === 'users') renderAdminUsers();
   else if (adminActiveTab === 'applications') renderAdminApplications();
+  else if (adminActiveTab === 'audit-logs') renderAdminAuditLogs();
 }
 
 function renderAdminPending() {
@@ -5710,12 +5736,292 @@ function openApplicantDetails(user) {
     ` : '<p class="text-muted text-sm mt-3">No certificate document uploaded.</p>'}
   `;
 
-  content.querySelector('.cert-open-preview')?.addEventListener('click', () => {
+  body.querySelector('.cert-open-preview')?.addEventListener('click', () => {
     $('#cert-preview-img').src = user.certificateUrl;
     $('#dialog-certificate').showModal();
   });
 
   $('#dialog-applicant-details')?.showModal();
+}
+
+// -- Admin Platform Activity & Audit Logs -----------------------------------
+let adminAuditActionFilter = 'all';
+let adminAuditUserFilter = 'all';
+let adminAuditTimeFilter = 'all';
+let isAuditEventsWired = false;
+
+function getFilteredAuditLogs() {
+  let logs = getGlobalAuditLogs();
+  if (logs.length === 0) {
+    logs = seedHistoricalAuditLogsIfEmpty(adminUsersData, adminRequestsData, adminAppsData);
+  }
+
+  // 1. Search Query Filter
+  if (adminSearchQuery) {
+    const q = adminSearchQuery.toLowerCase();
+    logs = logs.filter(l =>
+      (l.userName || '').toLowerCase().includes(q) ||
+      (l.userEmail || '').toLowerCase().includes(q) ||
+      (l.studentId || '').toLowerCase().includes(q) ||
+      (l.action || '').toLowerCase().includes(q) ||
+      (l.details || '').toLowerCase().includes(q) ||
+      (l.module || '').toLowerCase().includes(q)
+    );
+  }
+
+  // 2. Action Type Filter
+  if (adminAuditActionFilter && adminAuditActionFilter !== 'all') {
+    logs = logs.filter(l => (l.action || '').toLowerCase() === adminAuditActionFilter.toLowerCase());
+  }
+
+  // 3. User Filter
+  if (adminAuditUserFilter && adminAuditUserFilter !== 'all') {
+    const targetUser = adminAuditUserFilter.toLowerCase();
+    logs = logs.filter(l =>
+      (l.userId && l.userId.toLowerCase() === targetUser) ||
+      (l.userEmail && l.userEmail.toLowerCase() === targetUser)
+    );
+  }
+
+  // 4. Time Period Filter
+  if (adminAuditTimeFilter && adminAuditTimeFilter !== 'all') {
+    const now = new Date();
+    const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+    const startOfYesterday = startOfToday - 86400000;
+    const startOfWeek = Date.now() - 7 * 86400000;
+    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).getTime();
+
+    if (adminAuditTimeFilter === 'today') {
+      logs = logs.filter(l => (l.timestamp || 0) >= startOfToday);
+    } else if (adminAuditTimeFilter === 'yesterday') {
+      logs = logs.filter(l => (l.timestamp || 0) >= startOfYesterday && (l.timestamp || 0) < startOfToday);
+    } else if (adminAuditTimeFilter === 'week') {
+      logs = logs.filter(l => (l.timestamp || 0) >= startOfWeek);
+    } else if (adminAuditTimeFilter === 'month') {
+      logs = logs.filter(l => (l.timestamp || 0) >= startOfMonth);
+    }
+  }
+
+  return logs;
+}
+
+function populateAdminAuditUserFilter(logs) {
+  const sel = $('#admin-audit-user-filter');
+  if (!sel) return;
+
+  const currentVal = sel.value;
+  const userMap = new Map();
+
+  // Populate from known platform registered users
+  adminUsersData.forEach(u => {
+    const key = u.email ? u.email.toLowerCase() : u.id;
+    if (key) {
+      userMap.set(key, { name: u.fullName || u.email, email: u.email });
+    }
+  });
+
+  // Populate from logs entries
+  logs.forEach(l => {
+    const key = l.userEmail ? l.userEmail.toLowerCase() : l.userId;
+    if (key && !userMap.has(key)) {
+      userMap.set(key, { name: l.userName || key, email: l.userEmail });
+    }
+  });
+
+  sel.innerHTML = '<option value="all">All Users</option>';
+  userMap.forEach((info, key) => {
+    const opt = document.createElement('option');
+    opt.value = key;
+    opt.textContent = `${info.name} (${info.email || 'N/A'})`;
+    sel.appendChild(opt);
+  });
+
+  if (currentVal && sel.querySelector(`option[value="${currentVal}"]`)) {
+    sel.value = currentVal;
+  }
+}
+
+function setupAdminAuditControls() {
+  if (isAuditEventsWired) return;
+  isAuditEventsWired = true;
+
+  $('#admin-audit-action-filter')?.addEventListener('change', (e) => {
+    adminAuditActionFilter = e.target.value;
+    renderAdminAuditLogs();
+  });
+
+  $('#admin-audit-user-filter')?.addEventListener('change', (e) => {
+    adminAuditUserFilter = e.target.value;
+    renderAdminAuditLogs();
+  });
+
+  $('#admin-audit-time-filter')?.addEventListener('change', (e) => {
+    adminAuditTimeFilter = e.target.value;
+    renderAdminAuditLogs();
+  });
+
+  $('#admin-btn-export-audit-csv')?.addEventListener('click', (e) => {
+    e.preventDefault();
+    const logs = getFilteredAuditLogs();
+    exportAuditLogsAsCsv(logs);
+    showToast(`Exported ${logs.length} audit logs as CSV spreadsheet.`);
+  });
+
+  $('#admin-btn-export-audit-json')?.addEventListener('click', (e) => {
+    e.preventDefault();
+    const logs = getFilteredAuditLogs();
+    exportAuditLogsAsJson(logs);
+    showToast(`Exported ${logs.length} audit logs as JSON.`);
+  });
+
+  $('#admin-btn-refresh-audit')?.addEventListener('click', (e) => {
+    e.preventDefault();
+    renderAdminAuditLogs();
+    showToast('Platform audit logs refreshed.');
+  });
+
+  $('#admin-btn-clear-audit')?.addEventListener('click', (e) => {
+    e.preventDefault();
+    if (confirm('Are you sure you want to clear platform audit logs?')) {
+      clearGlobalAuditLogs();
+      renderAdminAuditLogs();
+      showToast('Platform audit logs cleared.');
+    }
+  });
+
+  // Real-time listener for newly logged actions
+  window.addEventListener('w4a:global_action_logged', () => {
+    if (adminActiveTab === 'audit-logs') {
+      renderAdminAuditLogs();
+    }
+    const allLogs = getGlobalAuditLogs();
+    if ($('#admin-logs-tab-badge')) {
+      $('#admin-logs-tab-badge').textContent = allLogs.length;
+    }
+  });
+}
+
+function renderAdminAuditLogs() {
+  const tbody = $('#admin-audit-logs-tbody');
+  if (!tbody) return;
+
+  setupAdminAuditControls();
+
+  const allLogs = getGlobalAuditLogs();
+  if (allLogs.length === 0) {
+    seedHistoricalAuditLogsIfEmpty(adminUsersData, adminRequestsData, adminAppsData);
+  }
+
+  // Ensure user dropdown is populated with known users
+  populateAdminAuditUserFilter(getGlobalAuditLogs());
+
+  const filtered = getFilteredAuditLogs();
+
+  // Update Summary Metrics
+  const totalCount = filtered.length;
+  const distinctUsers = new Set(filtered.map(l => l.userEmail || l.userId)).size;
+  const marketCount = filtered.filter(l => ['post', 'apply', 'get accepted', 'complete transaction'].includes((l.action || '').toLowerCase())).length;
+  const authCount = filtered.filter(l => ['log in', 'log out'].includes((l.action || '').toLowerCase())).length;
+
+  if ($('#admin-audit-stat-total')) $('#admin-audit-stat-total').textContent = totalCount;
+  if ($('#admin-audit-stat-users')) $('#admin-audit-stat-users').textContent = distinctUsers;
+  if ($('#admin-audit-stat-market')) $('#admin-audit-stat-market').textContent = marketCount;
+  if ($('#admin-audit-stat-auth')) $('#admin-audit-stat-auth').textContent = authCount;
+  if ($('#admin-audit-log-stats-text')) {
+    $('#admin-audit-log-stats-text').textContent = `Showing ${totalCount} of ${getGlobalAuditLogs().length} platform action records`;
+  }
+  if ($('#admin-logs-tab-badge')) {
+    $('#admin-logs-tab-badge').textContent = getGlobalAuditLogs().length;
+  }
+
+  tbody.innerHTML = '';
+  if (filtered.length === 0) {
+    tbody.innerHTML = `
+      <tr>
+        <td colspan="6" class="text-center text-muted" style="padding: 2.5rem;">
+          <div style="font-size: 1.05rem; font-weight: 600; margin-bottom: 0.35rem;">No matching activity logs found</div>
+          <div style="font-size: 0.85rem;">Try adjusting your search criteria, action filter, or time range.</div>
+        </td>
+      </tr>
+    `;
+    return;
+  }
+
+  filtered.forEach(item => {
+    const tr = document.createElement('tr');
+    const actionKey = (item.action || 'general').replace(/\s+/g, '-');
+    const isOnline = (item.userEmail && currentOnlineEmails.has(item.userEmail.toLowerCase())) ||
+      (currentOnlineUserIds.has(item.userId));
+
+    tr.innerHTML = `
+      <td>
+        <div class="audit-timestamp-cell">
+          <span class="audit-timestamp-primary" title="${new Date(item.timestamp).toISOString()}">
+            ${formatFullDateTime(item.timestamp)}
+          </span>
+          <span class="audit-timestamp-relative">
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+            ${formatRelativeTime(item.timestamp)}
+          </span>
+        </div>
+      </td>
+      <td>
+        <div class="audit-user-cell">
+          <div class="avatar avatar-sm">${initials(item.userName || 'Student')}</div>
+          <div class="audit-user-info">
+            <div class="audit-user-name user-link" title="Click to view details">
+              ${escapeHtml(item.userName || 'Student')}
+              ${isOnline ? '<span class="active-pulse-dot" style="display:inline-block; margin-left:4px; width:6px; height:6px;" title="User currently online"></span>' : ''}
+            </div>
+            <div class="audit-user-email">${escapeHtml(item.userEmail || 'N/A')}</div>
+            <div class="audit-user-meta">
+              <span class="audit-user-badge">ID: ${escapeHtml(item.studentId || 'N/A')}</span>
+              <span class="audit-user-badge">${escapeHtml(item.userRole || 'Student')}</span>
+            </div>
+          </div>
+        </div>
+      </td>
+      <td>
+        <span class="log-action-badge action-badge-${actionKey}">
+          ${(item.action || 'GENERAL').toUpperCase()}
+        </span>
+      </td>
+      <td>
+        <div class="audit-details-cell" title="${escapeHtml(item.details)}">
+          ${escapeHtml(item.details)}
+        </div>
+      </td>
+      <td>
+        <span class="badge-module">${escapeHtml(item.module || getActionModule(item.action))}</span>
+      </td>
+      <td>
+        <span class="badge-device">
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect><line x1="8" y1="21" x2="16" y2="21"></line><line x1="12" y1="17" x2="12" y2="21"></line></svg>
+          ${escapeHtml(item.device || 'Chromium Web')}
+        </span>
+      </td>
+    `;
+
+    // Click user name to view profile or details modal
+    tr.querySelector('.user-link')?.addEventListener('click', (e) => {
+      e.preventDefault();
+      const matchedUser = adminUsersData.find(u => u.id === item.userId || (u.email && item.userEmail && u.email.toLowerCase() === item.userEmail.toLowerCase()));
+      if (matchedUser) {
+        openApplicantDetails(matchedUser);
+      } else {
+        openApplicantDetails({
+          id: item.userId,
+          fullName: item.userName,
+          email: item.userEmail,
+          studentId: item.studentId,
+          preferredRole: item.userRole,
+          verificationStatus: 'verified'
+        });
+      }
+    });
+
+    tbody.appendChild(tr);
+  });
 }
 
 function setupAdminTabs() {
@@ -5728,6 +6034,17 @@ function setupAdminTabs() {
 
       $$('.admin-tab-content').forEach(c => c.classList.add('hidden'));
       $(`#admin-tab-${adminActiveTab}`)?.classList.remove('hidden');
+
+      const searchInput = $('#admin-search-input');
+      if (searchInput) {
+        if (adminActiveTab === 'audit-logs') {
+          searchInput.placeholder = 'Search audit logs by user name, email, student ID, action, or details...';
+        } else if (adminActiveTab === 'applications') {
+          searchInput.placeholder = 'Search applications by job title, applicant, or message...';
+        } else {
+          searchInput.placeholder = 'Search by name, student ID, email, faculty...';
+        }
+      }
 
       renderCurrentAdminTab();
     });
