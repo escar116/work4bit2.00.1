@@ -135,7 +135,7 @@ function showToast(message, type = 'success') {
   }, 3000);
 }
 
-function compressImage(file) {
+function compressImage(file, maxDimension = 800, targetMaxBytes = 120000) {
   return new Promise((resolve) => {
     if (!file || !file.type.startsWith('image/')) {
       resolve('');
@@ -148,16 +148,24 @@ function compressImage(file) {
       img.onerror = () => resolve('');
       img.onload = () => {
         const canvas = document.createElement('canvas');
-        const max = 720;
         let w = img.width, h = img.height;
-        if (w > max || h > max) {
-          if (w > h) { h = Math.round(h * max / w); w = max; }
-          else { w = Math.round(w * max / h); h = max; }
+        if (w > maxDimension || h > maxDimension) {
+          if (w > h) { h = Math.round(h * maxDimension / w); w = maxDimension; }
+          else { w = Math.round(w * maxDimension / h); h = maxDimension; }
         }
-        canvas.width = w; canvas.height = h;
+        canvas.width = Math.max(w, 1);
+        canvas.height = Math.max(h, 1);
         const ctx = canvas.getContext('2d');
         ctx.drawImage(img, 0, 0, w, h);
-        resolve(canvas.toDataURL('image/jpeg', 0.65));
+
+        // Adaptive quality step to guarantee small payload
+        let quality = 0.75;
+        let dataUrl = canvas.toDataURL('image/jpeg', quality);
+        while (dataUrl.length > targetMaxBytes * 1.33 && quality > 0.4) {
+          quality -= 0.12;
+          dataUrl = canvas.toDataURL('image/jpeg', quality);
+        }
+        resolve(dataUrl);
       };
       img.src = e.target.result;
     };
@@ -165,7 +173,7 @@ function compressImage(file) {
   });
 }
 
-function compressAvatarImage(file) {
+function compressAvatarImage(file, targetSize = 360, targetMaxBytes = 60000) {
   return new Promise((resolve) => {
     if (!file || !file.type.startsWith('image/')) {
       resolve('');
@@ -178,16 +186,25 @@ function compressAvatarImage(file) {
       img.onerror = () => resolve('');
       img.onload = () => {
         const canvas = document.createElement('canvas');
-        const max = 400;
-        let w = img.width, h = img.height;
-        if (w > max || h > max) {
-          if (w > h) { h = Math.round(h * max / w); w = max; }
-          else { w = Math.round(w * max / h); h = max; }
-        }
-        canvas.width = w; canvas.height = h;
+        // Center crop to 1:1 square so portrait or landscape photos from phones are centered
+        const minDim = Math.min(img.width, img.height);
+        const sx = Math.floor((img.width - minDim) / 2);
+        const sy = Math.floor((img.height - minDim) / 2);
+        const finalDim = Math.min(minDim, targetSize);
+
+        canvas.width = finalDim;
+        canvas.height = finalDim;
         const ctx = canvas.getContext('2d');
-        ctx.drawImage(img, 0, 0, w, h);
-        resolve(canvas.toDataURL('image/jpeg', 0.85));
+        ctx.drawImage(img, sx, sy, minDim, minDim, 0, 0, finalDim, finalDim);
+
+        // Adaptive quality reduction to guarantee tiny size (<45KB)
+        let quality = 0.82;
+        let dataUrl = canvas.toDataURL('image/jpeg', quality);
+        while (dataUrl.length > targetMaxBytes * 1.33 && quality > 0.45) {
+          quality -= 0.12;
+          dataUrl = canvas.toDataURL('image/jpeg', quality);
+        }
+        resolve(dataUrl);
       };
       img.src = e.target.result;
     };
