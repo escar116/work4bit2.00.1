@@ -113,6 +113,16 @@ const initials = (name = '') => name.split(' ').filter(Boolean).slice(0, 2).map(
 const hide = (el) => el?.classList.add('hidden');
 const show = (el) => el?.classList.remove('hidden');
 
+function escapeHtml(str) {
+  if (!str) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
+
 function showToast(message, type = 'success') {
   const container = $('#toast-container');
   if (!container) return;
@@ -238,6 +248,42 @@ function updateAllUserAvatars(photoUrl, fullName) {
       workspaceAvatar.textContent = userInitials;
     }
   }
+}
+
+// -- Global User Photos Synchronization Map ---------------------------------
+const userPhotosMap = {};
+
+function getUserPhoto(userId) {
+  if (!userId) return null;
+  if (userPhotosMap[userId]) return userPhotosMap[userId];
+  try {
+    const cached = localStorage.getItem('cached_photo_' + userId);
+    if (cached) {
+      userPhotosMap[userId] = cached;
+      return cached;
+    }
+  } catch (e) {}
+  return null;
+}
+
+function setUserPhoto(userId, photoUrl) {
+  if (!userId) return;
+  if (photoUrl) {
+    userPhotosMap[userId] = photoUrl;
+    try { localStorage.setItem('cached_photo_' + userId, photoUrl); } catch (e) {}
+  } else {
+    delete userPhotosMap[userId];
+    try { localStorage.removeItem('cached_photo_' + userId); } catch (e) {}
+  }
+}
+
+function renderUserAvatar(userId, fullName, extraClasses = '') {
+  const photo = getUserPhoto(userId);
+  const userInitials = initials(fullName || 'Student');
+  if (photo) {
+    return `<img src="${photo}" alt="${escapeHtml(fullName || 'User')}" class="avatar-photo-img ${extraClasses}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;display:block;">`;
+  }
+  return userInitials;
 }
 
 // -- Listing Image Attachment & Cross-User Storage ----------------------------
@@ -452,6 +498,9 @@ function initLivePresenceTracking() {
       const emails = new Set();
       snapshot.forEach(docSnap => {
         const p = docSnap.data();
+        if (p && (p.photoURL || p.profilePicture)) {
+          setUserPhoto(docSnap.id, p.photoURL || p.profilePicture);
+        }
         if (p && (p.isOnline === true || (p.lastSeen && (now - Number(p.lastSeen)) < 3 * 60 * 1000))) {
           ids.add(docSnap.id);
           if (p.uid) ids.add(p.uid);
@@ -719,15 +768,6 @@ function getSkeletonLogsHtml(count = 4) {
   `;
 }
 
-function escapeHtml(str) {
-  if (!str) return '';
-  return String(str)
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#039;');
-}
 
 function formatMessageTime(ts) {
   if (!ts) return '';
@@ -2223,7 +2263,7 @@ function renderServices(requests) {
         </div>
       ` : ''}
       <div class="request-card-header">
-        <div class="avatar avatar-sm cursor-pointer flex-shrink-0" onclick="openViewProfileDialog('${r.requester?.id}')">${initials(r.requester?.fullName || 'S')}</div>
+        <div class="avatar avatar-sm cursor-pointer flex-shrink-0" onclick="openViewProfileDialog('${r.requester?.id}')" style="overflow:hidden;padding:0;">${renderUserAvatar(r.requester?.id, r.requester?.fullName)}</div>
         <div class="request-card-user">
           <strong class="request-card-name cursor-pointer hover:underline" onclick="openViewProfileDialog('${r.requester?.id}')">${r.requester?.fullName || (isOffer ? 'Student Provider' : 'Student Client')}</strong>
           <small class="text-muted text-xs" style="display: block; margin-top: 1px;">${isOffer ? 'Service Provider' : 'Client in need'}</small>
@@ -3026,7 +3066,7 @@ async function loadPostedJobs(isSilent = false) {
           const row = document.createElement('div');
           row.className = 'candidate-row';
           row.innerHTML = `
-            <div class="avatar avatar-sm cursor-pointer" onclick="openViewProfileDialog('${app.applicant?.id}')">${initials(app.applicant?.fullName || '')}</div>
+            <div class="avatar avatar-sm cursor-pointer" onclick="openViewProfileDialog('${app.applicant?.id}')" style="overflow:hidden;padding:0;">${renderUserAvatar(app.applicant?.id, app.applicant?.fullName)}</div>
             <div class="candidate-info">
               <strong class="cursor-pointer hover:underline" onclick="openViewProfileDialog('${app.applicant?.id}')">${app.applicant?.fullName || (isOffer ? 'Client' : 'Applicant')}</strong>
               <small class="text-muted">${app.applicant?.studentId || ''}</small>
@@ -3121,7 +3161,7 @@ async function loadMentoringRequests(isSilent = false) {
           const row = document.createElement('div');
           row.className = 'candidate-row';
           row.innerHTML = `
-            <div class="avatar avatar-sm cursor-pointer" onclick="openViewProfileDialog('${app.applicant?.id || ''}')">${initials(app.applicant?.fullName || '')}</div>
+            <div class="avatar avatar-sm cursor-pointer" onclick="openViewProfileDialog('${app.applicant?.id || ''}')" style="overflow:hidden;padding:0;">${renderUserAvatar(app.applicant?.id, app.applicant?.fullName)}</div>
             <div class="candidate-info">
               <strong class="cursor-pointer hover:underline" onclick="openViewProfileDialog('${app.applicant?.id || ''}')">${app.applicant?.fullName || 'Mentoree'}</strong>
               <small class="text-muted">${app.applicant?.studentId || ''}</small>
@@ -3548,14 +3588,16 @@ function renderConversationList() {
   }
   conversations.forEach(conv => {
     const isPoster = conv.poster?.id === userData?.id;
-    const otherName = isPoster ? conv.applicant?.fullName : conv.poster?.fullName;
+    const otherUser = isPoster ? conv.applicant : conv.poster;
+    const otherName = otherUser?.fullName;
+    const otherId = otherUser?.id;
     const isCompleted = isConversationCompleted(conv);
     const activityDate = conv.lastActivityAt ? new Date(conv.lastActivityAt) : null;
     const dateText = activityDate ? formatConversationDate(activityDate) : '';
     const item = document.createElement('div');
     item.className = `conversation-item ${conv.id === activeConvId ? 'active' : ''}`;
     item.innerHTML = `
-      <div class="avatar avatar-sm">${initials(otherName || '')}</div>
+      <div class="avatar avatar-sm" style="overflow:hidden;padding:0;">${renderUserAvatar(otherId, otherName)}</div>
       <div class="flex-1 truncate">
         <div class="flex justify-between items-center">
           <strong class="truncate block">${otherName || 'User'}</strong>
@@ -3644,7 +3686,7 @@ async function selectConversation(convId) {
   const chatHeader = $('#chat-header-content');
   chatHeader.innerHTML = `
     <div class="chat-header-user-info">
-      <div class="avatar avatar-sm cursor-pointer flex-shrink-0" onclick="openViewProfileDialog('${otherUser?.id}')">${initials(otherUser?.fullName || '')}</div>
+      <div class="avatar avatar-sm cursor-pointer flex-shrink-0" onclick="openViewProfileDialog('${otherUser?.id}')" style="overflow:hidden;padding:0;">${renderUserAvatar(otherUser?.id, otherUser?.fullName)}</div>
       <div class="chat-header-user-text">
         <strong class="cursor-pointer hover:underline" onclick="openViewProfileDialog('${otherUser?.id}')">${otherUser?.fullName || 'User'}</strong>
         <div style="display: flex; align-items: center; gap: 0.4rem; margin-top: 2px; flex-wrap: wrap;">
@@ -4517,19 +4559,19 @@ async function loadProfile() {
     try { cachedSkills = JSON.parse(localStorage.getItem(`cached_skills_${userData.id}`) || '[]'); } catch(e) { cachedSkills = []; }
   }
 
-  if (bioDisplay) bioDisplay.textContent = cachedBio || 'Loading bio...';
+  if (bioDisplay) bioDisplay.textContent = cachedBio || 'No bio provided yet.';
   if (skillsDisplay) {
     if (cachedSkills && cachedSkills.length > 0) {
       skillsDisplay.innerHTML = cachedSkills.map(s => `<span class="skill-pill" style="display:inline-block; margin:2px; background:var(--accent-purple-light); color:var(--primary-purple); border:1px solid rgba(79, 70, 229, 0.2); font-weight:600; padding:4px 10px; border-radius:999px; font-size:12px;">${s}</span>`).join('');
     } else {
-      skillsDisplay.innerHTML = '<span class="text-xs text-muted">Loading skills...</span>';
+      skillsDisplay.innerHTML = '<span class="text-xs text-muted">No skills listed yet.</span>';
     }
   }
 
   try {
     // Parallelize userProfile (DC), profileDoc (Firestore), and reviews (Firestore)
     const [resUser, profileDoc, reviewsSnap] = await Promise.all([
-      getUserProfile(dc, { id: userData.id }, SERVER_ONLY),
+      getUserProfile(dc, { id: userData.id }, SERVER_ONLY).catch(e => { console.warn('DC userProfile fetch:', e); return null; }),
       getDoc(doc(firestore, "user_profiles", userData.id)).catch(e => { console.warn(e); return null; }),
       getDocs(query(collection(firestore, "reviews"), where("targetUserId", "==", userData.id))).catch(e => { console.warn(e); return { docs: [] }; })
     ]);
@@ -4555,7 +4597,7 @@ async function loadProfile() {
       const docPhoto = data.photoURL || data.profilePicture || '';
       if (docPhoto) {
         userData.photoURL = docPhoto;
-        try { localStorage.setItem(`cached_photo_${userData.id}`, docPhoto); } catch(e) {}
+        setUserPhoto(userData.id, docPhoto);
         updateAllUserAvatars(docPhoto, userData.fullName);
       }
     } else if (profileDoc) {
@@ -4781,7 +4823,15 @@ window.openViewProfileDialog = async function(userId) {
       }
     } catch(e) {}
     
-    document.getElementById('vp-avatar').textContent = initials(user.fullName);
+    const initialPhoto = getUserPhoto(userId);
+    const vpAvatar = document.getElementById('vp-avatar');
+    if (vpAvatar) {
+      if (initialPhoto) {
+        vpAvatar.innerHTML = `<img src="${initialPhoto}" alt="${escapeHtml(user.fullName)}" class="profile-avatar-img">`;
+      } else {
+        vpAvatar.textContent = initials(user.fullName);
+      }
+    }
     document.getElementById('vp-name').textContent = user.fullName;
     if (document.getElementById('vp-program')) document.getElementById('vp-program').textContent = user.program || 'N/A';
     if (document.getElementById('vp-faculty')) document.getElementById('vp-faculty').textContent = user.facultyReference || 'Not provided';
@@ -4806,9 +4856,11 @@ window.openViewProfileDialog = async function(userId) {
         if (vpBio) vpBio.textContent = data.bio || 'No bio provided.';
         
         const photo = data.photoURL || data.profilePicture;
-        const vpAvatar = document.getElementById('vp-avatar');
-        if (vpAvatar && photo) {
-          vpAvatar.innerHTML = `<img src="${photo}" alt="${escapeHtml(user.fullName)}" class="profile-avatar-img">`;
+        if (photo) {
+          setUserPhoto(userId, photo);
+          if (vpAvatar) {
+            vpAvatar.innerHTML = `<img src="${photo}" alt="${escapeHtml(user.fullName)}" class="profile-avatar-img">`;
+          }
         }
         
         const vpSkills = document.getElementById('vp-skills');
@@ -5080,7 +5132,7 @@ window.openViewProfileDialog = async function(userId) {
 
       card.innerHTML = `
         <div class="flex items-center gap-2 mb-3">
-          <div class="avatar cursor-pointer" onclick="openViewProfileDialog('${u.id}')">${initials(u.fullName)}</div>
+          <div class="avatar cursor-pointer" onclick="openViewProfileDialog('${u.id}')" style="overflow:hidden;padding:0;">${renderUserAvatar(u.id, u.fullName)}</div>
           <div class="flex-1">
             <div class="flex justify-between items-center">
               <h3 class="job-title cursor-pointer hover:underline" style="margin:0;" onclick="openViewProfileDialog('${u.id}')">${u.fullName}</h3>
@@ -5688,7 +5740,7 @@ function renderAdminPending() {
     card.className = 'admin-card';
     card.innerHTML = `
       <div class="admin-card-info">
-        <div class="avatar cursor-pointer" onclick="openViewProfileDialog('${u.id}')">${initials(u.fullName)}</div>
+        <div class="avatar cursor-pointer" onclick="openViewProfileDialog('${u.id}')" style="overflow:hidden;padding:0;">${renderUserAvatar(u.id, u.fullName)}</div>
         <div>
           <strong class="cursor-pointer hover:underline" onclick="openViewProfileDialog('${u.id}')">${u.fullName}</strong>
           <div class="text-muted text-sm">${u.email} &bull; ID: ${u.studentId || 'N/A'} &bull; ${u.preferredRole || 'Student'}</div>
@@ -5781,7 +5833,7 @@ function renderAdminUsers() {
     tr.innerHTML = `
       <td>
         <div class="flex items-center gap-2">
-          <div class="avatar avatar-sm">${initials(u.fullName)}</div>
+          <div class="avatar avatar-sm" style="overflow:hidden;padding:0;">${renderUserAvatar(u.id, u.fullName)}</div>
           <div>
             <div class="flex items-center gap-1.5 admin-user-name-cell">
               <strong>${u.fullName}</strong>
@@ -5868,7 +5920,7 @@ function renderAdminApplications() {
       <td><strong>${a.helpRequest?.title || 'Service Request'}</strong></td>
       <td>
         <div class="flex items-center gap-2">
-          <div class="avatar avatar-sm">${initials(a.applicant?.fullName || '')}</div>
+          <div class="avatar avatar-sm" style="overflow:hidden;padding:0;">${renderUserAvatar(a.applicant?.id, a.applicant?.fullName)}</div>
           <div>
             <strong>${a.applicant?.fullName || 'Applicant'}</strong>
             <div class="text-xs text-muted">${a.applicant?.email || ''}</div>
@@ -5910,7 +5962,7 @@ function openApplicantDetails(user) {
 
   body.innerHTML = `
     <div class="flex items-center gap-3 mb-4">
-      <div class="avatar avatar-md">${initials(user.fullName)}</div>
+      <div class="avatar avatar-md" style="overflow:hidden;padding:0;">${renderUserAvatar(user.id, user.fullName)}</div>
       <div>
         <h3 class="font-bold text-lg">${user.fullName}</h3>
         <p class="text-muted text-sm">${user.email}</p>
@@ -6176,7 +6228,7 @@ function renderAdminAuditLogs() {
       </td>
       <td>
         <div class="audit-user-cell">
-          <div class="avatar avatar-sm">${initials(item.userName || 'Student')}</div>
+          <div class="avatar avatar-sm" style="overflow:hidden;padding:0;">${renderUserAvatar(item.userId, item.userName || 'Student')}</div>
           <div class="audit-user-info">
             <div class="audit-user-name user-link" title="Click to view details">
               ${escapeHtml(item.userName || 'Student')}
