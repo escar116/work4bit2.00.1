@@ -4753,6 +4753,13 @@ dialog#dialog-certificate.modal {
     outline: none;
 }
 
+.workspace-search input::-webkit-search-cancel-button,
+.workspace-search input::-webkit-search-decoration {
+    -webkit-appearance: none;
+    appearance: none;
+    display: none;
+}
+
 .workspace-search input::placeholder {
     color: var(--text-on-dark-muted);
 }
@@ -4767,6 +4774,176 @@ dialog#dialog-certificate.modal {
     clip: rect(0, 0, 0, 0);
     white-space: nowrap;
     border: 0;
+}
+
+/* Header Global Command Search & Live Dropdown */
+.workspace-search {
+    position: relative;
+}
+
+.workspace-search-clear-btn {
+    background: transparent;
+    border: none;
+    color: rgba(255, 255, 255, 0.45);
+    cursor: pointer;
+    padding: 0.15rem 0.35rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    font-size: 0.8rem;
+    line-height: 1;
+    transition: color 0.15s, background 0.15s;
+    margin-right: -0.25rem;
+}
+
+.workspace-search-clear-btn:hover {
+    color: #ffffff;
+    background: rgba(255, 255, 255, 0.15);
+}
+
+.workspace-search-dropdown {
+    position: absolute;
+    top: calc(100% + 8px);
+    left: 0;
+    width: 100%;
+    min-width: min(380px, calc(100vw - 2rem));
+    max-width: 520px;
+    background: #1e1b38;
+    background: linear-gradient(150deg, rgba(30, 27, 54, 0.98), rgba(18, 16, 36, 0.98));
+    backdrop-filter: blur(24px);
+    -webkit-backdrop-filter: blur(24px);
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    border-radius: 14px;
+    box-shadow: 0 18px 45px rgba(0, 0, 0, 0.65), 0 0 0 1px rgba(124, 108, 248, 0.2);
+    padding: 0.5rem;
+    z-index: 1050;
+    max-height: 420px;
+    overflow-y: auto;
+    scrollbar-width: thin;
+    animation: searchDropdownFadeIn 0.15s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes searchDropdownFadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(-4px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.workspace-search-section-title {
+    font-size: 0.68rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: rgba(255, 255, 255, 0.45);
+    padding: 0.4rem 0.65rem 0.25rem;
+    margin-top: 0.35rem;
+}
+.workspace-search-section-title:first-child {
+    margin-top: 0;
+}
+
+.workspace-search-item {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.55rem 0.75rem;
+    border-radius: 10px;
+    cursor: pointer;
+    transition: background 0.15s ease, border-color 0.15s ease;
+    text-decoration: none;
+    color: inherit;
+    border: 1px solid transparent;
+}
+
+.workspace-search-item:hover,
+.workspace-search-item.active {
+    background: rgba(124, 108, 248, 0.18);
+    border-color: rgba(167, 139, 250, 0.35);
+}
+
+.workspace-search-item-icon {
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(255, 255, 255, 0.07);
+    color: #a78bfa;
+    flex-shrink: 0;
+}
+
+.workspace-search-item:hover .workspace-search-item-icon,
+.workspace-search-item.active .workspace-search-item-icon {
+    background: rgba(124, 108, 248, 0.35);
+    color: #ffffff;
+}
+
+.workspace-search-item-content {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.15rem;
+}
+
+.workspace-search-item-title {
+    font-size: 0.88rem;
+    font-weight: 600;
+    color: #ffffff;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.workspace-search-item-subtitle {
+    font-size: 0.75rem;
+    color: rgba(255, 255, 255, 0.55);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.workspace-search-item-badge {
+    font-size: 0.68rem;
+    font-weight: 600;
+    padding: 2px 7px;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.08);
+    color: rgba(255, 255, 255, 0.75);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.workspace-search-item-action {
+    font-size: 0.72rem;
+    color: rgba(255, 255, 255, 0.35);
+    padding: 2px 6px;
+    border-radius: 4px;
+    background: rgba(255, 255, 255, 0.05);
+    font-family: inherit;
+    flex-shrink: 0;
+}
+
+.workspace-search-item:hover .workspace-search-item-action,
+.workspace-search-item.active .workspace-search-item-action {
+    color: #c4b5fd;
+    background: rgba(124, 108, 248, 0.25);
+}
+
+.workspace-search-empty {
+    padding: 1.5rem 1rem;
+    text-align: center;
+    color: rgba(255, 255, 255, 0.5);
+    font-size: 0.85rem;
 }
 
 .sr-only {

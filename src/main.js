@@ -6693,7 +6693,10 @@ document.addEventListener('DOMContentLoaded', () => {
     navigate: navigateTo,
     search: handleWorkspaceSearch,
     getUser: () => userData,
-    refresh: () => loadDashboard()
+    refresh: () => loadDashboard(),
+    getServices: () => allRequests || [],
+    isAdmin: () => isAdminUser(currentUser || userData),
+    isJobOffer: (job) => isJobOffer(job)
   });
 
   $$('.nav-btn[data-target]').forEach(btn => {
