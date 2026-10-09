@@ -195,6 +195,7 @@
   color:#5543ed;
 }
 #app-views .main-content .db-segment > button:is(.active,[aria-pressed="true"]) {
+  border-radius:7px;
   background:#6554e8;
   color:white;
   box-shadow:0 2px 5px #6554e833;
