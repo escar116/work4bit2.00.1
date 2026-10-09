@@ -7,7 +7,7 @@ import {
 } from 'firebase/auth';
 import { getDataConnect, subscribe } from 'firebase/data-connect';
 import { getDatabase, ref, set, onDisconnect, onValue, remove, push, onChildAdded, serverTimestamp, off, get, query as databaseQuery, limitToLast } from 'firebase/database';
-import { getFirestore, collection, addDoc, getDocs, query, where, serverTimestamp as firestoreTimestamp, setDoc, doc, getDoc, onSnapshot } from 'firebase/firestore';
+import { getFirestore, collection, addDoc, getDocs, query, where, serverTimestamp as firestoreTimestamp, setDoc, doc, getDoc, onSnapshot, arrayUnion } from 'firebase/firestore';
 import {
   connectorConfig, getUser, createUser, listHelpRequests, createHelpRequest,
   listApplicationsByApplicant, listMyHelpRequestsWithApplications, listApplicationsForMyRequests,
@@ -38,7 +38,9 @@ import {
   formatFullDateTime,
   formatRelativeTime,
   getActionModule,
-  formatDeviceName
+  formatDeviceName,
+  setActivityLoggerCloudSync,
+  mergeCloudAuditLogs
 } from './activity-logger.js';
 import { renderLogsSection, getActionIcon } from './logs-view.js';
 import { renderAdminStatisticalCharts } from './admin-charts.js';
@@ -60,6 +62,21 @@ const auth = getAuth(app);
 const dc = getDataConnect(app, connectorConfig);
 const db = getDatabase(app);
 const firestore = getFirestore(app);
+window.__firestore = firestore;
+
+// Wire real-time cloud audit log synchronization across all users to Firestore
+setActivityLoggerCloudSync((userId, logEntry) => {
+  if (!currentUser?.uid || !userId || !logEntry) return;
+  try {
+    setDoc(doc(firestore, "user_profiles", userId), {
+      recentActivityLogs: arrayUnion(logEntry),
+      lastSeen: Date.now()
+    }, { merge: true }).catch(err => console.warn('Activity logger cloud sync error:', err));
+  } catch (e) {
+    console.warn('Activity logger cloud sync exception:', e);
+  }
+});
+
 const googleProvider = new GoogleAuthProvider();
 googleProvider.setCustomParameters({ prompt: 'select_account' });
 
@@ -508,12 +525,14 @@ function initLivePresenceTracking() {
     }
   });
 
-  // Real-time listener for Firestore presence updates
+  // Real-time listener for Firestore presence & cross-user audit logs updates
   try {
     onSnapshot(collection(firestore, "user_profiles"), (snapshot) => {
       const now = Date.now();
       const ids = new Set();
       const emails = new Set();
+      const allCloudLogs = [];
+
       snapshot.forEach(docSnap => {
         const p = docSnap.data();
         if (p && (p.photoURL || p.profilePicture)) {
@@ -523,6 +542,20 @@ function initLivePresenceTracking() {
           ids.add(docSnap.id);
           if (p.uid) ids.add(p.uid);
           if (p.email) emails.add(p.email.toLowerCase());
+        }
+        if (p && Array.isArray(p.recentActivityLogs) && p.recentActivityLogs.length > 0) {
+          p.recentActivityLogs.forEach(entry => {
+            if (entry && entry.action) {
+              allCloudLogs.push({
+                ...entry,
+                userId: entry.userId || docSnap.id,
+                userName: entry.userName || p.fullName || p.displayName,
+                userEmail: entry.userEmail || p.email,
+                studentId: entry.studentId || p.studentId,
+                userRole: entry.userRole || p.preferredRole
+              });
+            }
+          });
         }
       });
       if (currentUser?.uid) {
@@ -536,6 +569,13 @@ function initLivePresenceTracking() {
 
       currentOnlineUserIds = ids;
       currentOnlineEmails = emails;
+
+      if (allCloudLogs.length > 0) {
+        mergeCloudAuditLogs(allCloudLogs);
+        if (adminActiveTab === 'audit-logs') {
+          renderAdminAuditLogs();
+        }
+      }
 
       const onlineCountEl = $('#admin-stat-online-users');
       if (onlineCountEl) {
@@ -1302,6 +1342,23 @@ onAuthStateChanged(auth, async (user) => {
     window.__currentUser = user;
     recordUserPresence(user.uid);
     initLivePresenceTracking();
+
+    // Sync any local un-synced activity logs for this user to Firestore for global platform audit oversight
+    try {
+      const localLogs = getUserLogs(user.uid);
+      if (localLogs && localLogs.length > 0) {
+        getDoc(doc(firestore, "user_profiles", user.uid)).then(snap => {
+          const cloudLogs = snap.data()?.recentActivityLogs || [];
+          const cloudIds = new Set(cloudLogs.map(l => l.id));
+          const missingInCloud = localLogs.filter(l => !cloudIds.has(l.id)).slice(0, 50);
+          if (missingInCloud.length > 0) {
+            setDoc(doc(firestore, "user_profiles", user.uid), {
+              recentActivityLogs: arrayUnion(...missingInCloud)
+            }, { merge: true }).catch(() => {});
+          }
+        }).catch(() => {});
+      }
+    } catch (e) {}
     try {
       const res = await getUser(dc, { id: user.uid }, SERVER_ONLY);
       if (res.data.user) {
@@ -5788,6 +5845,34 @@ async function loadAdmin() {
 
     seedHistoricalAuditLogsIfEmpty(adminUsersData, adminRequestsData, adminAppsData);
 
+    // Fetch and aggregate all cloud audit logs across all campus users from Firestore
+    try {
+      const profilesSnap = await getDocs(collection(firestore, "user_profiles"));
+      const allCloudLogs = [];
+      profilesSnap.forEach(docSnap => {
+        const p = docSnap.data();
+        if (p && Array.isArray(p.recentActivityLogs)) {
+          p.recentActivityLogs.forEach(entry => {
+            if (entry && entry.action) {
+              allCloudLogs.push({
+                ...entry,
+                userId: entry.userId || docSnap.id,
+                userName: entry.userName || p.fullName || p.displayName,
+                userEmail: entry.userEmail || p.email,
+                studentId: entry.studentId || p.studentId,
+                userRole: entry.userRole || p.preferredRole
+              });
+            }
+          });
+        }
+      });
+      if (allCloudLogs.length > 0) {
+        mergeCloudAuditLogs(allCloudLogs);
+      }
+    } catch (err) {
+      console.warn('Error fetching cloud audit logs in loadAdminData:', err);
+    }
+
     await recordUserPresence(currentUser?.uid || userData?.id);
     const onlineData = await getOnlineUserIds();
     currentOnlineUserIds = onlineData.ids;
@@ -6232,8 +6317,32 @@ function setupAdminAuditControls() {
     showToast(`Exported ${logs.length} audit logs as JSON.`);
   });
 
-  $('#admin-btn-refresh-audit')?.addEventListener('click', (e) => {
+  $('#admin-btn-refresh-audit')?.addEventListener('click', async (e) => {
     e.preventDefault();
+    try {
+      const profilesSnap = await getDocs(collection(firestore, "user_profiles"));
+      const allCloudLogs = [];
+      profilesSnap.forEach(docSnap => {
+        const p = docSnap.data();
+        if (p && Array.isArray(p.recentActivityLogs)) {
+          p.recentActivityLogs.forEach(entry => {
+            if (entry && entry.action) {
+              allCloudLogs.push({
+                ...entry,
+                userId: entry.userId || docSnap.id,
+                userName: entry.userName || p.fullName || p.displayName,
+                userEmail: entry.userEmail || p.email,
+                studentId: entry.studentId || p.studentId,
+                userRole: entry.userRole || p.preferredRole
+              });
+            }
+          });
+        }
+      });
+      if (allCloudLogs.length > 0) {
+        mergeCloudAuditLogs(allCloudLogs);
+      }
+    } catch (err) {}
     renderAdminAuditLogs();
     showToast('Platform audit logs refreshed.');
   });

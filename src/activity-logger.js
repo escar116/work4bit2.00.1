@@ -16,8 +16,15 @@ export const VALID_ACTION_TYPES = [
   'get accepted',
   'terminate',
   'complete transaction',
-  'rate'
+  'rate',
+  'update profile',
+  'update profile photo'
 ];
+
+let cloudSyncHandler = null;
+export function setActivityLoggerCloudSync(handler) {
+  cloudSyncHandler = handler;
+}
 
 export function getClientDevice() {
   if (typeof navigator === 'undefined') return 'Web Browser';
@@ -33,7 +40,7 @@ export function getClientDevice() {
 }
 
 export function formatDeviceName(device) {
-  if (!device || device === 'Chromium / Web Desktop' || device === 'Chromium Web' || device === 'Web Desktop') {
+  if (!device || device.includes('Chromium') || device === 'Web Desktop' || device === 'Web Browser (Desktop)') {
     return 'Web Browser';
   }
   return device;
@@ -94,6 +101,9 @@ export function getActionModule(action) {
       return 'Reviews & Reputation';
     case 'message':
       return 'Direct Chat';
+    case 'update profile':
+    case 'update profile photo':
+      return 'System Core';
     default:
       return 'System Core';
   }
@@ -133,44 +143,97 @@ export function getGlobalAuditLogs() {
       if (Array.isArray(parsed)) globalLogs = parsed;
     }
 
-    // Also scan any individual user logs in localStorage to aggregate unrecorded actions
-    for (let i = 0; i < localStorage.length; i++) {
-      const storageKey = localStorage.key(i);
-      if (storageKey && storageKey.startsWith(LOGS_STORAGE_KEY_PREFIX)) {
-        try {
-          const userLogsRaw = localStorage.getItem(storageKey);
-          if (userLogsRaw) {
-            const userLogs = JSON.parse(userLogsRaw);
-            if (Array.isArray(userLogs)) {
-              userLogs.forEach(entry => {
-                if (!globalLogs.some(g => g.id === entry.id)) {
-                  globalLogs.push({
-                    ...entry,
-                    userId: entry.userId || storageKey.replace(LOGS_STORAGE_KEY_PREFIX, ''),
-                    userName: entry.userName || 'Student User',
-                    userEmail: entry.userEmail || '',
-                    studentId: entry.studentId || 'N/A',
-                    userRole: entry.userRole || 'Student Freelancer',
-                    module: entry.module || getActionModule(entry.action),
-                    device: formatDeviceName(entry.device || getClientDevice()),
-                    clientIp: entry.clientIp || '192.168.1.104'
-                  });
-                }
-              });
-            }
-          }
-        } catch (err) {
-          // Ignore individual parsing failures
-        }
+    // Filter out phantom duplicate records:
+    // Any record with userName 'Student User' and studentId 'N/A' that shares timestamp/action with an identified record
+    const identified = globalLogs.filter(l => l && l.userName && l.userName !== 'Student User' && l.studentId && l.studentId !== 'N/A');
+    globalLogs = globalLogs.filter(l => {
+      if (!l || !l.action) return false;
+      if ((!l.userName || l.userName === 'Student User') && (!l.studentId || l.studentId === 'N/A')) {
+        const hasIdentifiedTwin = identified.some(idLog => 
+          Math.abs((idLog.timestamp || 0) - (l.timestamp || 0)) <= 3000 &&
+          (idLog.action || '').toLowerCase() === (l.action || '').toLowerCase()
+        );
+        if (hasIdentifiedTwin) return false; // Purge the phantom duplicate
       }
+      return true;
+    });
+
+    // Deduplicate by unique id and content signature (time + action + user)
+    const seenIds = new Set();
+    const seenContent = new Set();
+    const deduplicated = [];
+
+    for (const log of globalLogs) {
+      if (!log || !log.action) continue;
+      const idKey = log.id;
+      const contentKey = `${Math.floor((log.timestamp || 0) / 1000)}_${(log.action || '').toLowerCase()}_${log.userId || log.userEmail || ''}`;
+      if (idKey && seenIds.has(idKey)) continue;
+      if (contentKey && seenContent.has(contentKey)) continue;
+      if (idKey) seenIds.add(idKey);
+      seenContent.add(contentKey);
+      deduplicated.push(log);
     }
 
-    globalLogs.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
-    return globalLogs;
+    deduplicated.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+    return deduplicated;
   } catch (e) {
     console.error('Failed to get global audit logs', e);
     return [];
   }
+}
+
+// Merge cloud audit logs collected across all users
+export function mergeCloudAuditLogs(cloudLogs = []) {
+  if (!Array.isArray(cloudLogs) || cloudLogs.length === 0) return getGlobalAuditLogs();
+
+  let currentLogs = getGlobalAuditLogs();
+  let addedCount = 0;
+
+  cloudLogs.forEach(incoming => {
+    if (!incoming || !incoming.action) return;
+
+    // Reject phantom Student User N/A duplicates
+    if ((!incoming.userName || incoming.userName === 'Student User') && (!incoming.studentId || incoming.studentId === 'N/A')) {
+      const hasTwin = currentLogs.some(l => 
+        l.userName && l.userName !== 'Student User' &&
+        Math.abs((l.timestamp || 0) - (incoming.timestamp || 0)) <= 3000 &&
+        (l.action || '').toLowerCase() === (incoming.action || '').toLowerCase()
+      );
+      if (hasTwin) return;
+    }
+
+    const alreadyExists = currentLogs.some(existing => 
+      (incoming.id && existing.id === incoming.id) ||
+      (Math.abs((existing.timestamp || 0) - (incoming.timestamp || 0)) < 2000 &&
+       (existing.action || '').toLowerCase() === (incoming.action || '').toLowerCase() &&
+       ((existing.userId && existing.userId === incoming.userId) || (existing.userEmail && existing.userEmail === incoming.userEmail)))
+    );
+
+    if (!alreadyExists) {
+      currentLogs.push({
+        id: incoming.id || `cloud_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`,
+        action: incoming.action,
+        details: incoming.details || '',
+        timestamp: incoming.timestamp || Date.now(),
+        userId: incoming.userId || '',
+        userName: incoming.userName || 'Campus Student',
+        userEmail: incoming.userEmail || '',
+        studentId: incoming.studentId || 'N/A',
+        userRole: incoming.userRole || 'Student Freelancer',
+        module: incoming.module || getActionModule(incoming.action),
+        device: formatDeviceName(incoming.device || 'Web Browser'),
+        clientIp: incoming.clientIp || '192.168.1.104'
+      });
+      addedCount++;
+    }
+  });
+
+  if (addedCount > 0) {
+    currentLogs.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+    saveGlobalAuditLogs(currentLogs);
+    window.dispatchEvent(new CustomEvent('w4a:global_action_logged'));
+  }
+  return currentLogs;
 }
 
 export function saveGlobalAuditLogs(logs) {
@@ -224,28 +287,16 @@ export function logUserAction(actionType, details = '', userId = null, metadata 
     if (!userEmail) userEmail = window.__currentUser.email;
   }
 
-  // 1. Personal user log entry
-  const clientDevice = getClientDevice();
-  const userEntry = {
-    id: `log_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`,
+  const clientDevice = formatDeviceName(getClientDevice());
+  const now = Date.now();
+  const entryId = `audit_${now}_${Math.random().toString(36).substr(2, 6)}`;
+
+  // Unified audit log entry with complete metadata
+  const entry = {
+    id: entryId,
     action: matchedType,
     details: details || '',
-    timestamp: Date.now(),
-    device: clientDevice
-  };
-
-  if (effectiveUserId) {
-    const logs = getUserLogs(effectiveUserId);
-    logs.unshift(userEntry);
-    saveUserLogs(effectiveUserId, logs);
-  }
-
-  // 2. Global platform audit record for Admin
-  const globalEntry = {
-    id: `audit_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`,
-    action: matchedType,
-    details: details || '',
-    timestamp: Date.now(),
+    timestamp: now,
     userId: effectiveUserId,
     userName: userName || (effectiveUserId ? `User (${effectiveUserId.slice(0, 6)})` : 'Campus Student'),
     userEmail: userEmail || '',
@@ -256,15 +307,32 @@ export function logUserAction(actionType, details = '', userId = null, metadata 
     clientIp: '192.168.1.104'
   };
 
+  // 1. Personal user log entry
+  if (effectiveUserId) {
+    const logs = getUserLogs(effectiveUserId);
+    logs.unshift(entry);
+    saveUserLogs(effectiveUserId, logs);
+  }
+
+  // 2. Global platform audit record for Admin
   const globalLogs = getGlobalAuditLogs();
-  globalLogs.unshift(globalEntry);
+  globalLogs.unshift(entry);
   saveGlobalAuditLogs(globalLogs);
 
-  // Dispatch events for real-time reactivity
-  window.dispatchEvent(new CustomEvent('w4a:action_logged', { detail: userEntry }));
-  window.dispatchEvent(new CustomEvent('w4a:global_action_logged', { detail: globalEntry }));
+  // 3. Real-time Cloud Synchronization across all campus users
+  if (typeof cloudSyncHandler === 'function') {
+    try {
+      cloudSyncHandler(effectiveUserId, entry);
+    } catch (err) {
+      console.warn('Activity logger cloud sync error:', err);
+    }
+  }
 
-  return globalEntry;
+  // Dispatch events for real-time reactivity
+  window.dispatchEvent(new CustomEvent('w4a:action_logged', { detail: entry }));
+  window.dispatchEvent(new CustomEvent('w4a:global_action_logged', { detail: entry }));
+
+  return entry;
 }
 
 export function clearUserLogs(userId) {
@@ -334,7 +402,7 @@ export function exportAuditLogsAsCsv(logs = null) {
     escapeCsv(item.action?.toUpperCase()),
     escapeCsv(item.module || getActionModule(item.action)),
     escapeCsv(item.details),
-    escapeCsv(item.device || 'Chromium / Web Desktop'),
+    escapeCsv(item.device || 'Web Browser'),
     escapeCsv(item.clientIp || '192.168.1.104')
   ].join(','));
 
@@ -352,8 +420,7 @@ export function exportAuditLogsAsCsv(logs = null) {
 
 // Seed historical audit logs across all users for presentation and admin audit oversight
 export function seedHistoricalAuditLogsIfEmpty(users = [], requests = [], applications = []) {
-  const existing = getGlobalAuditLogs();
-  if (existing.length >= 8) return existing;
+  let existing = getGlobalAuditLogs();
 
   const now = Date.now();
   const m = 60 * 1000;
@@ -373,7 +440,7 @@ export function seedHistoricalAuditLogsIfEmpty(users = [], requests = [], applic
       studentId: '2023-01004',
       userRole: 'Administrator',
       module: 'Security & Auth',
-      device: 'Chromium / Web Desktop',
+      device: 'Web Browser',
       clientIp: '192.168.1.104'
     },
     {
@@ -387,7 +454,7 @@ export function seedHistoricalAuditLogsIfEmpty(users = [], requests = [], applic
       studentId: '2023-01054',
       userRole: 'Student Freelancer',
       module: 'Marketplace',
-      device: 'Chromium / Web Desktop',
+      device: 'Web Browser',
       clientIp: '192.168.1.105'
     },
     {
@@ -401,7 +468,7 @@ export function seedHistoricalAuditLogsIfEmpty(users = [], requests = [], applic
       studentId: '2023-01054',
       userRole: 'Student Freelancer',
       module: 'Marketplace',
-      device: 'Chromium / Web Desktop',
+      device: 'Web Browser',
       clientIp: '192.168.1.105'
     },
     {
@@ -415,7 +482,7 @@ export function seedHistoricalAuditLogsIfEmpty(users = [], requests = [], applic
       studentId: '2023-01054',
       userRole: 'Student Freelancer',
       module: 'Marketplace',
-      device: 'Chromium / Web Desktop',
+      device: 'Web Browser',
       clientIp: '192.168.1.105'
     },
     {
@@ -429,7 +496,7 @@ export function seedHistoricalAuditLogsIfEmpty(users = [], requests = [], applic
       studentId: '2023-10482',
       userRole: 'Student Client',
       module: 'Proposals & Bids',
-      device: 'Chromium / Web Desktop',
+      device: 'Web Browser',
       clientIp: '192.168.1.102'
     },
     {
@@ -443,7 +510,7 @@ export function seedHistoricalAuditLogsIfEmpty(users = [], requests = [], applic
       studentId: '2023-01054',
       userRole: 'Student Freelancer',
       module: 'Contracts',
-      device: 'Chromium / Web Desktop',
+      device: 'Web Browser',
       clientIp: '192.168.1.105'
     },
     {
@@ -457,7 +524,7 @@ export function seedHistoricalAuditLogsIfEmpty(users = [], requests = [], applic
       studentId: '2023-10482',
       userRole: 'Student Client',
       module: 'Direct Chat',
-      device: 'Chromium / Web Desktop',
+      device: 'Web Browser',
       clientIp: '192.168.1.102'
     },
     {
@@ -471,7 +538,7 @@ export function seedHistoricalAuditLogsIfEmpty(users = [], requests = [], applic
       studentId: '2023-01054',
       userRole: 'Student Freelancer',
       module: 'Direct Chat',
-      device: 'Chromium / Web Desktop',
+      device: 'Web Browser',
       clientIp: '192.168.1.105'
     },
     {
@@ -485,7 +552,7 @@ export function seedHistoricalAuditLogsIfEmpty(users = [], requests = [], applic
       studentId: '2023-01054',
       userRole: 'Student Freelancer',
       module: 'Security & Auth',
-      device: 'Chromium / Web Desktop',
+      device: 'Web Browser',
       clientIp: '192.168.1.105'
     },
 
@@ -501,7 +568,7 @@ export function seedHistoricalAuditLogsIfEmpty(users = [], requests = [], applic
       studentId: '2023-01054',
       userRole: 'Student Freelancer',
       module: 'Escrow & Orders',
-      device: 'Chromium / Web Desktop',
+      device: 'Web Browser',
       clientIp: '192.168.1.105'
     },
     {
@@ -515,7 +582,7 @@ export function seedHistoricalAuditLogsIfEmpty(users = [], requests = [], applic
       studentId: '2023-10482',
       userRole: 'Student Client',
       module: 'Reviews & Reputation',
-      device: 'Chromium / Web Desktop',
+      device: 'Web Browser',
       clientIp: '192.168.1.102'
     },
     {
@@ -529,7 +596,7 @@ export function seedHistoricalAuditLogsIfEmpty(users = [], requests = [], applic
       studentId: 'FAC-01',
       userRole: 'Faculty Adviser',
       module: 'Security & Auth',
-      device: 'Chromium / Web Desktop',
+      device: 'Web Browser',
       clientIp: '192.168.1.80'
     },
     {
@@ -543,7 +610,7 @@ export function seedHistoricalAuditLogsIfEmpty(users = [], requests = [], applic
       studentId: 'FAC-01',
       userRole: 'Faculty Adviser',
       module: 'Marketplace',
-      device: 'Chromium / Web Desktop',
+      device: 'Web Browser',
       clientIp: '192.168.1.80'
     },
     {
@@ -557,7 +624,7 @@ export function seedHistoricalAuditLogsIfEmpty(users = [], requests = [], applic
       studentId: '2022-90124',
       userRole: 'Student Freelancer',
       module: 'Proposals & Bids',
-      device: 'Chromium / Web Desktop',
+      device: 'Web Browser',
       clientIp: '192.168.1.88'
     },
     {
@@ -571,7 +638,7 @@ export function seedHistoricalAuditLogsIfEmpty(users = [], requests = [], applic
       studentId: 'FAC-01',
       userRole: 'Faculty Adviser',
       module: 'Contracts',
-      device: 'Chromium / Web Desktop',
+      device: 'Web Browser',
       clientIp: '192.168.1.80'
     },
 
@@ -587,7 +654,7 @@ export function seedHistoricalAuditLogsIfEmpty(users = [], requests = [], applic
       studentId: '2022-90124',
       userRole: 'Student Freelancer',
       module: 'Escrow & Orders',
-      device: 'Chromium / Web Desktop',
+      device: 'Web Browser',
       clientIp: '192.168.1.88'
     },
     {
@@ -601,7 +668,7 @@ export function seedHistoricalAuditLogsIfEmpty(users = [], requests = [], applic
       studentId: '2023-10482',
       userRole: 'Student Client',
       module: 'Reviews & Reputation',
-      device: 'Chromium / Web Desktop',
+      device: 'Web Browser',
       clientIp: '192.168.1.102'
     },
     {
@@ -615,7 +682,7 @@ export function seedHistoricalAuditLogsIfEmpty(users = [], requests = [], applic
       studentId: '2024-34011',
       userRole: 'Student Freelancer',
       module: 'Escrow & Orders',
-      device: 'Chromium / Web Desktop',
+      device: 'Web Browser',
       clientIp: '192.168.1.92'
     },
     {
@@ -629,7 +696,7 @@ export function seedHistoricalAuditLogsIfEmpty(users = [], requests = [], applic
       studentId: '2023-04421',
       userRole: 'Student Client',
       module: 'Marketplace',
-      device: 'Chromium / Web Desktop',
+      device: 'Web Browser',
       clientIp: '192.168.1.110'
     },
     {
@@ -643,7 +710,7 @@ export function seedHistoricalAuditLogsIfEmpty(users = [], requests = [], applic
       studentId: '2023-08819',
       userRole: 'Student Freelancer',
       module: 'Proposals & Bids',
-      device: 'Chromium / Web Desktop',
+      device: 'Web Browser',
       clientIp: '192.168.1.115'
     },
     {
@@ -657,7 +724,7 @@ export function seedHistoricalAuditLogsIfEmpty(users = [], requests = [], applic
       studentId: '2023-01004',
       userRole: 'Administrator',
       module: 'Security & Auth',
-      device: 'Chromium / Web Desktop',
+      device: 'Web Browser',
       clientIp: '192.168.1.104'
     }
   ];
@@ -669,6 +736,92 @@ export function seedHistoricalAuditLogsIfEmpty(users = [], requests = [], applic
       merged.push(s);
     }
   });
+
+  // Also synthesize real campus activity from Data Connect
+  if (Array.isArray(requests) && requests.length > 0) {
+    requests.forEach(req => {
+      const isOffer = req.type === 'OFFER' || (req.tags && req.tags.includes('STANDING_OFFER'));
+      const reqUser = (users || []).find(u => u.id === req.requesterId || u.id === req.requester?.id);
+      const reqId = `dc_req_${req.id}`;
+      if (!merged.some(m => m.id === reqId)) {
+        merged.push({
+          id: reqId,
+          timestamp: req.createdAt ? new Date(req.createdAt).getTime() : now - 86400000,
+          action: 'post',
+          details: isOffer ? `Posted service offer: "${req.title}" (₱${Number(req.budget || 0).toLocaleString()})` : `Posted service request: "${req.title}" (₱${Number(req.budget || 0).toLocaleString()})`,
+          userId: req.requesterId || req.requester?.id || '',
+          userName: reqUser?.fullName || req.requester?.fullName || 'Campus Student',
+          userEmail: reqUser?.email || req.requester?.email || '',
+          studentId: reqUser?.studentId || req.requester?.studentId || 'N/A',
+          userRole: reqUser?.preferredRole || reqUser?.role || 'Student Freelancer',
+          module: 'Marketplace',
+          device: 'Web Browser',
+          clientIp: '192.168.1.104'
+        });
+      }
+    });
+  }
+
+  if (Array.isArray(applications) && applications.length > 0) {
+    applications.forEach(app => {
+      const appUser = (users || []).find(u => u.id === app.applicantId || u.id === app.applicant?.id);
+      const appId = `dc_app_${app.id}`;
+      if (!merged.some(m => m.id === appId)) {
+        merged.push({
+          id: appId,
+          timestamp: app.createdAt ? new Date(app.createdAt).getTime() : now - 43200000,
+          action: 'apply',
+          details: `Applied with rate offer ₱${Number(app.priceOffer || app.proposedAmount || 0).toLocaleString()} for "${app.helpRequest?.title || 'Listing'}"`,
+          userId: app.applicantId || app.applicant?.id || '',
+          userName: appUser?.fullName || app.applicant?.fullName || 'Campus Student',
+          userEmail: appUser?.email || app.applicant?.email || '',
+          studentId: appUser?.studentId || app.applicant?.studentId || 'N/A',
+          userRole: appUser?.preferredRole || appUser?.role || 'Student Freelancer',
+          module: 'Proposals & Bids',
+          device: 'Web Browser',
+          clientIp: '192.168.1.104'
+        });
+      }
+      if (app.status === 'APPROVED' || app.status === 'COMPLETED') {
+        const acceptId = `dc_accept_${app.id}`;
+        if (!merged.some(m => m.id === acceptId)) {
+          merged.push({
+            id: acceptId,
+            timestamp: app.createdAt ? new Date(app.createdAt).getTime() + 1800000 : now - 36000000,
+            action: 'get accepted',
+            details: `Application approved for "${app.helpRequest?.title || 'Listing'}"`,
+            userId: app.applicantId || app.applicant?.id || '',
+            userName: appUser?.fullName || app.applicant?.fullName || 'Campus Student',
+            userEmail: appUser?.email || app.applicant?.email || '',
+            studentId: appUser?.studentId || app.applicant?.studentId || 'N/A',
+            userRole: appUser?.preferredRole || appUser?.role || 'Student Freelancer',
+            module: 'Contracts',
+            device: 'Web Browser',
+            clientIp: '192.168.1.104'
+          });
+        }
+      }
+      if (app.status === 'COMPLETED') {
+        const completeId = `dc_complete_${app.id}`;
+        if (!merged.some(m => m.id === completeId)) {
+          merged.push({
+            id: completeId,
+            timestamp: app.createdAt ? new Date(app.createdAt).getTime() + 7200000 : now - 18000000,
+            action: 'complete transaction',
+            details: `Completed transaction for "${app.helpRequest?.title || 'Listing'}"`,
+            userId: app.applicantId || app.applicant?.id || '',
+            userName: appUser?.fullName || app.applicant?.fullName || 'Campus Student',
+            userEmail: appUser?.email || app.applicant?.email || '',
+            studentId: appUser?.studentId || app.applicant?.studentId || 'N/A',
+            userRole: appUser?.preferredRole || appUser?.role || 'Student Freelancer',
+            module: 'Escrow & Orders',
+            device: 'Web Browser',
+            clientIp: '192.168.1.104'
+          });
+        }
+      }
+    });
+  }
 
   merged.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
   saveGlobalAuditLogs(merged);
@@ -689,7 +842,7 @@ export function seedInitialLogsIfEmpty(userId, userData, requests = [], applicat
     action: 'log in',
     details: `Signed in as ${userData?.email || 'student'}`,
     timestamp: Date.now() - 1000 * 60 * 15,
-    device: 'Chromium / Web Desktop'
+    device: 'Web Browser'
   });
 
   // User's own posted listings (action: 'post')
@@ -701,7 +854,7 @@ export function seedInitialLogsIfEmpty(userId, userData, requests = [], applicat
         action: 'post',
         details: isOffer ? `Posted service offer: "${req.title}" (₱${Number(req.budget || 0).toLocaleString()})` : `Posted service request: "${req.title}" (₱${Number(req.budget || 0).toLocaleString()})`,
         timestamp: req.createdAt ? new Date(req.createdAt).getTime() : Date.now() - 86400000 * 2,
-        device: 'Chromium / Web Desktop'
+        device: 'Web Browser'
       });
     });
   }
@@ -715,7 +868,7 @@ export function seedInitialLogsIfEmpty(userId, userData, requests = [], applicat
           action: 'apply',
           details: `Applied with rate offer ₱${Number(app.priceOffer || app.proposedAmount || 0).toLocaleString()} for "${app.helpRequest?.title || 'Listing'}"`,
           timestamp: app.createdAt ? new Date(app.createdAt).getTime() : Date.now() - 86400000,
-          device: 'Chromium / Web Desktop'
+          device: 'Web Browser'
         });
 
         if (app.status === 'APPROVED' || app.status === 'COMPLETED') {
@@ -724,7 +877,7 @@ export function seedInitialLogsIfEmpty(userId, userData, requests = [], applicat
             action: 'get accepted',
             details: `Application approved for "${app.helpRequest?.title || 'Listing'}"`,
             timestamp: app.createdAt ? new Date(app.createdAt).getTime() + 3600000 : Date.now() - 43200000,
-            device: 'Chromium / Web Desktop'
+            device: 'Web Browser'
           });
         }
 
@@ -734,7 +887,7 @@ export function seedInitialLogsIfEmpty(userId, userData, requests = [], applicat
             action: 'complete transaction',
             details: `Completed transaction for "${app.helpRequest?.title || 'Listing'}"`,
             timestamp: Date.now() - 1000 * 60 * 60,
-            device: 'Chromium / Web Desktop'
+            device: 'Web Browser'
           });
         }
       }
