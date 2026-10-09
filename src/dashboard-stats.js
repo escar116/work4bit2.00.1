@@ -4,9 +4,50 @@ const isMentoring = value => {
   return category === 'MENTORING' || /^mentoring\s*:/i.test(title);
 };
 
-const validDate = value => {
-  if (!value) return null;
-  const date = value instanceof Date ? value : value?.toDate ? value.toDate() : new Date(value);
+export const validDate = value => {
+  if (!value && value !== 0) return null;
+  if (value instanceof Date) return Number.isFinite(value.getTime()) ? value : null;
+  if (typeof value?.toDate === 'function') {
+    const d = value.toDate();
+    return Number.isFinite(d.getTime()) ? d : null;
+  }
+  if (typeof value?.seconds === 'number') {
+    const ms = value.seconds * 1000 + (value.nanoseconds ? Math.round(value.nanoseconds / 1e6) : 0);
+    const d = new Date(ms);
+    return Number.isFinite(d.getTime()) ? d : null;
+  }
+  if (typeof value === 'number') {
+    const ms = value < 1e11 ? value * 1000 : value;
+    const d = new Date(ms);
+    return Number.isFinite(d.getTime()) ? d : null;
+  }
+
+  const str = String(value).trim();
+  if (!str) return null;
+
+  // Handle date-only values separately so they don't shift by a day
+  const dateOnlyMatch = str.match(/^(\d{4})[-/](\d{1,2})[-/](\d{1,2})$/);
+  if (dateOnlyMatch) {
+    const y = parseInt(dateOnlyMatch[1], 10);
+    const m = parseInt(dateOnlyMatch[2], 10);
+    const d = parseInt(dateOnlyMatch[3], 10);
+    const localD = new Date(y, m - 1, d, 12, 0, 0);
+    return Number.isFinite(localD.getTime()) ? localD : null;
+  }
+
+  // Normalize full timestamps
+  let normalized = str;
+  if (/\s+(UTC|GMT)$/i.test(normalized)) {
+    normalized = normalized.replace(/\s+(UTC|GMT)$/i, '').replace(' ', 'T');
+    if (normalized.split(':').length === 2) normalized += ':00';
+    normalized += 'Z';
+  } else if (/^\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}(:\d{2})?(\.\d+)?$/.test(normalized)) {
+    normalized = normalized.replace(' ', 'T');
+    if (normalized.split(':').length === 2) normalized += ':00';
+    normalized += 'Z';
+  }
+
+  const date = new Date(normalized);
   return Number.isFinite(date.getTime()) ? date : null;
 };
 

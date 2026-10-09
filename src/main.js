@@ -37,7 +37,8 @@ import {
   seedHistoricalAuditLogsIfEmpty,
   formatFullDateTime,
   formatRelativeTime,
-  getActionModule
+  getActionModule,
+  formatDeviceName
 } from './activity-logger.js';
 import { renderLogsSection, getActionIcon } from './logs-view.js';
 import { renderAdminStatisticalCharts } from './admin-charts.js';
@@ -786,10 +787,88 @@ function getSkeletonLogsHtml(count = 4) {
 }
 
 
+export function parseTransactionDateTime(value, targetTimeZone = undefined) {
+  if (!value && value !== 0) {
+    return { date: null, timestamp: 0, formatted: 'Unknown', isDateOnly: false };
+  }
+
+  let d = null;
+  let isDateOnly = false;
+
+  if (value instanceof Date) {
+    if (Number.isFinite(value.getTime())) d = value;
+  } else if (typeof value?.toDate === 'function') {
+    const res = value.toDate();
+    if (Number.isFinite(res?.getTime())) d = res;
+  } else if (typeof value?.seconds === 'number') {
+    const ms = value.seconds * 1000 + (value.nanoseconds ? Math.round(value.nanoseconds / 1e6) : 0);
+    const res = new Date(ms);
+    if (Number.isFinite(res.getTime())) d = res;
+  } else if (typeof value === 'number') {
+    const ms = value < 1e11 ? value * 1000 : value;
+    const res = new Date(ms);
+    if (Number.isFinite(res.getTime())) d = res;
+  } else {
+    const str = String(value).trim();
+    if (!str) return { date: null, timestamp: 0, formatted: 'Unknown', isDateOnly: false };
+
+    // Handle date-only strings (YYYY-MM-DD or YYYY/MM/DD)
+    // Separate handling prevents day shifts in any timezone
+    const dateOnlyMatch = str.match(/^(\d{4})[-/](\d{1,2})[-/](\d{1,2})$/);
+    if (dateOnlyMatch) {
+      isDateOnly = true;
+      const y = parseInt(dateOnlyMatch[1], 10);
+      const m = parseInt(dateOnlyMatch[2], 10);
+      const day = parseInt(dateOnlyMatch[3], 10);
+      d = new Date(Date.UTC(y, m - 1, day, 12, 0, 0));
+    } else {
+      let normalized = str;
+      // Handle UTC/GMT suffix like "2026-10-08 16:46 UTC"
+      if (/\s+(UTC|GMT)$/i.test(normalized)) {
+        normalized = normalized.replace(/\s+(UTC|GMT)$/i, '').trim().replace(' ', 'T');
+        if (normalized.split(':').length === 2) normalized += ':00';
+        normalized += 'Z';
+      } else if (/^\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}(:\d{2})?(\.\d+)?$/.test(normalized)) {
+        // SQL timestamp format without timezone indicator (UTC database default)
+        normalized = normalized.replace(' ', 'T');
+        if (normalized.split(':').length === 2) normalized += ':00';
+        normalized += 'Z';
+      }
+      const res = new Date(normalized);
+      if (Number.isFinite(res.getTime())) d = res;
+    }
+  }
+
+  if (!d || !Number.isFinite(d.getTime())) {
+    return { date: null, timestamp: 0, formatted: 'Unknown', isDateOnly: false };
+  }
+
+  const timestamp = d.getTime();
+  const formatOptions = {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric'
+  };
+  if (targetTimeZone) {
+    formatOptions.timeZone = targetTimeZone;
+  }
+
+  const formatted = isDateOnly
+    ? d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' })
+    : d.toLocaleDateString(undefined, formatOptions);
+
+  return { date: d, timestamp, formatted, isDateOnly };
+}
+
+if (typeof window !== 'undefined') {
+  window.parseTransactionDateTime = parseTransactionDateTime;
+}
+
 function formatMessageTime(ts) {
   if (!ts) return '';
-  const date = typeof ts === 'number' ? new Date(ts) : (ts?.seconds ? new Date(ts.seconds * 1000) : new Date(ts));
-  if (isNaN(date.getTime())) return '';
+  const parsed = parseTransactionDateTime(ts);
+  const date = parsed.date;
+  if (!date || isNaN(date.getTime())) return '';
   const now = new Date();
   const isToday = date.toDateString() === now.toDateString();
   const timeStr = date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
@@ -903,7 +982,7 @@ async function updateNotificationCenter() {
 
     notifs.sort((a, b) => {
       if (a.unread !== b.unread) return a.unread ? -1 : 1;
-      return (new Date(b.time).getTime() || 0) - (new Date(a.time).getTime() || 0);
+      return (parseTransactionDateTime(b.time).timestamp || 0) - (parseTransactionDateTime(a.time).timestamp || 0);
     });
 
     currentNotifications = notifs;
@@ -3211,7 +3290,7 @@ async function loadMyApplications(isSilent = false) {
   try {
     const res = await listApplicationsByApplicant(dc, { userId: userData?.id }, SERVER_ONLY).catch(() => ({ data: { applications: [] } }));
     let apps = (res.data?.applications || []).filter(a => a.status !== 'REJECTED');
-    apps.sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
+    apps.sort((a, b) => (parseTransactionDateTime(b.createdAt).timestamp || 0) - (parseTransactionDateTime(a.createdAt).timestamp || 0));
     if (devPreview && apps.length === 0) {
       apps = [
         {
@@ -3508,7 +3587,7 @@ const isConversationCompleted = (conv) =>
 
 async function sortConversationsByActivity(items) {
   await Promise.all(items.map(async (conv) => {
-    const createdAt = Date.parse(conv.createdAt || '') || 0;
+    const createdAt = parseTransactionDateTime(conv.createdAt).timestamp || 0;
     try {
       const latest = await get(databaseQuery(ref(db, `conversations/${conv.id}/messages`), limitToLast(1)));
       const message = latest.exists() ? Object.values(latest.val())[0] : null;
@@ -4115,13 +4194,9 @@ async function loadTransactions() {
     const apps = appRes.data.applications || [];
     const myPosts = myPostRes.data.helpRequests || [];
     const posterApplicationDates = new Map((posterAppRes.data.applications || []).map(a => [a.id, a.createdAt]));
-    const getTimestamp = (app) => {
+    const getAppDateInfo = (app) => {
       const value = app.createdAt || posterApplicationDates.get(app.id);
-      return value ? new Date(value).getTime() : 0;
-    };
-    const submittedDate = (app) => {
-      const value = app.createdAt || posterApplicationDates.get(app.id);
-      return value ? new Date(value).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }) : 'Unknown';
+      return parseTransactionDateTime(value);
     };
 
     const txList = [];
@@ -4130,6 +4205,7 @@ async function loadTransactions() {
     apps.forEach(a => {
       const isOffer = isJobOffer(a.helpRequest);
       const counterpartName = a.helpRequest?.requester?.fullName || 'Peer';
+      const dateInfo = getAppDateInfo(a);
 
       if (isOffer) {
         // Applicant ordered a standing service -> USER IS CLIENT (Paying)
@@ -4140,8 +4216,8 @@ async function loadTransactions() {
           amount: Number(a.priceOffer) || Number(a.helpRequest?.budget) || 0,
           status: a.status,
           type: 'PAYMENT',
-          date: submittedDate(a),
-          timestamp: getTimestamp(a)
+          date: dateInfo.formatted,
+          timestamp: dateInfo.timestamp
         });
       } else {
         // Applicant applied to a freelance request -> USER IS FREELANCER (Earning)
@@ -4152,8 +4228,8 @@ async function loadTransactions() {
           amount: Number(a.priceOffer) || 0,
           status: a.status,
           type: 'EARNING',
-          date: submittedDate(a),
-          timestamp: getTimestamp(a)
+          date: dateInfo.formatted,
+          timestamp: dateInfo.timestamp
         });
       }
     });
@@ -4164,6 +4240,7 @@ async function loadTransactions() {
       const appsOnJob = p.applications_on_helpRequest || [];
       appsOnJob.forEach(a => {
         const clientOrFreelancer = a.applicant?.fullName || 'Peer';
+        const dateInfo = getAppDateInfo(a);
         if (isOffer) {
           // Poster offered a standing service -> USER IS PROVIDER (Earning)
           txList.push({
@@ -4173,8 +4250,8 @@ async function loadTransactions() {
             amount: Number(a.priceOffer) || Number(p.budget) || 0,
             status: a.status,
             type: 'EARNING',
-            date: submittedDate(a),
-          timestamp: getTimestamp(a)
+            date: dateInfo.formatted,
+            timestamp: dateInfo.timestamp
           });
         } else {
           // Poster requested a freelance job -> USER IS CLIENT (Paying)
@@ -4185,8 +4262,8 @@ async function loadTransactions() {
             amount: Number(a.priceOffer) || Number(p.budget) || 0,
             status: a.status,
             type: 'PAYMENT',
-            date: submittedDate(a),
-          timestamp: getTimestamp(a)
+            date: dateInfo.formatted,
+            timestamp: dateInfo.timestamp
           });
         }
       });
@@ -4194,6 +4271,9 @@ async function loadTransactions() {
 
     txList.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
     allTransactions = txList;
+    if (typeof window !== 'undefined') {
+      window.allTransactions = allTransactions;
+    }
 
     // Calculate totals
     const completedEarnings = txList.filter(t => t.type === 'EARNING' && t.status === 'COMPLETED').reduce((sum, t) => sum + t.amount, 0);
@@ -6275,7 +6355,7 @@ function renderAdminAuditLogs() {
       <td>
         <span class="badge-device">
           <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect><line x1="8" y1="21" x2="16" y2="21"></line><line x1="12" y1="17" x2="12" y2="21"></line></svg>
-          ${escapeHtml(item.device || 'Chromium Web')}
+          ${escapeHtml(formatDeviceName(item.device))}
         </span>
       </td>
     `;

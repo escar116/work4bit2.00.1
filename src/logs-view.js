@@ -1,4 +1,5 @@
 // Logs View Renderer for Work4abit - Strictly Per User & Exact Action Types
+import { formatDeviceName } from './activity-logger.js';
 
 function formatTime(timestamp) {
   if (!timestamp) return 'Just now';
@@ -116,7 +117,7 @@ export function renderLogsSection(logs, activeFilter = 'all', searchQuery = '') 
               </div>
               <div class="log-card-right">
                 <span class="log-time" title="${new Date(item.timestamp).toLocaleString()}">${formatTime(item.timestamp)}</span>
-                <span class="log-device">${item.device || 'Chromium / Web Desktop'}</span>
+                <span class="log-device">${formatDeviceName(item.device)}</span>
               </div>
             </div>
           `).join('')}

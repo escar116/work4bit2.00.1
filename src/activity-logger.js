@@ -19,6 +19,26 @@ export const VALID_ACTION_TYPES = [
   'rate'
 ];
 
+export function getClientDevice() {
+  if (typeof navigator === 'undefined') return 'Web Browser';
+  const ua = navigator.userAgent || '';
+  const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(ua) || (typeof window !== 'undefined' && window.innerWidth <= 768);
+  const platform = isMobile ? 'Mobile' : 'Desktop';
+
+  // Opera detection: Opera embeds OPR/ or Opera/ in its User-Agent
+  if (/OPR\/|Opera\//i.test(ua)) {
+    return `Opera (${platform})`;
+  }
+  return `Web Browser (${platform})`;
+}
+
+export function formatDeviceName(device) {
+  if (!device || device === 'Chromium / Web Desktop' || device === 'Chromium Web' || device === 'Web Desktop') {
+    return 'Web Browser';
+  }
+  return device;
+}
+
 export function getLogsStorageKey(userId) {
   if (!userId) return null;
   return `${LOGS_STORAGE_KEY_PREFIX}${userId}`;
@@ -132,7 +152,7 @@ export function getGlobalAuditLogs() {
                     studentId: entry.studentId || 'N/A',
                     userRole: entry.userRole || 'Student Freelancer',
                     module: entry.module || getActionModule(entry.action),
-                    device: entry.device || 'Chromium / Web Desktop',
+                    device: formatDeviceName(entry.device || getClientDevice()),
                     clientIp: entry.clientIp || '192.168.1.104'
                   });
                 }
@@ -205,12 +225,13 @@ export function logUserAction(actionType, details = '', userId = null, metadata 
   }
 
   // 1. Personal user log entry
+  const clientDevice = getClientDevice();
   const userEntry = {
     id: `log_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`,
     action: matchedType,
     details: details || '',
     timestamp: Date.now(),
-    device: 'Chromium / Web Desktop'
+    device: clientDevice
   };
 
   if (effectiveUserId) {
@@ -231,7 +252,7 @@ export function logUserAction(actionType, details = '', userId = null, metadata 
     studentId: studentId || 'N/A',
     userRole: userRole || 'Student Freelancer',
     module: getActionModule(matchedType),
-    device: 'Chromium / Web Desktop',
+    device: clientDevice,
     clientIp: '192.168.1.104'
   };
 
