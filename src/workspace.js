@@ -86,7 +86,7 @@ export function setupWorkspace({ navigate, search, getUser, refresh, getServices
       subtitle: 'Peer tutoring, academic guidance and consultations',
       keywords: ['mentoring', 'mentor', 'peer tutoring', 'tutor', 'guidance', 'study', 'academic', 'consultation'],
       badge: 'Tab',
-      icon: '<path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1-2.5-2.5Z"/><path d="M6 6h10"/><path d="M6 10h10"/>',
+      icon: '<path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>',
       action: () => navigate('mentoring')
     },
     {
@@ -416,6 +416,28 @@ export function setupWorkspace({ navigate, search, getUser, refresh, getServices
       search(searchInput?.value.trim() || '');
     }
   });
+
+  // Make search dropdown disappear when clicking outside the box
+  document.addEventListener('pointerdown', (e) => {
+    if (!e.target.closest('.workspace-search')) {
+      closeDropdown();
+    }
+  }, true);
+
+  document.addEventListener('click', (e) => {
+    if (!e.target.closest('.workspace-search')) {
+      closeDropdown();
+    }
+  }, true);
+
+  searchInput?.addEventListener('blur', () => {
+    setTimeout(() => {
+      if (!document.activeElement?.closest('.workspace-search')) {
+        closeDropdown();
+      }
+    }, 150);
+  });
+
   const account = $('.account-toggle'); const accountMenu = $('.workspace-account-menu');
   const closeAccount = () => { accountMenu.classList.add('hidden'); account.setAttribute('aria-expanded', 'false'); };
   account.addEventListener('click', () => { const open = accountMenu.classList.toggle('hidden') === false; account.setAttribute('aria-expanded', String(open)); });
