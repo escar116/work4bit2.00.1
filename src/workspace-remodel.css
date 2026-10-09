@@ -159,3 +159,65 @@
 /* Keep currency amounts intact on compact desktop cards. */
 #section-dashboard .db-kpi > strong { grid-column:1 / -1; white-space:nowrap; }
 #section-dashboard .db-icon { grid-row:1; }
+
+/* One segmented control for dashboard scopes and workspace page filters. */
+#app-views .main-content .db-segment {
+  display:inline-flex;
+  align-items:center;
+  gap:3px;
+  max-width:100%;
+  min-width:0;
+  box-sizing:border-box;
+  padding:4px;
+  border:1px solid var(--border-card,#dbe2f2);
+  border-radius:10px;
+  background:var(--bg-card,#fff);
+  box-shadow:none;
+  overflow-x:auto;
+}
+#app-views .main-content .db-segment > button {
+  flex:0 0 auto;
+  margin:0;
+  padding:8px 14px;
+  border:0;
+  border-radius:7px;
+  background:transparent;
+  color:var(--text-muted,#64748b);
+  box-shadow:none;
+  font-family:inherit;
+  font-size:.84rem;
+  font-weight:650;
+  white-space:nowrap;
+  cursor:pointer;
+}
+#app-views .main-content .db-segment > button:hover {
+  background:#f0edff;
+  color:#5543ed;
+}
+#app-views .main-content .db-segment > button:is(.active,[aria-pressed="true"]) {
+  background:#6554e8;
+  color:white;
+  box-shadow:0 2px 5px #6554e833;
+}
+#app-views .main-content .db-segment > button:focus-visible {
+  outline:2px solid #6554e8;
+  outline-offset:1px;
+}
+#app-views .main-content .db-segment .tab-count-pill {
+  background:#eeebff;
+  color:#5543ed;
+}
+#app-views .main-content .db-segment > button.active .tab-count-pill {
+  background:#ffffff47;
+  color:white;
+}
+#section-dashboard .db-context .db-greeting {
+  display:block;
+  font-size:1.25rem;
+  font-weight:700;
+}
+#section-dashboard .db-context .db-note { margin:4px 0 0; }
+@media(max-width:600px) {
+  #app-views .main-content .db-segment > button { padding:8px 10px; font-size:.78rem; }
+  #section-dashboard .db-context time { white-space:normal; }
+}

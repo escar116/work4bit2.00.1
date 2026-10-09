@@ -806,17 +806,17 @@
                         <h1 class="page-title">Applications Hub</h1>
                         <p class="text-muted text-sm mt-1">Manage incoming student candidate proposals, outgoing applications, and mentoring sessions.</p>
 
-                        <!-- Segmented Applications Navigation Tabs: matching Services format -->
-                        <div class="marketplace-tabs-container mt-3" id="applications-marketplace-tabs">
-                            <button type="button" class="marketplace-tab-btn active" id="tab-app-posted" data-tab="posted">
+                        <!-- Shared dashboard-style segmented navigation -->
+                        <div class="db-segment mt-3" id="applications-marketplace-tabs" role="group" aria-label="Application category">
+                            <button type="button" class="marketplace-tab-btn active" id="tab-app-posted" data-tab="posted" aria-pressed="true">
                                 <span>Posted Services</span>
                                 <span class="tab-count-pill" id="apps-posted-count">0</span>
                             </button>
-                            <button type="button" class="marketplace-tab-btn" id="tab-app-applied" data-tab="applied">
+                            <button type="button" class="marketplace-tab-btn" id="tab-app-applied" data-tab="applied" aria-pressed="false">
                                 <span>My Orders & Applications</span>
                                 <span class="tab-count-pill" id="apps-applied-count">0</span>
                             </button>
-                            <button type="button" class="marketplace-tab-btn" id="tab-app-mentoring" data-tab="mentoring">
+                            <button type="button" class="marketplace-tab-btn" id="tab-app-mentoring" data-tab="mentoring" aria-pressed="false">
                                 <span>Mentoring Requests</span>
                                 <span class="tab-count-pill" id="apps-mentoring-count">0</span>
                             </button>
@@ -917,10 +917,10 @@
                     </div>
 
                     <!-- Filter Tabs -->
-                    <div class="tabs mt-6">
-                        <button type="button" class="tab-btn active trans-tab" data-filter="all">All</button>
-                        <button type="button" class="tab-btn trans-tab" data-filter="pending">Pending</button>
-                        <button type="button" class="tab-btn trans-tab" data-filter="completed">Completed</button>
+                    <div class="db-segment mt-6" role="group" aria-label="Transaction status">
+                        <button type="button" class="tab-btn active trans-tab" data-filter="all" aria-pressed="true">All</button>
+                        <button type="button" class="tab-btn trans-tab" data-filter="pending" aria-pressed="false">Pending</button>
+                        <button type="button" class="tab-btn trans-tab" data-filter="completed" aria-pressed="false">Completed</button>
                     </div>
 
                     <!-- Transactions Data Table Card -->
@@ -1182,15 +1182,14 @@
                     <div id="admin-analytics-section" class="admin-analytics-section"></div>
 
                     <!-- Admin Management Tabs -->
-                    <!-- Admin Management Tabs -->
-                    <div class="tabs mt-6">
-                        <button type="button" class="tab-btn active admin-tab-btn" data-admintab="pending">Pending
+                    <div class="db-segment mt-6" role="group" aria-label="Admin category">
+                        <button type="button" class="tab-btn active admin-tab-btn" data-admintab="pending" aria-pressed="true">Pending
                             Verifications (<span id="admin-pending-tab-badge">0</span>)</button>
-                        <button type="button" class="tab-btn admin-tab-btn" data-admintab="users">All Registered
+                        <button type="button" class="tab-btn admin-tab-btn" data-admintab="users" aria-pressed="false">All Registered
                             Students</button>
-                        <button type="button" class="tab-btn admin-tab-btn" data-admintab="applications">All
+                        <button type="button" class="tab-btn admin-tab-btn" data-admintab="applications" aria-pressed="false">All
                             Applications & Bids</button>
-                        <button type="button" class="tab-btn admin-tab-btn" data-admintab="audit-logs">
+                        <button type="button" class="tab-btn admin-tab-btn" data-admintab="audit-logs" aria-pressed="false">
                             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right: 5px; vertical-align: -2px;"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
                             Activity & Audit Logs (<span id="admin-logs-tab-badge">0</span>)
                         </button>

@@ -1777,7 +1777,7 @@ async function loadDashboard(isSilent = false) {
 
     const stats = summarizeDashboard(submitted, received, listings, isJobOffer);
     const paintDashboard = () => {
-      container.innerHTML = renderDashboard(stats, reviewResult, dashboardScope, dashboardPeriod, (userData?.fullName || 'Student').split(' ')[0]);
+      container.innerHTML = renderDashboard(stats, reviewResult, dashboardScope, dashboardPeriod, userData?.fullName?.trim().split(/\s+/)[0] || 'Student');
       container.querySelectorAll('[data-dashboard-scope], [data-dashboard-months]').forEach(button => {
         button.addEventListener('click', () => {
           const scope = button.dataset.dashboardScope;
@@ -3616,6 +3616,7 @@ function switchAppTab(targetTab) {
   appTab = targetTab;
   $$('#applications-marketplace-tabs .marketplace-tab-btn, .tab-btn[data-tab]').forEach(b => {
     b.classList.toggle('active', b.dataset.tab === targetTab);
+    b.setAttribute('aria-pressed', String(b.dataset.tab === targetTab));
   });
 
   if ($('#posted-jobs-list')) $('#posted-jobs-list').classList.toggle('hidden', targetTab !== 'posted');
@@ -4440,8 +4441,12 @@ function setupTransactionTabs() {
   $$('.trans-tab').forEach(btn => {
     btn.addEventListener('click', (e) => {
       e.preventDefault();
-      $$('.trans-tab').forEach(b => b.classList.remove('active'));
+      $$('.trans-tab').forEach(b => {
+        b.classList.remove('active');
+        b.setAttribute('aria-pressed', 'false');
+      });
       btn.classList.add('active');
+      btn.setAttribute('aria-pressed', 'true');
       renderTransactionsTable(btn.dataset.filter);
     });
   });
@@ -6496,8 +6501,12 @@ function setupAdminTabs() {
     btn.addEventListener('click', (e) => {
       e.preventDefault();
       adminActiveTab = btn.dataset.admintab;
-      $$('.admin-tab-btn').forEach(b => b.classList.remove('active'));
+      $$('.admin-tab-btn').forEach(b => {
+        b.classList.remove('active');
+        b.setAttribute('aria-pressed', 'false');
+      });
       btn.classList.add('active');
+      btn.setAttribute('aria-pressed', 'true');
 
       $$('.admin-tab-content').forEach(c => c.classList.add('hidden'));
       $(`#admin-tab-${adminActiveTab}`)?.classList.remove('hidden');
