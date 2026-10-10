@@ -4744,9 +4744,8 @@ dialog#dialog-certificate.modal {
     left: 0;
     right: 0;
     height: 64px;
-    background: var(--header-gradient);
-    border-bottom: 1px solid rgba(167, 46, 255, 0.32);
-    box-shadow: 0 4px 24px rgba(3, 51, 217, 0.22);
+    background-color: #252a45;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
     display: flex;
     align-items: center;
     justify-content: space-between;
