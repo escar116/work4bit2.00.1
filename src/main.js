@@ -1833,7 +1833,10 @@ function setupDashboardLinks() {
     $('#new-request-form')?.reset();
     setNewListingModalMode('REQUEST');
     const dl = $('#nr-deadline');
-    if (dl) dl.min = new Date().toISOString().split('T')[0];
+    if (dl) {
+      const now = new Date();
+      dl.min = new Date(now.getTime() - now.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
+    }
     $('#dialog-new-request').showModal();
   });
 
@@ -1905,6 +1908,67 @@ function isJobOffer(job) {
   }
   return false;
 }
+
+function getListingDuration(job) {
+  if (!job) return '2 hours';
+  if (job.duration) return job.duration;
+  const urg = (job.urgency || '').trim();
+  if (urg && !['OFFER', 'STANDING', 'NORMAL', 'LOW', 'URGENT'].includes(urg.toUpperCase())) {
+    return urg;
+  }
+  const match = (job.description || '').match(/\[DURATION:([^\]]+)\]/i);
+  if (match) return match[1];
+  return '2 hours';
+}
+
+function getDisplayDuration(job) {
+  if (!job) return 'Max 4 hrs';
+  const dur = getListingDuration(job);
+  return dur || 'Max 4 hrs';
+}
+
+function parseDurationHours(val) {
+  if (!val) return 2;
+  const s = String(val).toLowerCase();
+  if (s.includes('30 min') || s.includes('0.5')) return 0.5;
+  if (s.includes('1.5')) return 1.5;
+  if (s.includes('2.5')) return 2.5;
+  if (s.includes('3.5')) return 3.5;
+  const match = s.match(/(\d+(\.\d+)?)/);
+  if (match) return parseFloat(match[1]);
+  return 2;
+}
+
+function formatDeadlineFriendly(deadlineStr) {
+  if (!deadlineStr) return '';
+  try {
+    if (deadlineStr.includes('T')) {
+      const d = new Date(deadlineStr);
+      if (!isNaN(d.getTime())) {
+        const datePart = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+        const timePart = d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+        return `${datePart} at ${timePart}`;
+      }
+    } else {
+      const d = new Date(deadlineStr + 'T00:00:00');
+      if (!isNaN(d.getTime())) {
+        return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+      }
+    }
+  } catch (e) {}
+  return deadlineStr;
+}
+
+function isDeadlineExpired(job) {
+  if (!job || !job.deadline || isJobOffer(job)) return false;
+  try {
+    const d = job.deadline.includes('T') ? new Date(job.deadline) : new Date(job.deadline + 'T23:59:59');
+    return !isNaN(d.getTime()) && d < new Date();
+  } catch (e) {
+    return false;
+  }
+}
+
 
 function setServicesTab(tab) {
   currentServicesTab = tab;
@@ -2088,7 +2152,7 @@ function openServiceDetailsDialog(r, actionInfo) {
   parseListingDescriptionAndImage(r);
   const isOffer = isJobOffer(r);
   const isMine = r.requester?.id === userData?.id;
-  const isExpired = !isOffer && r.deadline ? new Date(r.deadline + 'T23:59:59') < new Date() : false;
+  const isExpired = isDeadlineExpired(r);
 
   const coverContainer = $('#sd-cover-banner');
   const coverImg = $('#sd-cover-img');
@@ -2145,7 +2209,7 @@ function openServiceDetailsDialog(r, actionInfo) {
   if (catValue) catValue.textContent = r.category || 'General';
 
   const timelineLabel = $('#sd-timeline-label');
-  if (timelineLabel) timelineLabel.textContent = isOffer ? 'Service Type' : 'Timeline & Urgency';
+  if (timelineLabel) timelineLabel.textContent = isOffer ? 'Service Nature' : 'Deadline & Duration';
 
   const timelineValue = $('#sd-timeline-value');
   if (timelineValue) {
@@ -2153,10 +2217,12 @@ function openServiceDetailsDialog(r, actionInfo) {
       timelineValue.textContent = 'Standing Service (Always Open)';
       timelineValue.style.color = '#4ade80';
     } else if (r.deadline) {
-      timelineValue.textContent = isExpired ? `Due ${r.deadline} (Expired)` : `Due ${r.deadline}`;
+      const formattedDl = formatDeadlineFriendly(r.deadline);
+      const dur = getDisplayDuration(r);
+      timelineValue.textContent = isExpired ? `Due ${formattedDl} (Expired) • ${dur}` : `Due ${formattedDl} • ${dur}`;
       timelineValue.style.color = isExpired ? '#ef4444' : 'var(--text-main)';
     } else {
-      timelineValue.textContent = r.urgency ? `${r.urgency} Urgency` : 'Flexible';
+      timelineValue.textContent = `Duration: ${getDisplayDuration(r)}`;
       timelineValue.style.color = 'var(--text-main)';
     }
   }
@@ -2217,7 +2283,7 @@ function renderServices(requests) {
 
   // Calculate counts for badges using isJobOffer
   const totalOffers = marketplaceRequests.filter(r => isJobOffer(r) && Number(r.budget) <= 100000 && Number(r.budget) > 0).length;
-  const totalRequests = marketplaceRequests.filter(r => !isJobOffer(r) && Number(r.budget) <= 100000 && Number(r.budget) > 0 && (!r.deadline || new Date(r.deadline + 'T23:59:59') >= now)).length;
+  const totalRequests = marketplaceRequests.filter(r => !isJobOffer(r) && Number(r.budget) <= 100000 && Number(r.budget) > 0 && !isDeadlineExpired(r)).length;
 
   if ($('#offers-count-badge')) $('#offers-count-badge').textContent = totalOffers;
   if ($('#requests-count-badge')) $('#requests-count-badge').textContent = totalRequests;
@@ -2232,7 +2298,7 @@ function renderServices(requests) {
     if (currentServicesTab === 'requests' && isOffer) return false;
 
     // Hide expired listings for one-time requests
-    if (!isOffer && r.deadline && new Date(r.deadline + 'T23:59:59') < now) return false;
+    if (!isOffer && isDeadlineExpired(r)) return false;
 
     if (requestFilters.q) {
       const hay = `${r.title} ${r.description} ${r.category} ${r.requester?.fullName}`.toLowerCase();
@@ -2325,7 +2391,7 @@ function renderServices(requests) {
     const isOffer = isJobOffer(r);
     const isMine = r.requester?.id === userData?.id;
     const hasApplied = activeAppliedIds.has(r.id);
-    const isExpired = !isOffer && r.deadline ? new Date(r.deadline + 'T23:59:59') < new Date() : false;
+    const isExpired = isDeadlineExpired(r);
     const card = document.createElement('article');
     card.className = 'request-card';
     card.dataset.listingKind = isOffer ? 'offer' : 'request';
@@ -2356,13 +2422,13 @@ function renderServices(requests) {
       ? `<span class="request-card-deadline listing-availability">Standing Service (Always Open)</span>`
       : (r.deadline
           ? (isExpired
-              ? `<span class="request-card-deadline" style="color: #ef4444; font-weight: 600;">Due ${r.deadline} (Expired)</span>`
-              : `<span class="request-card-deadline">Due ${r.deadline}</span>`)
+              ? `<span class="request-card-deadline" style="color: #ef4444; font-weight: 600;">Due ${formatDeadlineFriendly(r.deadline)} (Expired)</span>`
+              : `<span class="request-card-deadline">Due ${formatDeadlineFriendly(r.deadline)}</span>`)
           : '');
 
     const rightBadge = isOffer
       ? `<span class="badge badge-standing">Standing</span>`
-      : `<span class="${r.urgency === 'Urgent' ? 'badge-urgent' : r.urgency === 'Low' ? 'badge-low' : 'badge-normal'}">${r.urgency || 'Normal'}</span>`;
+      : `<span class="badge badge-duration">⏱️ ${escapeHtml(getDisplayDuration(r))}</span>`;
 
     const triggerDelete = async () => {
       const itemName = isOffer ? 'service offer' : 'service request';
@@ -2595,17 +2661,26 @@ function openEditListingDialog(listing) {
   const descInput = $('#nr-description');
   const catInput = $('#nr-category');
   const budgetInput = $('#nr-budget');
-  const urgencyInput = $('#nr-urgency');
+  const durationInput = $('#nr-duration') || $('#nr-urgency');
   const dlInput = $('#nr-deadline');
 
   if (titleInput) titleInput.value = listing.title || '';
   if (descInput) descInput.value = listing.description || '';
   if (catInput) catInput.value = listing.category || '';
   if (budgetInput) budgetInput.value = listing.budget || '';
-  if (!isOffer && urgencyInput) urgencyInput.value = listing.urgency || 'Normal';
+  if (!isOffer && durationInput) {
+    const dur = getListingDuration(listing);
+    if (dur) durationInput.value = dur;
+  }
   if (!isOffer && dlInput) {
-    dlInput.min = new Date().toISOString().split('T')[0];
-    dlInput.value = listing.deadline || '';
+    const now = new Date();
+    const localISO = new Date(now.getTime() - now.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
+    dlInput.min = localISO;
+    let dlVal = listing.deadline || '';
+    if (dlVal && !dlVal.includes('T')) {
+      dlVal = `${dlVal}T17:00`;
+    }
+    dlInput.value = dlVal;
   }
 
   // Populate or clear image preview for edit
@@ -2635,7 +2710,7 @@ function setNewListingModalMode(mode = 'OFFER') {
   const descInput = $('#nr-description');
   const budgetLabel = $('#nr-budget-label');
   const budgetInput = $('#nr-budget');
-  const urgencyGroup = $('#nr-urgency-group');
+  const durationGroup = $('#nr-duration-group') || $('#nr-urgency-group');
   const standingNoteGroup = $('#nr-standing-note-group');
   const deadlineGroup = $('#nr-deadline-group');
   const submitBtn = $('#new-request-submit');
@@ -2653,7 +2728,7 @@ function setNewListingModalMode(mode = 'OFFER') {
     if (descInput) descInput.placeholder = 'Describe your service, materials, printer specifications, turnaround time...';
     if (budgetLabel) budgetLabel.textContent = 'Starting Price / Base Rate (₱) *';
     if (budgetInput) budgetInput.placeholder = '150';
-    if (urgencyGroup) urgencyGroup.style.display = 'none';
+    if (durationGroup) durationGroup.style.display = 'none';
     if (standingNoteGroup) standingNoteGroup.style.display = 'block';
     if (deadlineGroup) deadlineGroup.style.display = 'none';
     if (submitBtn) submitBtn.textContent = editingListing ? 'Save Changes' : 'Publish Service Offer';
@@ -2669,7 +2744,7 @@ function setNewListingModalMode(mode = 'OFFER') {
     if (descInput) descInput.placeholder = 'Describe the job, tasks, deliverables, and expectations...';
     if (budgetLabel) budgetLabel.textContent = 'Budget / Payment (₱) *';
     if (budgetInput) budgetInput.placeholder = '800';
-    if (urgencyGroup) urgencyGroup.style.display = 'block';
+    if (durationGroup) durationGroup.style.display = 'block';
     if (standingNoteGroup) standingNoteGroup.style.display = 'none';
     if (deadlineGroup) deadlineGroup.style.display = 'block';
     if (submitBtn) submitBtn.textContent = editingListing ? 'Save Changes' : 'Publish Service Request';
@@ -2782,7 +2857,10 @@ function setupNewRequestDialog() {
     updateListingImageUI(null);
     setNewListingModalMode('REQUEST');
     const dl = $('#nr-deadline');
-    if (dl) dl.min = new Date().toISOString().split('T')[0];
+    if (dl) {
+      const now = new Date();
+      dl.min = new Date(now.getTime() - now.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
+    }
     $('#dialog-new-request').showModal();
   });
 
@@ -2823,12 +2901,23 @@ function setupNewRequestDialog() {
 
     const mode = $('#nr-listing-type')?.value || 'OFFER';
     const isOffer = mode === 'OFFER';
-    const urgency = isOffer ? 'OFFER' : ($('#nr-urgency').value || 'Normal');
+    const duration = isOffer ? null : ($('#nr-duration')?.value || $('#nr-urgency')?.value || '2 hours');
+    if (!isOffer && duration) {
+      const durHours = parseDurationHours(duration);
+      if (durHours > 4) {
+        showToast('Task duration cannot exceed 4 hours per campus policy.', 'error');
+        return;
+      }
+    }
+    const urgency = isOffer ? 'OFFER' : duration;
     const deadline = isOffer ? null : ($('#nr-deadline').value || null);
 
-    if (!isOffer && deadline && new Date(deadline + 'T23:59:59') < new Date()) {
-      showToast('Deadline cannot be in the past.', 'error');
-      return;
+    if (!isOffer && deadline) {
+      const dlDate = deadline.includes('T') ? new Date(deadline) : new Date(deadline + 'T23:59:59');
+      if (isNaN(dlDate.getTime()) || dlDate < new Date()) {
+        showToast('Deadline cannot be in the past. Please select an upcoming hour.', 'error');
+        return;
+      }
     }
 
     const btn = $('#new-request-submit');
@@ -2897,6 +2986,7 @@ function setupNewRequestDialog() {
         prevListing.budget = budget;
         prevListing.category = $('#nr-category').value || 'General';
         prevListing.urgency = urgency;
+        prevListing.duration = duration;
         prevListing.deadline = deadline;
         prevListing.imageUrl = finalImage;
 
@@ -2908,6 +2998,7 @@ function setupNewRequestDialog() {
           memReq.budget = budget;
           memReq.category = $('#nr-category').value || 'General';
           memReq.urgency = urgency;
+          memReq.duration = duration;
           memReq.deadline = deadline;
           memReq.imageUrl = finalImage;
         }
@@ -2920,6 +3011,7 @@ function setupNewRequestDialog() {
           memJob.budget = budget;
           memJob.category = $('#nr-category').value || 'General';
           memJob.urgency = urgency;
+          memJob.duration = duration;
           memJob.deadline = deadline;
           memJob.imageUrl = finalImage;
         }
@@ -3198,7 +3290,7 @@ async function loadPostedJobs(isSilent = false) {
               <h3 style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; margin-bottom: 0.25rem;">
                 <span>${job.title}</span> ${typeBadge}
               </h3>
-              <small class="text-muted">${isOffer ? 'Standing Service (Always Open for Campus Orders)' : (job.deadline ? `Due: ${job.deadline}` : 'One-Time Request')}</small>
+              <small class="text-muted">${isOffer ? 'Standing Service (Always Open for Campus Orders)' : (job.deadline ? `Due: ${formatDeadlineFriendly(job.deadline)} • ${getDisplayDuration(job)}` : `One-Time Request • ${getDisplayDuration(job)}`)}</small>
             </div>
           </div>
           <div class="job-card-header-actions">

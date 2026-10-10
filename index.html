@@ -1480,12 +1480,17 @@
                             <option value="Other">Other</option>
                         </datalist>
                     </div>
-                    <div class="form-group flex-1" id="nr-urgency-group" style="display: none;">
-                        <label class="form-label" for="nr-urgency">Urgency</label>
-                        <select id="nr-urgency" class="form-control">
-                            <option value="Normal">Normal</option>
-                            <option value="Low">Low</option>
-                            <option value="Urgent">Urgent</option>
+                    <div class="form-group flex-1" id="nr-duration-group" style="display: none;">
+                        <label class="form-label" for="nr-duration">Time Duration (Max 4 hrs) *</label>
+                        <select id="nr-duration" class="form-control">
+                            <option value="30 mins">30 mins (0.5 hr)</option>
+                            <option value="1 hour">1 hour</option>
+                            <option value="1.5 hours">1.5 hours</option>
+                            <option value="2 hours" selected>2 hours</option>
+                            <option value="2.5 hours">2.5 hours</option>
+                            <option value="3 hours">3 hours</option>
+                            <option value="3.5 hours">3.5 hours</option>
+                            <option value="4 hours">4 hours (Maximum limit)</option>
                         </select>
                     </div>
                     <div class="form-group flex-1" id="nr-standing-note-group">
@@ -1501,8 +1506,8 @@
                         <input type="number" id="nr-budget" class="form-control" placeholder="150" min="1" max="100000" required>
                     </div>
                     <div class="form-group flex-1" id="nr-deadline-group" style="display: none;">
-                        <label class="form-label" for="nr-deadline">Deadline</label>
-                        <input type="date" id="nr-deadline" class="form-control">
+                        <label class="form-label" for="nr-deadline" id="nr-deadline-label">Deadline (Date &amp; Hour) *</label>
+                        <input type="datetime-local" id="nr-deadline" class="form-control">
                     </div>
                 </div>
 
