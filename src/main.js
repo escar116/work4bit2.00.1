@@ -2547,20 +2547,22 @@ function renderServices(requests) {
           ${rightBadge}
         </div>
       </div>
+      ${isOffer ? `
+        <div class="request-card-substats" style="display: flex; align-items: center; gap: 6px; margin: 4px 0 8px 0; padding-left: 2px;">
+          <span class="badge" style="background: rgba(234, 179, 8, 0.12); color: #d97706; border: 1px solid rgba(234, 179, 8, 0.3); font-size: 0.7rem; padding: 2px 7px; display: inline-flex; align-items: center; gap: 3px; font-weight: 600;">
+            <svg width="10" height="10" fill="currentColor" viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>
+            ${getProviderRating(r.requester?.id)}
+          </span>
+          <span class="badge" style="background: rgba(34, 197, 94, 0.12); color: #16a34a; border: 1px solid rgba(34, 197, 94, 0.3); font-size: 0.7rem; padding: 2px 7px; display: inline-flex; align-items: center; gap: 3px; font-weight: 600;">
+            ✓ ${getOfferCompletedCount(r.id, r.requester?.id)} completed
+          </span>
+        </div>
+      ` : ''}
       <h3 class="request-card-title cursor-pointer hover:underline card-open-details">${r.title}</h3>
       <p class="request-card-desc line-clamp-3">${r.description || 'No description provided.'}</p>
       <div class="request-card-meta">
         <span class="badge badge-normal">${r.category || 'General'}</span>
         ${standingOrDeadline}
-        ${isOffer ? `
-          <span class="badge" style="background: rgba(234, 179, 8, 0.12); color: #eab308; border: 1px solid rgba(234, 179, 8, 0.25); display: inline-flex; align-items: center; gap: 3px;">
-            <svg width="12" height="12" fill="currentColor" viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>
-            ${getProviderRating(r.requester?.id)}
-          </span>
-          <span class="badge" style="background: rgba(34, 197, 94, 0.12); color: #22c55e; border: 1px solid rgba(34, 197, 94, 0.25); display: inline-flex; align-items: center; gap: 3px;">
-            ✓ ${getOfferCompletedCount(r.id, r.requester?.id)} completed
-          </span>
-        ` : ''}
       </div>
       <div class="request-card-footer">
         <div class="request-card-price-row">
@@ -2568,16 +2570,18 @@ function renderServices(requests) {
           <div class="request-card-price">${peso(r.budget)}</div>
         </div>
         <div class="request-card-btn-group">
-          <button type="button" class="btn btn-view-details btn-sm card-open-details">Details</button>
           ${isMine && isOffer ? `
-            <button type="button" class="btn btn-outline btn-sm btn-toggle-closed-offer" data-id="${r.id}" style="${isClosedOffer ? 'border-color: #22c55e; color: #22c55e;' : 'border-color: #f59e0b; color: #f59e0b;'}">
-              ${isClosedOffer ? 'Reopen Offer' : 'Pause / Temp Close'}
+            <button type="button" class="btn btn-outline btn-sm btn-toggle-closed-offer" data-id="${r.id}" style="width: 100%; margin-bottom: 4px; justify-content: center; font-weight: 600; font-size: 0.78rem; padding: 0.32rem 0.5rem; ${isClosedOffer ? 'border-color: #22c55e; color: #22c55e; background: rgba(34, 197, 94, 0.05);' : 'border-color: #f59e0b; color: #f59e0b; background: rgba(245, 158, 11, 0.05);'}">
+              ${isClosedOffer ? '✓ Reopen Offer' : '⏸ Pause / Temp Close'}
             </button>
           ` : ''}
-          ${isMine ? `<button type="button" class="btn btn-outline btn-sm edit-listing-btn">Edit</button>` : ''}
-          <button type="button" class="btn ${btnClass} btn-sm apply-btn" ${btnDisabled ? 'disabled' : ''}>
-            ${btnText}
-          </button>
+          <div class="request-card-btn-row" style="display: flex; gap: 0.35rem; width: 100%;">
+            <button type="button" class="btn btn-view-details btn-sm card-open-details" style="flex: 1; justify-content: center;">Details</button>
+            ${isMine ? `<button type="button" class="btn btn-outline btn-sm edit-listing-btn" style="flex: 1; justify-content: center;">Edit</button>` : ''}
+            <button type="button" class="btn ${btnClass} btn-sm apply-btn" ${btnDisabled ? 'disabled' : ''} style="flex: 1; justify-content: center;">
+              ${btnText}
+            </button>
+          </div>
         </div>
       </div>
     `;
@@ -5541,7 +5545,7 @@ window.openViewProfileDialog = async function(userId) {
       const skills = u.skills || [];
       let skillsHtml = '';
       if (skills.length > 0) {
-        skillsHtml = '<div class="mt-2 mb-3 flex flex-wrap gap-1">' + skills.slice(0, 5).map(s => `<span class="badge" style="background: rgba(255,255,255,0.05);">${s}</span>`).join('') + (skills.length > 5 ? '<span class="text-xs text-muted">+' + (skills.length - 5) + '</span>' : '') + '</div>';
+        skillsHtml = '<div class="mt-2 mb-3 flex flex-wrap gap-1" style="gap: 4px;">' + skills.slice(0, 5).map(s => `<span class="badge badge-skill" style="border: 1px solid #cbd5e1; background: #f8fafc; color: var(--text-body); font-size: 0.72rem; padding: 2px 7px; font-weight: 500; border-radius: 6px;">${escapeHtml(s)}</span>`).join('') + (skills.length > 5 ? '<span class="text-xs text-muted" style="align-self: center; margin-left: 2px; font-weight: 600;">+' + (skills.length - 5) + '</span>' : '') + '</div>';
       } else {
         skillsHtml = '<div class="mt-2 mb-3 text-xs text-muted">No skills listed</div>';
       }
