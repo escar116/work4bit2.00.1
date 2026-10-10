@@ -2437,6 +2437,7 @@ function renderServices(requests) {
 
   filtered.forEach(r => {
     const isOffer = isJobOffer(r);
+    const isClosedOffer = isOffer && closedOffersSet.has(r.id);
     const isMine = r.requester?.id === userData?.id;
     const hasApplied = activeAppliedIds.has(r.id);
     const isExpired = isDeadlineExpired(r);
@@ -2479,7 +2480,6 @@ function renderServices(requests) {
               : `<span class="request-card-deadline">Due ${formatDeadlineFriendly(r.deadline)}</span>`)
           : '');
 
-    const isClosedOffer = isOffer && closedOffersSet.has(r.id);
     const rightBadge = isOffer
       ? (isClosedOffer
           ? `<span class="badge" style="background: rgba(239, 68, 68, 0.15); color: #ef4444; border: 1px solid rgba(239, 68, 68, 0.3);">Temporarily Closed</span>`
