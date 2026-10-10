@@ -65,8 +65,10 @@
 #section-services .services-header-wrapper { padding:0 0 22px; border-bottom:1px solid var(--border-card); margin-bottom:24px; }
 #section-services .services-header-info p { max-width:620px; line-height:1.75; margin-top:10px; }
 #section-services .marketplace-tabs-container { margin-top:24px; border-radius:11px; padding:5px; background:#eceefa; box-shadow:none; border:1px solid #e1e4f2; }
-#section-services .marketplace-tab-btn { border-radius:8px; padding:10px 18px; }
-#section-services .marketplace-tab-btn.active { color: rgb(96, 63, 242); box-shadow:0 2px 4px rgba(96, 63, 242, 0.15); border-bottom-color: rgb(167, 46, 255); }
+#section-services .marketplace-tab-btn { border-radius:8px; padding:10px 18px; color: var(--text-muted); }
+#section-services .marketplace-tab-btn.active { background: var(--gradient-primary); color: #ffffff !important; box-shadow: 0 3px 12px rgba(96, 63, 242, 0.3); }
+#section-services .marketplace-tab-btn.active span { color: #ffffff !important; }
+#section-services .marketplace-tab-btn.active .tab-count-pill { background: rgba(255, 255, 255, 0.28) !important; color: #ffffff !important; }
 #app-views .main-content .marketplace-search-combined-bar { background:white; border:1px solid #dce1ef; border-radius:12px; box-shadow:0 3px 12px #22283e03; min-height:56px; }
 #app-views .main-content .marketplace-filter-drawer { background:white; border:1px solid var(--border-card); border-radius:12px; margin-top:10px; box-shadow:none; }
 #app-views .main-content .marketplace-search-input { font-size:.9rem; }
