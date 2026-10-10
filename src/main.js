@@ -2473,7 +2473,7 @@ function renderServices(requests) {
     }
 
     const standingOrDeadline = isOffer
-      ? `<span class="request-card-deadline listing-availability">Standing Service (Always Open)</span>`
+      ? ''
       : (r.deadline
           ? (isExpired
               ? `<span class="request-card-deadline" style="color: #ef4444; font-weight: 600;">Due ${formatDeadlineFriendly(r.deadline)} (Expired)</span>`
@@ -2543,21 +2543,16 @@ function renderServices(requests) {
           <strong class="request-card-name cursor-pointer hover:underline" onclick="openViewProfileDialog('${r.requester?.id}')">${r.requester?.fullName || (isOffer ? 'Student Provider' : 'Student Client')}</strong>
           <small class="text-muted text-xs" style="display: block; margin-top: 1px;">${isOffer ? 'Service Provider' : 'Client in need'}</small>
         </div>
-        <div class="request-card-badge">
+        <div class="request-card-badge" style="display: flex; flex-direction: column; align-items: flex-end; gap: 4px;">
           ${rightBadge}
+          ${isOffer ? `
+            <span class="badge" style="background: rgba(234, 179, 8, 0.12); color: #d97706; border: 1px solid rgba(234, 179, 8, 0.3); font-size: 0.72rem; padding: 2px 7px; display: inline-flex; align-items: center; gap: 3px; font-weight: 600;">
+              <svg width="10" height="10" fill="currentColor" viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>
+              ${getProviderRating(r.requester?.id)}
+            </span>
+          ` : ''}
         </div>
       </div>
-      ${isOffer ? `
-        <div class="request-card-substats" style="display: flex; align-items: center; gap: 6px; margin: 4px 0 8px 0; padding-left: 2px;">
-          <span class="badge" style="background: rgba(234, 179, 8, 0.12); color: #d97706; border: 1px solid rgba(234, 179, 8, 0.3); font-size: 0.7rem; padding: 2px 7px; display: inline-flex; align-items: center; gap: 3px; font-weight: 600;">
-            <svg width="10" height="10" fill="currentColor" viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>
-            ${getProviderRating(r.requester?.id)}
-          </span>
-          <span class="badge" style="background: rgba(34, 197, 94, 0.12); color: #16a34a; border: 1px solid rgba(34, 197, 94, 0.3); font-size: 0.7rem; padding: 2px 7px; display: inline-flex; align-items: center; gap: 3px; font-weight: 600;">
-            ✓ ${getOfferCompletedCount(r.id, r.requester?.id)} completed
-          </span>
-        </div>
-      ` : ''}
       <h3 class="request-card-title cursor-pointer hover:underline card-open-details">${r.title}</h3>
       <p class="request-card-desc line-clamp-3">${r.description || 'No description provided.'}</p>
       <div class="request-card-meta">
@@ -2565,9 +2560,18 @@ function renderServices(requests) {
         ${standingOrDeadline}
       </div>
       <div class="request-card-footer">
-        <div class="request-card-price-row">
-          <small class="text-muted">${isOffer ? 'Starting Rate' : 'Budget'}</small>
-          <div class="request-card-price">${peso(r.budget)}</div>
+        <div class="request-card-price-row" style="display: flex !important; flex-direction: row !important; justify-content: space-between !important; align-items: flex-end !important; width: 100% !important;">
+          <div class="price-container">
+            <small class="text-muted" style="display: block;">${isOffer ? 'Starting Rate' : 'Budget'}</small>
+            <div class="request-card-price">${peso(r.budget)}</div>
+          </div>
+          ${isOffer ? `
+            <div class="request-card-completed-count" style="text-align: right; margin-bottom: 2px;">
+              <span class="badge" style="background: rgba(34, 197, 94, 0.12); color: #16a34a; border: 1px solid rgba(34, 197, 94, 0.25); font-size: 0.72rem; padding: 2px 8px; font-weight: 600; white-space: nowrap;">
+                ${getOfferCompletedCount(r.id, r.requester?.id)} completed
+              </span>
+            </div>
+          ` : ''}
         </div>
         <div class="request-card-btn-group">
           ${isMine && isOffer ? `

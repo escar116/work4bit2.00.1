@@ -71,11 +71,10 @@
 #section-services .request-card-header { padding-bottom:14px; border-bottom:1px solid #edf0f7; gap:10px; }
 #section-services .request-card-title { font-size:1.13rem; line-height:1.45; letter-spacing:-.025em; }
 #section-services .request-card-desc { color:#657086; font-size:.84rem; line-height:1.75; }
-#section-services .request-card-meta { gap:8px; }
-#section-services .request-card-footer { border-top:1px solid #edf0f7; padding-top:16px; gap:14px; align-items:flex-start; flex-wrap:wrap; }
-#section-services .request-card-price { color:#5543ed; font-size:1.35rem; font-weight:750; }
-#section-services .request-card-price-row { flex-direction:column; align-items:flex-start; gap:3px; }
-#section-services .request-card-btn-group { flex-wrap:wrap; gap:6px; }
+#section-services .request-card-footer { border-top:1px solid #edf0f7; padding-top:14px; gap:12px; width:100%; }
+#section-services .request-card-price { color:#5543ed; font-size:1.25rem; font-weight:750; }
+#section-services .request-card-price-row { display:flex !important; flex-direction:row !important; justify-content:space-between !important; align-items:flex-end !important; width:100% !important; }
+#section-services .request-card-btn-group { width:100%; }
 #section-services .request-card .listing-availability { color:#157f72!important; background:#e9f7f2; padding:4px 7px; border-radius:5px; font-size:.72rem; }
 #section-services .request-card[data-listing-kind="request"] { border-top:3px solid #23a6a0; }
 #section-services .marketplace-empty-card { border:1px dashed #d7dced; border-radius:14px; background:white; padding:48px 24px; }
