@@ -1857,6 +1857,22 @@ function setupDashboardLinks() {
 
 // -- Find Services  ------------------------------------------------------------
 let allRequests = [];
+
+const closedOffersSet = new Set();
+const providerRatingsMap = {};
+const completedTxCountsMap = {};
+
+function getProviderRating(userId) {
+  if (!userId) return '5.0';
+  return providerRatingsMap[userId] || '5.0';
+}
+
+function getOfferCompletedCount(offerId, providerId) {
+  if (offerId && completedTxCountsMap[offerId] !== undefined) return completedTxCountsMap[offerId];
+  if (providerId && completedTxCountsMap[providerId] !== undefined) return completedTxCountsMap[providerId];
+  return 0;
+}
+
 let allMyJobs = [];
 let activeAppliedIds = new Set();
 let userApplicationsByRequestId = new Map();
@@ -2029,11 +2045,43 @@ async function loadServices(isSilent = false) {
   }
   if (!isSilent) grid.innerHTML = getSkeletonCardsHtml(6);
   try {
-    const [reqRes, appRes] = await Promise.all([
+    const [reqRes, appRes, revSnap, firestoreAppsSnap, statusSnap] = await Promise.all([
       listHelpRequests(dc, SERVER_ONLY),
-      userData?.id ? listApplicationsByApplicant(dc, { userId: userData.id }, SERVER_ONLY) : { data: { applications: [] } }
+      userData?.id ? listApplicationsByApplicant(dc, { userId: userData.id }, SERVER_ONLY) : { data: { applications: [] } },
+      getDocs(collection(firestore, "reviews")).catch(() => ({ forEach: () => {} })),
+      getDocs(collection(firestore, "applications")).catch(() => ({ forEach: () => {} })),
+      getDocs(collection(firestore, "service_status")).catch(() => ({ forEach: () => {} }))
     ]);
     allRequests = reqRes.data.helpRequests || [];
+
+    // Sync closed offer statuses
+    closedOffersSet.clear();
+    statusSnap.forEach(d => {
+      if (d.data().isClosed) closedOffersSet.add(d.id);
+    });
+
+    // Sync provider ratings
+    const sums = {}, counts = {};
+    revSnap.forEach(d => {
+      const data = d.data();
+      if (data.targetUserId) {
+        sums[data.targetUserId] = (sums[data.targetUserId] || 0) + (Number(data.rating) || 5);
+        counts[data.targetUserId] = (counts[data.targetUserId] || 0) + 1;
+      }
+    });
+    for (const uid in sums) {
+      providerRatingsMap[uid] = (sums[uid] / counts[uid]).toFixed(1);
+    }
+
+    // Sync completed transactions per request and provider
+    firestoreAppsSnap.forEach(d => {
+      const data = d.data();
+      if (data.status === 'COMPLETED') {
+        if (data.helpRequestId) completedTxCountsMap[data.helpRequestId] = (completedTxCountsMap[data.helpRequestId] || 0) + 1;
+        if (data.applicantId) completedTxCountsMap[data.applicantId] = (completedTxCountsMap[data.applicantId] || 0) + 1;
+        if (data.posterId) completedTxCountsMap[data.posterId] = (completedTxCountsMap[data.posterId] || 0) + 1;
+      }
+    });
 
     // Filter and auto-clean placeholder/test mockup listings (Finding #2)
     for (const r of allRequests) {
@@ -2406,6 +2454,11 @@ function renderServices(requests) {
       btnClass = 'btn-delete-service';
       btnDisabled = false;
       actionType = 'delete';
+    } else if (isClosedOffer) {
+      btnText = 'Temporarily Closed';
+      btnClass = 'btn-mine';
+      btnDisabled = true;
+      actionType = 'none';
     } else if (hasApplied) {
       btnText = 'Cancel';
       btnClass = 'btn-cancel-service';
@@ -2426,9 +2479,12 @@ function renderServices(requests) {
               : `<span class="request-card-deadline">Due ${formatDeadlineFriendly(r.deadline)}</span>`)
           : '');
 
+    const isClosedOffer = isOffer && closedOffersSet.has(r.id);
     const rightBadge = isOffer
-      ? `<span class="badge badge-standing">Standing</span>`
-      : `<span class="badge badge-duration">⏱️ ${escapeHtml(getDisplayDuration(r))}</span>`;
+      ? (isClosedOffer
+          ? `<span class="badge" style="background: rgba(239, 68, 68, 0.15); color: #ef4444; border: 1px solid rgba(239, 68, 68, 0.3);">Temporarily Closed</span>`
+          : `<span class="badge badge-standing">Standing</span>`)
+      : `<span class="badge badge-duration">${escapeHtml(getDisplayDuration(r))}</span>`;
 
     const triggerDelete = async () => {
       const itemName = isOffer ? 'service offer' : 'service request';
@@ -2496,6 +2552,15 @@ function renderServices(requests) {
       <div class="request-card-meta">
         <span class="badge badge-normal">${r.category || 'General'}</span>
         ${standingOrDeadline}
+        ${isOffer ? `
+          <span class="badge" style="background: rgba(234, 179, 8, 0.12); color: #eab308; border: 1px solid rgba(234, 179, 8, 0.25); display: inline-flex; align-items: center; gap: 3px;">
+            <svg width="12" height="12" fill="currentColor" viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>
+            ${getProviderRating(r.requester?.id)}
+          </span>
+          <span class="badge" style="background: rgba(34, 197, 94, 0.12); color: #22c55e; border: 1px solid rgba(34, 197, 94, 0.25); display: inline-flex; align-items: center; gap: 3px;">
+            ✓ ${getOfferCompletedCount(r.id, r.requester?.id)} completed
+          </span>
+        ` : ''}
       </div>
       <div class="request-card-footer">
         <div class="request-card-price-row">
@@ -2504,6 +2569,11 @@ function renderServices(requests) {
         </div>
         <div class="request-card-btn-group">
           <button type="button" class="btn btn-view-details btn-sm card-open-details">Details</button>
+          ${isMine && isOffer ? `
+            <button type="button" class="btn btn-outline btn-sm btn-toggle-closed-offer" data-id="${r.id}" style="${isClosedOffer ? 'border-color: #22c55e; color: #22c55e;' : 'border-color: #f59e0b; color: #f59e0b;'}">
+              ${isClosedOffer ? 'Reopen Offer' : 'Pause / Temp Close'}
+            </button>
+          ` : ''}
           ${isMine ? `<button type="button" class="btn btn-outline btn-sm edit-listing-btn">Edit</button>` : ''}
           <button type="button" class="btn ${btnClass} btn-sm apply-btn" ${btnDisabled ? 'disabled' : ''}>
             ${btnText}
@@ -2517,6 +2587,20 @@ function renderServices(requests) {
         e.preventDefault();
         openServiceDetailsDialog(r, actionInfo);
       });
+    });
+
+    card.querySelector('.btn-toggle-closed-offer')?.addEventListener('click', async (e) => {
+      e.preventDefault();
+      const newStatus = !isClosedOffer;
+      if (newStatus) closedOffersSet.add(r.id); else closedOffersSet.delete(r.id);
+      try {
+        await setDoc(doc(firestore, "service_status", r.id), { isClosed: newStatus, updatedAt: firestoreTimestamp() }, { merge: true });
+        showToast(newStatus ? 'Service offer marked as Temporarily Closed.' : 'Service offer reopened and accepting campus orders!');
+        logUserAction('update service', `${newStatus ? 'Temporarily closed' : 'Reopened'} service offer "${r.title || ''}"`, currentUser?.uid || userData?.id);
+        loadServices();
+      } catch (err) {
+        showToast('Could not update status: ' + err.message, 'error');
+      }
     });
 
     card.querySelector('.edit-listing-btn')?.addEventListener('click', (e) => {
@@ -2901,8 +2985,26 @@ function setupNewRequestDialog() {
 
     const mode = $('#nr-listing-type')?.value || 'OFFER';
     const isOffer = mode === 'OFFER';
-    const duration = isOffer ? null : ($('#nr-duration')?.value || $('#nr-urgency')?.value || '2 hours');
-    if (!isOffer && duration) {
+    const categoryVal = $('#nr-category')?.value.trim();
+    if (!categoryVal) {
+      showToast('Please select or specify a category.', 'error');
+      return;
+    }
+    if (!description.trim()) {
+      showToast('Description & requirements are required.', 'error');
+      return;
+    }
+    if (!budget || Number(budget) <= 0) {
+      showToast('Please specify a valid budget / rate.', 'error');
+      return;
+    }
+
+    const duration = isOffer ? null : ($('#nr-duration')?.value || '2 hours');
+    if (!isOffer) {
+      if (!duration) {
+        showToast('Please select a time duration (maximum 4 hours).', 'error');
+        return;
+      }
       const durHours = parseDurationHours(duration);
       if (durHours > 4) {
         showToast('Task duration cannot exceed 4 hours per campus policy.', 'error');
@@ -2911,6 +3013,10 @@ function setupNewRequestDialog() {
     }
     const urgency = isOffer ? 'OFFER' : duration;
     const deadline = isOffer ? null : ($('#nr-deadline').value || null);
+    if (!isOffer && !deadline) {
+      showToast('Please specify a deadline with date and hour.', 'error');
+      return;
+    }
 
     if (!isOffer && deadline) {
       const dlDate = deadline.includes('T') ? new Date(deadline) : new Date(deadline + 'T23:59:59');
@@ -4845,6 +4951,8 @@ async function loadProfile() {
       userData.bio = data.bio || '';
       userData.skills = data.skills || [];
       userData.portfolio = data.portfolio || [];
+      if (data.preferredRole) userData.preferredRole = data.preferredRole;
+      userData.isMentor = data.isMentor === true;
       const docPhoto = data.photoURL || data.profilePicture || '';
       if (docPhoto) {
         userData.photoURL = docPhoto;
@@ -4899,20 +5007,18 @@ function renderPortfolio(items) {
     return;
   }
   grid.innerHTML = items.map((item, idx) => {
-    const tagsHtml = (item.tags || []).map(t => `<span class="portfolio-tag">${escapeHtml(t.trim())}</span>`).join('');
     return `
       <div class="portfolio-card" data-idx="${idx}">
+        ${item.imageUrl ? `
+          <div style="margin-bottom: 0.75rem; border-radius: 8px; overflow: hidden; border: 1px solid var(--border-light); max-height: 180px;">
+            <img src="${item.imageUrl}" alt="${escapeHtml(item.title)}" style="width: 100%; height: 180px; object-fit: cover; display: block;" />
+          </div>
+        ` : ''}
         <div style="display: flex; align-items: flex-start; justify-content: space-between; gap: 0.5rem;">
           <h4 class="portfolio-card-title">${escapeHtml(item.title)}</h4>
           <button type="button" class="portfolio-delete-btn" data-idx="${idx}" title="Delete project">✕</button>
         </div>
         <p class="portfolio-card-desc">${escapeHtml(item.description)}</p>
-        ${tagsHtml ? `<div class="portfolio-tags">${tagsHtml}</div>` : ''}
-        ${item.link ? `
-          <div class="portfolio-card-footer">
-            <a href="${escapeHtml(item.link)}" target="_blank" rel="noopener noreferrer" class="portfolio-link-btn">View Project ↗</a>
-          </div>
-        ` : ''}
       </div>
     `;
   }).join('');
@@ -4937,10 +5043,61 @@ function renderPortfolio(items) {
   });
 }
 
+let currentPortfolioImage = null;
+
 function setupPortfolio() {
+  const dropzone = $('#port-image-dropzone');
+  const fileInput = $('#port-image-input');
+  const removeBtn = $('#port-image-remove-btn');
+  const changeBtn = $('#port-image-change-btn');
+  const previewContainer = $('#port-image-preview-container');
+  const previewImg = $('#port-image-preview');
+  const filenameSpan = $('#port-image-filename');
+
+  const updatePortImgUI = (dataUrl, filename = '') => {
+    currentPortfolioImage = dataUrl || null;
+    if (dataUrl) {
+      if (previewImg) previewImg.src = dataUrl;
+      if (filenameSpan) filenameSpan.textContent = filename || 'attached-photo.jpg';
+      dropzone?.classList.add('hidden');
+      previewContainer?.classList.remove('hidden');
+    } else {
+      if (previewImg) previewImg.src = '';
+      if (fileInput) fileInput.value = '';
+      previewContainer?.classList.add('hidden');
+      dropzone?.classList.remove('hidden');
+    }
+  };
+
+  if (dropzone && fileInput) {
+    dropzone.addEventListener('click', () => fileInput.click());
+    dropzone.addEventListener('dragover', (e) => { e.preventDefault(); dropzone.classList.add('dragover'); });
+    dropzone.addEventListener('dragleave', () => dropzone.classList.remove('dragover'));
+    dropzone.addEventListener('drop', async (e) => {
+      e.preventDefault();
+      dropzone.classList.remove('dragover');
+      const file = e.dataTransfer?.files?.[0];
+      if (file && file.type.startsWith('image/')) {
+        const compressed = await compressImage(file, 800, 100000);
+        updatePortImgUI(compressed, file.name);
+      }
+    });
+    fileInput.addEventListener('change', async (e) => {
+      const file = e.target.files?.[0];
+      if (file) {
+        const compressed = await compressImage(file, 800, 100000);
+        updatePortImgUI(compressed, file.name);
+      }
+    });
+  }
+
+  removeBtn?.addEventListener('click', () => updatePortImgUI(null));
+  changeBtn?.addEventListener('click', () => fileInput?.click());
+
   $('#btn-add-portfolio-item')?.addEventListener('click', (e) => {
     e.preventDefault();
     $('#form-add-portfolio')?.reset();
+    updatePortImgUI(null);
     $('#dialog-add-portfolio')?.showModal();
   });
 
@@ -4948,21 +5105,17 @@ function setupPortfolio() {
     e.preventDefault();
     const title = $('#port-title')?.value.trim();
     const desc = $('#port-desc')?.value.trim();
-    const tagsRaw = $('#port-tags')?.value.trim() || '';
-    const link = $('#port-link')?.value.trim() || '';
 
     if (!title || !desc) {
       showToast('Title and description are required.', 'error');
       return;
     }
 
-    const tags = tagsRaw ? tagsRaw.split(',').map(s => s.trim()).filter(Boolean) : [];
     const newProject = {
       id: 'port_' + Date.now(),
       title,
       description: desc,
-      tags,
-      link,
+      imageUrl: currentPortfolioImage || '',
       createdAt: new Date().toISOString()
     };
 
@@ -4977,7 +5130,9 @@ function setupPortfolio() {
       renderPortfolio(current);
       $('#dialog-add-portfolio')?.close();
       e.target.reset();
+      updatePortImgUI(null);
       showToast('Project added to portfolio!');
+      logUserAction('add portfolio', `Added project "${title}" to portfolio`, currentUser?.uid || userData?.id);
     } catch (err) {
       showToast('Could not save project: ' + err.message, 'error');
     } finally {
@@ -5127,21 +5282,17 @@ window.openViewProfileDialog = async function(userId) {
         if (vpPortGrid) {
           const portfolio = data.portfolio || [];
           if (portfolio.length > 0) {
-            vpPortGrid.innerHTML = portfolio.map(item => {
-              const tagsHtml = (item.tags || []).map(t => `<span class="portfolio-tag">${escapeHtml(t.trim())}</span>`).join('');
-              return `
-                <div class="portfolio-card">
-                  <h4 class="portfolio-card-title">${escapeHtml(item.title)}</h4>
-                  <p class="portfolio-card-desc">${escapeHtml(item.description)}</p>
-                  ${tagsHtml ? `<div class="portfolio-tags">${tagsHtml}</div>` : ''}
-                  ${item.link ? `
-                    <div class="portfolio-card-footer">
-                      <a href="${escapeHtml(item.link)}" target="_blank" rel="noopener noreferrer" class="portfolio-link-btn">View Project ↗</a>
-                    </div>
-                  ` : ''}
-                </div>
-              `;
-            }).join('');
+            vpPortGrid.innerHTML = portfolio.map(item => `
+              <div class="portfolio-card">
+                ${item.imageUrl ? `
+                  <div style="margin-bottom: 0.75rem; border-radius: 8px; overflow: hidden; border: 1px solid var(--border-light); max-height: 180px;">
+                    <img src="${item.imageUrl}" alt="${escapeHtml(item.title)}" style="width: 100%; height: 180px; object-fit: cover; display: block;" />
+                  </div>
+                ` : ''}
+                <h4 class="portfolio-card-title">${escapeHtml(item.title)}</h4>
+                <p class="portfolio-card-desc">${escapeHtml(item.description)}</p>
+              </div>
+            `).join('');
           } else {
             vpPortGrid.innerHTML = '<span class="text-sm text-muted">No projects listed.</span>';
           }
@@ -5328,10 +5479,11 @@ window.openViewProfileDialog = async function(userId) {
     }
     
     try {
-      const [res, profilesSnap, revSnap] = await Promise.all([
+      const [res, profilesSnap, revSnap, appsSnap] = await Promise.all([
         listAllUsers(dc),
         getDocs(collection(firestore, "user_profiles")).catch(() => ({ forEach: () => {} })),
-        getDocs(collection(firestore, "reviews")).catch(() => ({ forEach: () => {} }))
+        getDocs(collection(firestore, "reviews")).catch(() => ({ forEach: () => {} })),
+        getDocs(collection(firestore, "applications")).catch(() => ({ forEach: () => {} }))
       ]);
       let users = res.data.users || [];
       users = users.filter(u => u.id !== userData.id);
@@ -5347,10 +5499,23 @@ window.openViewProfileDialog = async function(userId) {
         revMap[data.targetUserId].count++;
       });
 
+      const mentorTxCounts = {};
+      appsSnap.forEach(d => {
+        const data = d.data();
+        if (data.status === 'COMPLETED') {
+          if (data.applicantId) mentorTxCounts[data.applicantId] = (mentorTxCounts[data.applicantId] || 0) + 1;
+          if (data.posterId) mentorTxCounts[data.posterId] = (mentorTxCounts[data.posterId] || 0) + 1;
+        }
+      });
+
+      // Filter: only users who explicitly configured isMentor === true appear in Mentoring!
+      users = users.filter(u => profilesMap[u.id]?.isMentor === true);
+
       users.forEach(u => {
         u.bio = profilesMap[u.id]?.bio || '';
         u.skills = profilesMap[u.id]?.skills || [];
-        u.rating = revMap[u.id] ? (revMap[u.id].sum / revMap[u.id].count).toFixed(1) : 'New';
+        u.rating = revMap[u.id] ? (revMap[u.id].sum / revMap[u.id].count).toFixed(1) : '5.0';
+        u.completedSessions = mentorTxCounts[u.id] || 0;
       });
       
       allUsersData = users;
@@ -5389,7 +5554,12 @@ window.openViewProfileDialog = async function(userId) {
               <h3 class="job-title cursor-pointer hover:underline" style="margin:0;" onclick="openViewProfileDialog('${u.id}')">${u.fullName}</h3>
               <span class="flex items-center gap-1 text-sm font-bold" style="color: var(--color-amber);">
                 <svg width="14" height="14" fill="currentColor" viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>
-                ${u.rating || 'New'}
+                ${u.rating || '5.0'}
+              </span>
+            </div>
+            <div class="mt-1 flex items-center gap-1">
+              <span class="badge" style="background: rgba(34, 197, 94, 0.12); color: #22c55e; border: 1px solid rgba(34, 197, 94, 0.25); font-size: 0.72rem; padding: 2px 7px;">
+                ✓ ${u.completedSessions || 0} ${u.completedSessions === 1 ? 'session' : 'sessions'} completed
               </span>
             </div>
           </div>
@@ -5552,6 +5722,12 @@ window.openViewProfileDialog = async function(userId) {
         const editFileInput = document.getElementById('edit-avatar-file-input');
         if (editFileInput) editFileInput.value = '';
 
+        const prefRoleEl = document.getElementById('edit-preferred-role');
+        if (prefRoleEl) prefRoleEl.value = userData?.preferredRole || 'Offer My Skills';
+
+        const isMentorEl = document.getElementById('edit-is-mentor');
+        if (isMentorEl) isMentorEl.checked = userData?.isMentor === true;
+
         const bioEl = document.getElementById('edit-bio');
         if (bioEl) bioEl.value = userData?.bio || '';
         
@@ -5662,12 +5838,21 @@ window.openViewProfileDialog = async function(userId) {
       
       try {
         if (userData) {
+          const prefRoleEl = document.getElementById('edit-preferred-role');
+          const prefRole = prefRoleEl ? prefRoleEl.value : (userData.preferredRole || 'Offer My Skills');
+          const isMentorEl = document.getElementById('edit-is-mentor');
+          const isMentor = isMentorEl ? isMentorEl.checked : false;
+
           userData.bio = bio;
           userData.skills = skills;
+          userData.preferredRole = prefRole;
+          userData.isMentor = isMentor;
           
           const updatePayload = {
             bio: bio,
-            skills: skills
+            skills: skills,
+            preferredRole: prefRole,
+            isMentor: isMentor
           };
 
           if (pendingAvatarDataUrl !== null) {
@@ -5690,6 +5875,12 @@ window.openViewProfileDialog = async function(userId) {
         
         const bioDisplay = document.getElementById('profile-bio-display');
         if (bioDisplay) bioDisplay.textContent = bio || 'No bio provided yet.';
+
+        const roleDisplay = document.getElementById('prof-role');
+        if (roleDisplay) roleDisplay.textContent = prefRole === 'Offer My Skills' ? 'Skill Seeker / Service Provider' : 'Client in Need';
+
+        const prefBadge = document.getElementById('prof-pref-role-badge');
+        if (prefBadge) prefBadge.textContent = prefRole;
         
         const skillsDisplay = document.getElementById('profile-skills-display');
         if (skillsDisplay) {
