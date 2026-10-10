@@ -7,10 +7,8 @@
     --status-pending: #f59e0b;
     --status-completed: #10b981;
     --status-terminated: #ef4444;
-    /* Solid Deep Navy Sidebar */
-    --sidebar-bg: #0a0d20;
-    --sidebar-gradient: linear-gradient(180deg, rgba(3, 51, 217, 0.45) 0%, rgba(96, 63, 242, 0.38) 50%, rgba(167, 46, 255, 0.30) 100%), #0a0d20;
-    --header-gradient: linear-gradient(90deg, rgba(3, 51, 217, 0.55) 0%, rgba(96, 63, 242, 0.45) 40%, rgba(167, 46, 255, 0.38) 80%, rgba(245, 0, 254, 0.30) 100%), #0a0d20;
+    /* Solid Deep Navy Shell */
+    --sidebar-bg: #12152b;
     --sidebar-hover: rgba(167, 46, 255, 0.12);
     --sidebar-active: rgb(96, 63, 242);
     
@@ -641,9 +639,9 @@ body.dark-theme .image-upload-dropzone.drag-over {
     left: 0;
     bottom: 0;
     width: var(--sidebar-width);
-    background: var(--sidebar-gradient);
-    border-right: 1px solid rgba(167, 46, 255, 0.28);
-    box-shadow: 4px 0 26px rgba(3, 51, 217, 0.2);
+    background: #12152b;
+    border-right: 1px solid rgba(167, 46, 255, 0.18);
+    box-shadow: 4px 0 20px rgba(0, 0, 0, 0.2);
     color: var(--text-on-dark);
     padding: 1.5rem 1rem 1.15rem;
     display: flex;
@@ -759,7 +757,7 @@ body.dark-theme .image-upload-dropzone.drag-over {
     align-items: center;
     justify-content: space-between;
     padding: 0.85rem 0.65rem 0;
-    border-top: 1px solid rgba(167, 46, 255, 0.2);
+    border-top: 1px solid rgba(167, 46, 255, 0.15);
     gap: 0.5rem;
 }
 
@@ -4744,8 +4742,9 @@ dialog#dialog-certificate.modal {
     left: 0;
     right: 0;
     height: 64px;
-    background-color: #252a45;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    background: #12152b;
+    border-bottom: 1px solid rgba(167, 46, 255, 0.18);
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.25);
     display: flex;
     align-items: center;
     justify-content: space-between;
