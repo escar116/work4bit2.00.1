@@ -8,14 +8,26 @@
     --status-completed: #10b981;
     --status-terminated: #ef4444;
     /* Solid Deep Navy Sidebar */
-    --sidebar-bg: #22283e;
-    --sidebar-hover: rgba(255, 255, 255, 0.07);
-    --sidebar-active: #4f46e5;
+    --sidebar-bg: #0a0d20;
+    --sidebar-gradient: linear-gradient(180deg, rgba(3, 51, 217, 0.45) 0%, rgba(96, 63, 242, 0.38) 50%, rgba(167, 46, 255, 0.30) 100%), #0a0d20;
+    --header-gradient: linear-gradient(90deg, rgba(3, 51, 217, 0.55) 0%, rgba(96, 63, 242, 0.45) 40%, rgba(167, 46, 255, 0.38) 80%, rgba(245, 0, 254, 0.30) 100%), #0a0d20;
+    --sidebar-hover: rgba(167, 46, 255, 0.12);
+    --sidebar-active: rgb(96, 63, 242);
+    
+    /* Integrated Electric Tech Palette */
+    --color-electric-fuchsia: rgb(245, 0, 254);
+    --color-electric-purple: rgb(167, 46, 255);
+    --color-electric-blue: rgb(3, 51, 217);
+    --color-electric-indigo: rgb(96, 63, 242);
+    
+    --gradient-brand: linear-gradient(135deg, rgb(3, 51, 217) 0%, rgb(96, 63, 242) 38%, rgb(167, 46, 255) 75%, rgb(245, 0, 254) 100%);
+    --gradient-primary: linear-gradient(135deg, rgb(96, 63, 242) 0%, rgb(167, 46, 255) 100%);
+    --gradient-primary-hover: linear-gradient(135deg, rgb(167, 46, 255) 0%, rgb(245, 0, 254) 100%);
     
     /* Primary Colors */
-    --primary-purple: #4f46e5;
-    --primary-purple-hover: #4338ca;
-    --accent-purple-light: #ede9fe;
+    --primary-purple: rgb(96, 63, 242);
+    --primary-purple-hover: rgb(167, 46, 255);
+    --accent-purple-light: rgba(167, 46, 255, 0.12);
     
     /* Surface & Background */
     --bg-main: #e2e8f0;
@@ -629,7 +641,9 @@ body.dark-theme .image-upload-dropzone.drag-over {
     left: 0;
     bottom: 0;
     width: var(--sidebar-width);
-    background-color: var(--sidebar-bg);
+    background: var(--sidebar-gradient);
+    border-right: 1px solid rgba(167, 46, 255, 0.28);
+    box-shadow: 4px 0 26px rgba(3, 51, 217, 0.2);
     color: var(--text-on-dark);
     padding: 1.5rem 1rem 1.15rem;
     display: flex;
@@ -658,13 +672,14 @@ body.dark-theme .image-upload-dropzone.drag-over {
 }
 
 .logo-badge {
-    background: rgba(255, 255, 255, 0.15);
+    background: linear-gradient(135deg, rgb(167, 46, 255), rgb(245, 0, 254));
     color: #ffffff;
     font-size: 0.75rem;
     font-weight: 700;
     padding: 0.1rem 0.45rem;
     border-radius: 6px;
-    border: 1px solid rgba(255, 255, 255, 0.2);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    box-shadow: 0 2px 10px rgba(245, 0, 254, 0.4);
 }
 
 .nav-links {
@@ -733,10 +748,10 @@ body.dark-theme .image-upload-dropzone.drag-over {
 }
 
 .nav-btn.active {
-    background-color: var(--primary-purple);
+    background: linear-gradient(135deg, rgb(96, 63, 242) 0%, rgb(167, 46, 255) 100%);
     color: #ffffff;
     font-weight: 600;
-    box-shadow: 0 4px 12px rgba(79, 70, 229, 0.3);
+    box-shadow: 0 4px 14px rgba(96, 63, 242, 0.4);
 }
 
 .sidebar-user-footer {
@@ -744,7 +759,7 @@ body.dark-theme .image-upload-dropzone.drag-over {
     align-items: center;
     justify-content: space-between;
     padding: 0.85rem 0.65rem 0;
-    border-top: 1px solid rgba(255, 255, 255, 0.08);
+    border-top: 1px solid rgba(167, 46, 255, 0.2);
     gap: 0.5rem;
 }
 
@@ -2648,12 +2663,16 @@ body.dark-theme .badge-skill {
 .btn-sm { padding: 0.35rem 0.85rem; font-size: 0.8rem; }
 
 .btn-purple {
-    background-color: var(--primary-purple);
+    background: linear-gradient(135deg, rgb(96, 63, 242) 0%, rgb(167, 46, 255) 100%);
     color: #ffffff;
+    border: none;
+    box-shadow: 0 2px 8px rgba(96, 63, 242, 0.25);
 }
 
 .btn-purple:hover:not(:disabled) {
-    background-color: var(--primary-purple-hover);
+    background: linear-gradient(135deg, rgb(167, 46, 255) 0%, rgb(245, 0, 254) 100%);
+    color: #ffffff;
+    box-shadow: 0 4px 16px rgba(167, 46, 255, 0.4);
     transform: translateY(-1px);
 }
 
@@ -4725,8 +4744,9 @@ dialog#dialog-certificate.modal {
     left: 0;
     right: 0;
     height: 64px;
-    background-color: var(--sidebar-bg);
-    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    background: var(--header-gradient);
+    border-bottom: 1px solid rgba(167, 46, 255, 0.32);
+    box-shadow: 0 4px 24px rgba(3, 51, 217, 0.22);
     display: flex;
     align-items: center;
     justify-content: space-between;
@@ -4777,8 +4797,8 @@ dialog#dialog-certificate.modal {
 
 .workspace-search:focus-within {
     background: rgba(255, 255, 255, 0.12);
-    border-color: var(--primary-purple);
-    box-shadow: 0 0 0 2px rgba(79, 70, 229, 0.25);
+    border-color: rgb(167, 46, 255);
+    box-shadow: 0 0 0 2px rgba(167, 46, 255, 0.35);
 }
 
 .workspace-search svg {
@@ -6440,7 +6460,7 @@ dialog.workspace-guide::backdrop {
 .db-board { display:grid; gap:16px; color:var(--text-body,#334155); }
 .db-board * { box-sizing:border-box; }
 .db-board h2,.db-board h3,.db-board h4,.db-board p { margin:0; }
-.db-banner { display:flex; align-items:center; justify-content:space-between; gap:20px; padding:23px 26px; border-radius:14px; color:white; background:linear-gradient(110deg,#6353df 0%,#423591 66%,#292446 100%); box-shadow:0 4px 16px #4438a51a; }
+.db-banner { display:flex; align-items:center; justify-content:space-between; gap:20px; padding:23px 26px; border-radius:14px; color:white; background:linear-gradient(115deg, rgb(3, 51, 217) 0%, rgb(96, 63, 242) 38%, rgb(167, 46, 255) 75%, rgb(245, 0, 254) 100%); box-shadow:0 6px 20px rgba(96, 63, 242, 0.25); }
 .db-eyebrow { display:block; font-size:.62rem; letter-spacing:.15em; font-weight:750; color:#e0dbff; margin-bottom:7px; }
 .db-banner h2 { font-size:1.18rem; font-weight:750; color:white; }
 .db-banner p { font-size:.8rem; color:#e3e0f4; margin-top:5px; }
