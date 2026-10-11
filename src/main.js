@@ -113,6 +113,7 @@ if (VALID_SECTIONS.includes(initialPath)) {
 let autoRefreshTimer = null;
 let chatPollTimer = null;
 let activeConvId = null;
+let conversations = [];
 let messageSubscription = null;
 let chatUnsubscribe = null;
 let conversationsSubscription = null;
@@ -942,7 +943,102 @@ function renderAttachmentHtml(att) {
 }
 
 // -- Notification Center Engine  ------------------------------------------------------------
+// -- Notification Center Engine  ------------------------------------------------------------
 let currentNotifications = [];
+
+function isConversationCompleted(conv) {
+  if (!conv) return false;
+  return conv.application?.status === 'COMPLETED' || conv.application?.helpRequest?.status === 'COMPLETED';
+}
+
+function getReadNotifIds() {
+  if (!userData) return new Set();
+  try {
+    const raw = localStorage.getItem('read_notifs_' + userData.id);
+    if (raw) return new Set(JSON.parse(raw));
+  } catch (e) {}
+  return new Set();
+}
+
+function saveReadNotifIds(set) {
+  if (!userData) return;
+  try {
+    localStorage.setItem('read_notifs_' + userData.id, JSON.stringify(Array.from(set)));
+  } catch (e) {}
+}
+
+function getUnreadMessagesCount() {
+  if (!userData || !conversations || conversations.length === 0) return 0;
+  const myId = String(userData.id || currentUser?.uid || '');
+  let unreadCount = 0;
+  conversations.forEach(conv => {
+    // If conversation or engagement is completed/terminated, do not count as unread message
+    if (isConversationCompleted(conv)) return;
+    if (conv.application?.status === 'TERMINATED') return;
+
+    // Active conversation currently in view is read
+    if (activeSection === 'messages' && conv.id === activeConvId) return;
+
+    // If there is no message or user sent the last message, not an unread incoming message
+    if (!conv.lastSenderId || String(conv.lastSenderId) === myId) return;
+
+    // Compare last activity with user's last read timestamp for this conversation
+    const lastRead = Number(localStorage.getItem(`conv_last_read_${myId}_${conv.id}`)) || 0;
+    const lastActivity = Number(conv.lastActivityAt) || 0;
+    if (lastActivity > lastRead) {
+      unreadCount++;
+    }
+  });
+  return unreadCount;
+}
+
+async function syncUnreadBadges() {
+  if (!userData) return;
+  const appBadgeEl = $('#nav-badge-applications');
+  const msgBadgeEl = $('#nav-badge-messages');
+
+  // Applications badge: strictly unread pending applications on active jobs
+  const pendingAppsCount = currentNotifications.filter(n => n.unread && n.id.startsWith('app_pending_')).length;
+  if (appBadgeEl) {
+    if (pendingAppsCount > 0) {
+      appBadgeEl.textContent = pendingAppsCount > 99 ? '99+' : pendingAppsCount;
+      appBadgeEl.classList.remove('hidden');
+    } else {
+      appBadgeEl.textContent = '0';
+      appBadgeEl.classList.add('hidden');
+    }
+  }
+
+  // Ensure conversations are loaded to calculate accurate message unread count
+  if (conversations.length === 0) {
+    try {
+      const res = await listConversations(dc, { userId: userData.id }, SERVER_ONLY);
+      const rawFetched = (res.data?.conversations || []).filter(c => c.application?.status !== 'TERMINATED');
+      const seenAppIds = new Set();
+      const dedupedFetched = [];
+      for (const c of rawFetched) {
+        const aId = c.application?.id;
+        if (aId) {
+          if (seenAppIds.has(aId)) continue;
+          seenAppIds.add(aId);
+        }
+        dedupedFetched.push(c);
+      }
+      conversations = await sortConversationsByActivity(dedupedFetched);
+    } catch (e) {}
+  }
+
+  const unreadMsgCount = getUnreadMessagesCount();
+  if (msgBadgeEl) {
+    if (unreadMsgCount > 0) {
+      msgBadgeEl.textContent = unreadMsgCount > 99 ? '99+' : unreadMsgCount;
+      msgBadgeEl.classList.remove('hidden');
+    } else {
+      msgBadgeEl.textContent = '0';
+      msgBadgeEl.classList.add('hidden');
+    }
+  }
+}
 
 async function updateNotificationCenter() {
   if (!userData) return;
@@ -950,11 +1046,7 @@ async function updateNotificationCenter() {
   const badgeEls = [$('#notification-unread-count'), $('#mobile-notification-unread-count')].filter(Boolean);
   const listEls = [$('#notification-list'), $('#mobile-notification-list')].filter(Boolean);
 
-  let readNotifIds = new Set();
-  try {
-    const raw = localStorage.getItem('read_notifs_' + userData.id);
-    if (raw) readNotifIds = new Set(JSON.parse(raw));
-  } catch (e) {}
+  const readNotifIds = getReadNotifIds();
 
   try {
     const [postedRes, appRes] = await Promise.all([
@@ -967,7 +1059,7 @@ async function updateNotificationCenter() {
     // 1. Applications or Orders on My Posted Jobs
     const myJobs = postedRes.data?.helpRequests || [];
     myJobs.forEach(job => {
-      if (job.status === 'DELETED') return;
+      if (job.status === 'DELETED' || job.status === 'COMPLETED' || job.status === 'CLOSED') return;
       const isOffer = isJobOffer(job);
       const apps = job.applications_on_helpRequest || [];
       apps.forEach(app => {
@@ -1043,28 +1135,8 @@ async function updateNotificationCenter() {
       });
     }
 
-    // Update Sidebar Navigation Badges
-    const appBadgeEl = $('#nav-badge-applications');
-    const pendingAppsCount = notifs.filter(n => n.id.startsWith('app_pending_')).length;
-    if (appBadgeEl) {
-      if (pendingAppsCount > 0) {
-        appBadgeEl.textContent = pendingAppsCount > 99 ? '99+' : pendingAppsCount;
-        appBadgeEl.classList.remove('hidden');
-      } else {
-        appBadgeEl.classList.add('hidden');
-      }
-    }
-
-    const msgBadgeEl = $('#nav-badge-messages');
-    const unreadMsgNotifs = notifs.filter(n => n.unread && (n.id.startsWith('msg_') || n.title.toLowerCase().includes('message') || n.title.toLowerCase().includes('approved'))).length;
-    if (msgBadgeEl) {
-      if (unreadMsgNotifs > 0) {
-        msgBadgeEl.textContent = unreadMsgNotifs > 99 ? '99+' : unreadMsgNotifs;
-        msgBadgeEl.classList.remove('hidden');
-      } else {
-        msgBadgeEl.classList.add('hidden');
-      }
-    }
+    // Update Sidebar Navigation Badges with real, accurate counts
+    await syncUnreadBadges();
 
     // Render in notification list trays
     listEls.forEach(listEl => {
@@ -1224,8 +1296,30 @@ function navigateTo(section, pushState = true) {
     loadServices();
   }
   else if (resolvedSection === 'mentoring') loadMentoring();
-  else if (resolvedSection === 'applications') loadApplications();
-  else if (resolvedSection === 'messages') loadMessages();
+  else if (resolvedSection === 'applications') {
+    const readSet = getReadNotifIds();
+    let changed = false;
+    currentNotifications.filter(n => n.id.startsWith('app_pending_')).forEach(n => {
+      if (!readSet.has(n.id)) {
+        readSet.add(n.id);
+        n.unread = false;
+        changed = true;
+      }
+    });
+    if (changed) {
+      saveReadNotifIds(readSet);
+      syncUnreadBadges();
+    }
+    loadApplications();
+  }
+  else if (resolvedSection === 'messages') {
+    if (activeConvId && userData) {
+      const myId = String(userData.id || currentUser?.uid || '');
+      localStorage.setItem(`conv_last_read_${myId}_${activeConvId}`, Date.now());
+      syncUnreadBadges();
+    }
+    loadMessages();
+  }
   else if (resolvedSection === 'transactions') loadTransactions();
   else if (resolvedSection === 'logs') loadActivityLogs();
   else if (resolvedSection === 'ratings') loadRatings();
@@ -3879,12 +3973,8 @@ function setupApplicationTabs() {
 }
 
 // -- Messages & Realtime Chat Engine  ------------------------------------------------------------
-let conversations = [];
 let reviewTarget = null;
 let activeSubscriptionConvId = null;
-
-const isConversationCompleted = (conv) =>
-  conv.application?.status === 'COMPLETED' || conv.application?.helpRequest?.status === 'COMPLETED';
 
 async function sortConversationsByActivity(items) {
   await Promise.all(items.map(async (conv) => {
@@ -3894,6 +3984,8 @@ async function sortConversationsByActivity(items) {
       const message = latest.exists() ? Object.values(latest.val())[0] : null;
       const messageTime = Number(message?.timestamp);
       conv.lastActivityAt = Number.isFinite(messageTime) && messageTime > 0 ? messageTime : createdAt;
+      conv.lastMessage = message;
+      conv.lastSenderId = message?.senderId || null;
     } catch (err) {
       conv.lastActivityAt = conv.lastActivityAt || createdAt;
       console.warn('Could not load latest message date:', err);
@@ -3908,8 +4000,13 @@ function touchConversationActivity(convId, timestamp) {
   const time = Number(timestamp);
   if (!conv || !Number.isFinite(time) || time <= (conv.lastActivityAt || 0)) return;
   conv.lastActivityAt = time;
+  if (activeSection === 'messages' && activeConvId === convId) {
+    const myId = String(userData?.id || currentUser?.uid || '');
+    if (myId) localStorage.setItem(`conv_last_read_${myId}_${convId}`, Date.now());
+  }
   conversations.sort((a, b) => b.lastActivityAt - a.lastActivityAt || b.id.localeCompare(a.id));
   renderConversationList();
+  syncUnreadBadges();
 }
 
 async function loadMessages(isSilent = false) {
@@ -3957,6 +4054,7 @@ async function loadMessages(isSilent = false) {
       sessionStorage.removeItem('active_conversation_id');
       $('#chat-panel').innerHTML = '<div class="empty-state text-center text-muted" style="padding: 2rem;">No conversations yet.</div>';
     }
+    await syncUnreadBadges();
   } catch (err) {
     if (!isSilent) convList.innerHTML = '<div class="empty-state">Error loading conversations.</div>';
   }
@@ -4022,6 +4120,11 @@ async function selectConversation(convId) {
   }
   activeConvId = convId;
   sessionStorage.setItem('active_conversation_id', convId);
+  const myId = userData?.id || currentUser?.uid;
+  if (myId && convId) {
+    localStorage.setItem(`conv_last_read_${myId}_${convId}`, Date.now());
+  }
+  syncUnreadBadges();
   renderConversationList();
   
   // Add class for mobile messenger-style view
@@ -4030,7 +4133,6 @@ async function selectConversation(convId) {
   const conv = conversations.find(c => c.id === convId);
   if (!conv) return;
 
-  const myId = userData?.id || currentUser?.uid;
   const posterId = conv.poster?.id || conv.application?.helpRequest?.requesterId || conv.application?.helpRequest?.requester?.id;
   const isPoster = posterId && myId && String(posterId) === String(myId);
   const otherUser = isPoster ? conv.applicant : conv.poster;
@@ -4259,6 +4361,10 @@ async function selectConversation(convId) {
         if (!msg) return;
         msg.id = snapshot.key;
         renderIncomingMessages([msg]);
+        const conv = conversations.find(c => c.id === convId);
+        if (conv) {
+          conv.lastSenderId = msg.senderId || null;
+        }
         touchConversationActivity(convId, msg.timestamp);
       });
     } catch (err) {

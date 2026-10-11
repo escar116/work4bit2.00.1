@@ -728,6 +728,7 @@ body.dark-theme .image-upload-dropzone.drag-over {
     gap: 0.85rem;
     padding: 0.75rem 1rem;
     border-radius: 10px;
+    border-left: 3.5px solid transparent;
     color: var(--text-on-dark-muted);
     font-weight: 500;
     font-size: 0.92rem;
@@ -746,10 +747,15 @@ body.dark-theme .image-upload-dropzone.drag-over {
 }
 
 .nav-btn.active {
-    background: linear-gradient(135deg, rgb(96, 63, 242) 0%, rgb(167, 46, 255) 100%);
-    color: #ffffff;
-    font-weight: 600;
-    box-shadow: 0 4px 14px rgba(96, 63, 242, 0.4);
+    background: linear-gradient(135deg, rgba(3, 51, 217, 0.28) 0%, rgba(14, 116, 244, 0.24) 100%) !important;
+    border-left: 3.5px solid rgb(14, 116, 244) !important;
+    box-shadow: 0 4px 18px rgba(3, 51, 217, 0.25) !important;
+    color: #ffffff !important;
+    font-weight: 600 !important;
+}
+
+.nav-btn.active .nav-icon {
+    stroke: rgb(56, 189, 248) !important;
 }
 
 .sidebar-user-footer {
@@ -6828,7 +6834,7 @@ dialog.workspace-guide::backdrop {
    ========================================================================== */
 .nav-badge {
     margin-left: auto;
-    background: linear-gradient(135deg, rgb(245, 0, 254) 0%, rgb(167, 46, 255) 100%);
+    background: linear-gradient(135deg, rgb(3, 51, 217) 0%, rgb(14, 116, 244) 100%);
     color: #ffffff;
     font-size: 0.72rem;
     font-weight: 700;
@@ -6839,7 +6845,7 @@ dialog.workspace-guide::backdrop {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    box-shadow: 0 2px 8px rgba(245, 0, 254, 0.45);
+    box-shadow: 0 2px 10px rgba(3, 51, 217, 0.55), 0 0 10px rgba(14, 116, 244, 0.35);
     line-height: 1;
     animation: navBadgePop 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.275);
 }
@@ -6855,8 +6861,9 @@ dialog.workspace-guide::backdrop {
 
 .nav-btn.active .nav-badge {
     background: #ffffff;
-    color: rgb(96, 63, 242);
+    color: rgb(3, 51, 217);
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+    font-weight: 800;
 }
 
 .sidebar-collapsed .nav-badge {
