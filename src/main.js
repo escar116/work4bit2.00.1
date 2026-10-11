@@ -62,7 +62,6 @@ const auth = getAuth(app);
 const dc = getDataConnect(app, connectorConfig);
 const db = getDatabase(app);
 const firestore = getFirestore(app);
-window.__firestore = firestore;
 
 // Wire real-time cloud audit log synchronization across all users to Firestore
 setActivityLoggerCloudSync((userId, logEntry) => {
@@ -235,6 +234,10 @@ function updateAllUserAvatars(photoUrl, fullName) {
   const name = fullName || userData?.fullName || currentUser?.displayName || 'Student User';
   const userInitials = initials(name);
 
+  if (userData?.id) {
+    setUserPhoto(userData.id, photoUrl);
+  }
+
   // Profile hero avatar
   const profileAvatar = document.getElementById('profile-avatar');
   if (profileAvatar) {
@@ -284,6 +287,18 @@ function updateAllUserAvatars(photoUrl, fullName) {
       workspaceAvatar.textContent = userInitials;
     }
   }
+
+  // Reactive DOM sync: update all avatar elements throughout the entire application for this user
+  if (userData?.id) {
+    const uid = userData.id;
+    document.querySelectorAll(`.avatar[onclick*="${uid}"], [data-user-id="${uid}"] .avatar, .avatar[data-user-id="${uid}"]`).forEach(el => {
+      if (photoUrl) {
+        el.innerHTML = `<img src="${photoUrl}" alt="${escapeHtml(name)}" class="avatar-photo-img" style="width:100%;height:100%;object-fit:cover;border-radius:50%;display:block;">`;
+      } else {
+        el.textContent = userInitials;
+      }
+    });
+  }
 }
 
 // -- Global User Photos Synchronization Map ---------------------------------
@@ -299,6 +314,10 @@ function getUserPhoto(userId) {
       return cached;
     }
   } catch (e) {}
+  if (userData && userData.id === userId && userData.photoURL) {
+    userPhotosMap[userId] = userData.photoURL;
+    return userData.photoURL;
+  }
   return null;
 }
 
@@ -1370,6 +1389,10 @@ function showApp() {
   if (sidebarName) sidebarName.textContent = userName;
 
   const currentPhoto = userData?.photoURL || (userData?.id ? localStorage.getItem(`cached_photo_${userData.id}`) : null);
+  if (userData?.id && currentPhoto) {
+    userData.photoURL = currentPhoto;
+    setUserPhoto(userData.id, currentPhoto);
+  }
   updateAllUserAvatars(currentPhoto, userName);
   if (!currentPhoto && userData?.id) {
     getDoc(doc(firestore, "user_profiles", userData.id)).then(pDoc => {
@@ -1378,7 +1401,7 @@ function showApp() {
         const pPhoto = pData.photoURL || pData.profilePicture;
         if (pPhoto) {
           userData.photoURL = pPhoto;
-          try { localStorage.setItem(`cached_photo_${userData.id}`, pPhoto); } catch(e) {}
+          setUserPhoto(userData.id, pPhoto);
           updateAllUserAvatars(pPhoto, userName);
         }
       }
@@ -2954,6 +2977,11 @@ function setNewListingModalMode(mode = 'OFFER') {
     if (durationGroup) durationGroup.style.display = 'none';
     if (standingNoteGroup) standingNoteGroup.style.display = 'block';
     if (deadlineGroup) deadlineGroup.style.display = 'none';
+    const deadlineInput = $('#nr-deadline');
+    if (deadlineInput) {
+      deadlineInput.required = false;
+      deadlineInput.value = '';
+    }
     if (submitBtn) submitBtn.textContent = editingListing ? 'Save Changes' : 'Publish Service Offer';
     if (imgLabel) imgLabel.textContent = 'Service Cover / Sample Photo (Optional)';
     if (imgDropTitle) imgDropTitle.textContent = 'Click or drag & drop a photo of your equipment or sample work';
@@ -2970,6 +2998,10 @@ function setNewListingModalMode(mode = 'OFFER') {
     if (durationGroup) durationGroup.style.display = 'block';
     if (standingNoteGroup) standingNoteGroup.style.display = 'none';
     if (deadlineGroup) deadlineGroup.style.display = 'block';
+    const deadlineInput = $('#nr-deadline');
+    if (deadlineInput) {
+      deadlineInput.required = true;
+    }
     if (submitBtn) submitBtn.textContent = editingListing ? 'Save Changes' : 'Publish Service Request';
     if (imgLabel) imgLabel.textContent = 'Project Reference Photo / Diagram (Optional)';
     if (imgDropTitle) imgDropTitle.textContent = 'Click or drag & drop a schematic, diagram, or reference photo';
@@ -5053,7 +5085,8 @@ async function loadProfile() {
   if (!userData) return;
   const skel = document.querySelector('#profile-skel');
   const skeleton = skel?.querySelector('.t-skel-skeleton');
-  if (skel) {
+  const alreadyRevealed = skel?.classList.contains('is-revealed');
+  if (skel && !alreadyRevealed) {
     skel.classList.add('is-resetting');
     skel.classList.remove('is-revealed');
     skel.setAttribute('data-state', 'loading');
@@ -5065,6 +5098,9 @@ async function loadProfile() {
   const startTime = Date.now();
 
   const currentPhoto = userData.photoURL || localStorage.getItem(`cached_photo_${userData.id}`) || null;
+  if (userData?.id && currentPhoto) {
+    setUserPhoto(userData.id, currentPhoto);
+  }
   updateAllUserAvatars(currentPhoto, userData.fullName);
   $('#profile-name').textContent = userData.fullName || 'Student User';
   $('#profile-faculty').textContent = userData.facultyReference || 'Not provided';
@@ -5080,6 +5116,11 @@ async function loadProfile() {
     try { cachedSkills = JSON.parse(localStorage.getItem(`cached_skills_${userData.id}`) || '[]'); } catch(e) { cachedSkills = []; }
   }
 
+  let cachedPortfolio = userData.portfolio;
+  if (!cachedPortfolio) {
+    try { cachedPortfolio = JSON.parse(localStorage.getItem(`cached_portfolio_${userData.id}`) || '[]'); } catch(e) { cachedPortfolio = []; }
+  }
+
   if (bioDisplay) bioDisplay.textContent = cachedBio || 'No bio provided yet.';
   if (skillsDisplay) {
     if (cachedSkills && cachedSkills.length > 0) {
@@ -5087,6 +5128,11 @@ async function loadProfile() {
     } else {
       skillsDisplay.innerHTML = '<span class="text-xs text-muted">No skills listed yet.</span>';
     }
+  }
+
+  // Instant render portfolio items from cache so they display immediately
+  if (cachedPortfolio && cachedPortfolio.length > 0) {
+    renderPortfolio(cachedPortfolio);
   }
 
   try {
@@ -5135,6 +5181,9 @@ async function loadProfile() {
     if (userData.skills !== undefined) {
       try { localStorage.setItem(`cached_skills_${userData.id}`, JSON.stringify(userData.skills)); } catch(e) {}
     }
+    if (userData.portfolio !== undefined) {
+      try { localStorage.setItem(`cached_portfolio_${userData.id}`, JSON.stringify(userData.portfolio)); } catch(e) {}
+    }
 
     if (bioDisplay) bioDisplay.textContent = userData.bio || 'No bio provided yet.';
     if (skillsDisplay) {
@@ -5159,11 +5208,11 @@ async function loadProfile() {
     renderReviewsProfile(reviews);
     renderPortfolio(userData.portfolio || []);
 
-    // Preload project & portfolio images before dismissing skeleton loader
+    // Preload remote project & portfolio images before dismissing skeleton loader
     const imagesToPreload = [];
-    if (userData.photoURL) imagesToPreload.push(userData.photoURL);
+    if (userData.photoURL && !userData.photoURL.startsWith('data:')) imagesToPreload.push(userData.photoURL);
     (userData.portfolio || []).forEach(item => {
-      if (item.imageUrl) imagesToPreload.push(item.imageUrl);
+      if (item.imageUrl && !item.imageUrl.startsWith('data:')) imagesToPreload.push(item.imageUrl);
     });
 
     if (imagesToPreload.length > 0) {
@@ -5175,15 +5224,15 @@ async function loadProfile() {
       }));
       await Promise.race([
         Promise.all(preloadPromises),
-        new Promise(resolve => setTimeout(resolve, 2000))
+        new Promise(resolve => setTimeout(resolve, 300))
       ]);
     }
   } catch (err) {
     console.error('Error loading profile:', err);
   } finally {
     const elapsed = Date.now() - startTime;
-    if (elapsed < 450) {
-      await new Promise(resolve => setTimeout(resolve, 450 - elapsed));
+    if (elapsed < 400 && (!alreadyRevealed)) {
+      await new Promise(resolve => setTimeout(resolve, 400 - elapsed));
     }
     if (skel) {
       skel.setAttribute('data-state', 'ready');
@@ -5227,6 +5276,7 @@ function renderPortfolio(items) {
       try {
         await setDoc(doc(firestore, "user_profiles", userData.id), { portfolio: current }, { merge: true });
         userData.portfolio = current;
+        try { localStorage.setItem(`cached_portfolio_${userData.id}`, JSON.stringify(current)); } catch(e) {}
         renderPortfolio(current);
         showToast('Portfolio project removed.');
       } catch (err) {
@@ -5271,15 +5321,27 @@ function setupPortfolio() {
       dropzone.classList.remove('dragover');
       const file = e.dataTransfer?.files?.[0];
       if (file && file.type.startsWith('image/')) {
-        const compressed = await compressImage(file, 800, 100000);
-        updatePortImgUI(compressed, file.name);
+        const saveBtn = $('#btn-save-portfolio');
+        if (saveBtn) { saveBtn.disabled = true; saveBtn.textContent = 'Compressing image...'; }
+        try {
+          const compressed = await compressImage(file, 800, 100000);
+          updatePortImgUI(compressed, file.name);
+        } finally {
+          if (saveBtn) { saveBtn.disabled = false; saveBtn.textContent = 'Add to Portfolio'; }
+        }
       }
     });
     fileInput.addEventListener('change', async (e) => {
       const file = e.target.files?.[0];
       if (file) {
-        const compressed = await compressImage(file, 800, 100000);
-        updatePortImgUI(compressed, file.name);
+        const saveBtn = $('#btn-save-portfolio');
+        if (saveBtn) { saveBtn.disabled = true; saveBtn.textContent = 'Compressing image...'; }
+        try {
+          const compressed = await compressImage(file, 800, 100000);
+          updatePortImgUI(compressed, file.name);
+        } finally {
+          if (saveBtn) { saveBtn.disabled = false; saveBtn.textContent = 'Add to Portfolio'; }
+        }
       }
     });
   }
@@ -5320,6 +5382,7 @@ function setupPortfolio() {
       current.unshift(newProject);
       await setDoc(doc(firestore, "user_profiles", userData.id), { portfolio: current }, { merge: true });
       userData.portfolio = current;
+      try { localStorage.setItem(`cached_portfolio_${userData.id}`, JSON.stringify(current)); } catch(e) {}
       renderPortfolio(current);
       $('#dialog-add-portfolio')?.close();
       e.target.reset();
@@ -5989,6 +6052,7 @@ window.openViewProfileDialog = async function(userId) {
         const dataUrl = await compressAvatarImage(file);
         if (dataUrl && userData) {
           userData.photoURL = dataUrl;
+          setUserPhoto(userData.id, dataUrl);
           try { localStorage.setItem(`cached_photo_${userData.id}`, dataUrl); } catch(err) {}
           updateAllUserAvatars(dataUrl, userData.fullName);
           try {
@@ -6040,6 +6104,8 @@ window.openViewProfileDialog = async function(userId) {
           userData.skills = skills;
           userData.preferredRole = prefRole;
           userData.isMentor = isMentor;
+          try { localStorage.setItem(`cached_bio_${userData.id}`, bio); } catch(err) {}
+          try { localStorage.setItem(`cached_skills_${userData.id}`, JSON.stringify(skills)); } catch(err) {}
           
           const updatePayload = {
             bio: bio,
@@ -6051,11 +6117,13 @@ window.openViewProfileDialog = async function(userId) {
           if (pendingAvatarDataUrl !== null) {
             if (pendingAvatarDataUrl === '') {
               userData.photoURL = '';
+              setUserPhoto(userData.id, '');
               try { localStorage.removeItem(`cached_photo_${userData.id}`); } catch(err) {}
               updateAllUserAvatars('', userData.fullName);
               updatePayload.photoURL = '';
             } else {
               userData.photoURL = pendingAvatarDataUrl;
+              setUserPhoto(userData.id, pendingAvatarDataUrl);
               try { localStorage.setItem(`cached_photo_${userData.id}`, pendingAvatarDataUrl); } catch(err) {}
               updateAllUserAvatars(pendingAvatarDataUrl, userData.fullName);
               updatePayload.photoURL = pendingAvatarDataUrl;
