@@ -1330,6 +1330,7 @@ function navigateTo(section, pushState = true) {
       syncUnreadBadges();
     }
     loadApplications();
+    requestAnimationFrame(() => appSlidingTabs?.sync(false));
   }
   else if (resolvedSection === 'messages') {
     if (activeConvId && userData) {
@@ -1339,11 +1340,17 @@ function navigateTo(section, pushState = true) {
     }
     loadMessages();
   }
-  else if (resolvedSection === 'transactions') loadTransactions();
+  else if (resolvedSection === 'transactions') {
+    loadTransactions();
+    requestAnimationFrame(() => transSlidingTabs?.sync(false));
+  }
   else if (resolvedSection === 'logs') loadActivityLogs();
   else if (resolvedSection === 'ratings') loadRatings();
   else if (resolvedSection === 'profile') loadProfile();
-  else if (resolvedSection === 'admin') loadAdmin();
+  else if (resolvedSection === 'admin') {
+    loadAdmin();
+    requestAnimationFrame(() => adminSlidingTabs?.sync(false));
+  }
 }
 
 function showAuth(section = 'landing') {
@@ -3522,6 +3529,7 @@ async function updateApplicationTabCounts() {
     if (appliedEl) appliedEl.textContent = appliedCount;
     const mentoringEl = $('#apps-mentoring-count');
     if (mentoringEl) mentoringEl.textContent = mentoringCount;
+    requestAnimationFrame(() => appSlidingTabs?.sync(false));
   } catch (err) {}
 }
 
@@ -4030,12 +4038,83 @@ window.rejectApplication = async function(appId) {
   }
 };
 
+// -- transitions-dev: Sliding Tabs Controller (16-tabs-sliding.md) -----------------------------
+let appSlidingTabs = null;
+let transSlidingTabs = null;
+let adminSlidingTabs = null;
+
+function initSlidingTabs(containerEl, buttonSelector) {
+  if (!containerEl) return null;
+  const pill = containerEl.querySelector('.t-tabs-pill');
+  if (!pill) return null;
+
+  const getButtons = () => Array.from(containerEl.querySelectorAll(buttonSelector));
+
+  function moveTo(targetBtn, animate = true) {
+    if (!targetBtn || targetBtn.offsetParent === null) return;
+    const offsetLeft = targetBtn.offsetLeft;
+    const offsetWidth = targetBtn.offsetWidth;
+    if (offsetWidth === 0) return;
+
+    if (!animate) {
+      const prev = pill.style.transition;
+      pill.style.transition = 'none';
+      pill.style.transform = `translateX(${offsetLeft}px)`;
+      pill.style.width = `${offsetWidth}px`;
+      void pill.offsetWidth;
+      pill.style.transition = prev;
+    } else {
+      pill.style.transform = `translateX(${offsetLeft}px)`;
+      pill.style.width = `${offsetWidth}px`;
+    }
+  }
+
+  function sync(animate = false) {
+    const buttons = getButtons();
+    const active = buttons.find(b => b.classList.contains('active') || b.getAttribute('aria-pressed') === 'true') || buttons[0];
+    if (active) {
+      moveTo(active, animate);
+    }
+  }
+
+  // Bind click listener on buttons to slide pill smoothly
+  getButtons().forEach(btn => {
+    btn.addEventListener('click', () => {
+      requestAnimationFrame(() => moveTo(btn, true));
+    });
+  });
+
+  // Watch for container resize or visibility changes
+  if (window.ResizeObserver) {
+    const ro = new ResizeObserver(() => {
+      if (containerEl.offsetParent !== null) {
+        sync(false);
+      }
+    });
+    ro.observe(containerEl);
+  } else {
+    window.addEventListener('resize', () => sync(false));
+  }
+
+  // Initial snap without animation
+  requestAnimationFrame(() => {
+    sync(false);
+    requestAnimationFrame(() => sync(false));
+  });
+
+  return {
+    sync: (animate = false) => sync(animate),
+    moveTo: (btn, animate = true) => moveTo(btn, animate)
+  };
+}
+
 function switchAppTab(targetTab) {
   appTab = targetTab;
   $$('#applications-marketplace-tabs .marketplace-tab-btn, .tab-btn[data-tab]').forEach(b => {
     b.classList.toggle('active', b.dataset.tab === targetTab);
     b.setAttribute('aria-pressed', String(b.dataset.tab === targetTab));
   });
+  appSlidingTabs?.sync(true);
 
   if ($('#posted-jobs-list')) $('#posted-jobs-list').classList.toggle('hidden', targetTab !== 'posted');
   if ($('#my-applications-list')) $('#my-applications-list').classList.toggle('hidden', targetTab !== 'applied');
@@ -4045,6 +4124,10 @@ function switchAppTab(targetTab) {
 }
 
 function setupApplicationTabs() {
+  const container = $('#applications-marketplace-tabs');
+  if (container) {
+    appSlidingTabs = initSlidingTabs(container, '.marketplace-tab-btn');
+  }
   $$('#applications-marketplace-tabs .marketplace-tab-btn, .tab-btn[data-tab]').forEach(btn => {
     btn.addEventListener('click', (e) => {
       e.preventDefault();
@@ -4869,6 +4952,10 @@ function renderTransactionsTable(filter = 'all') {
 }
 
 function setupTransactionTabs() {
+  const container = $('#transactions-status-tabs') || $('#section-transactions .db-segment');
+  if (container) {
+    transSlidingTabs = initSlidingTabs(container, '.trans-tab');
+  }
   $$('.trans-tab').forEach(btn => {
     btn.addEventListener('click', (e) => {
       e.preventDefault();
@@ -4878,6 +4965,7 @@ function setupTransactionTabs() {
       });
       btn.classList.add('active');
       btn.setAttribute('aria-pressed', 'true');
+      transSlidingTabs?.moveTo(btn, true);
       renderTransactionsTable(btn.dataset.filter);
     });
   });
@@ -6498,6 +6586,7 @@ function updateAdminDashboardMetrics() {
   const allAuditLogs = getGlobalAuditLogs();
   const logsBadge = $('#admin-logs-tab-badge');
   if (logsBadge) logsBadge.textContent = allAuditLogs.length;
+  requestAnimationFrame(() => adminSlidingTabs?.sync(false));
 }
 
 async function loadAdmin() {
@@ -7208,6 +7297,10 @@ function renderAdminAuditLogs() {
 }
 
 function setupAdminTabs() {
+  const container = $('#admin-management-tabs') || $('#section-admin .db-segment');
+  if (container) {
+    adminSlidingTabs = initSlidingTabs(container, '.admin-tab-btn');
+  }
   $$('.admin-tab-btn').forEach(btn => {
     btn.addEventListener('click', (e) => {
       e.preventDefault();
@@ -7218,6 +7311,7 @@ function setupAdminTabs() {
       });
       btn.classList.add('active');
       btn.setAttribute('aria-pressed', 'true');
+      adminSlidingTabs?.moveTo(btn, true);
 
       $$('.admin-tab-content').forEach(c => c.classList.add('hidden'));
       $(`#admin-tab-${adminActiveTab}`)?.classList.remove('hidden');

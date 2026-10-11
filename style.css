@@ -60,6 +60,11 @@
     --reveal-blur: 2px;
     --reveal-ease: ease-in-out;
     
+    /* transitions-dev: Tabs sliding tokens (16-tabs-sliding.md) */
+    --tabs-dur: 250ms;
+    --tabs-ease: cubic-bezier(0.22, 1, 0.36, 1);
+    --tabs-pill-bg: #6554e8;
+    
     /* Shadows */
     --shadow-card: 0 1px 3px 0 rgba(0, 0, 0, 0.04), 0 1px 2px -1px rgba(0, 0, 0, 0.02);
     --shadow-hover: 0 6px 16px rgba(0, 0, 0, 0.06);
@@ -6574,6 +6579,78 @@ dialog.workspace-guide::backdrop {
 .db-segment button:has(+ button:is(.active,[aria-pressed="true"],:hover))::after { opacity:0; }
 .db-segment button[aria-pressed="true"],.db-segment button.active { background:#6554e8; color:white; box-shadow:0 2px 5px #6554e833; }
 .db-segment button:focus-visible,.db-attention a:focus-visible { outline:3px solid #a89ff6; outline-offset:3px; }
+
+/* transitions-dev: Sliding Tabs (16-tabs-sliding.md) */
+.db-segment.t-tabs {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 4px;
+    border-radius: 10px;
+    background: var(--bg-card, #ffffff);
+    border: 1px solid var(--border-card, #dbe2f2);
+    overflow: visible;
+}
+.db-segment.t-tabs .t-tabs-pill {
+    position: absolute;
+    top: 4px;
+    bottom: 4px;
+    left: 0;
+    width: 0;
+    background: var(--tabs-pill-bg, #6554e8);
+    border-radius: 7px;
+    box-shadow: 0 2px 5px rgba(101, 84, 232, 0.35);
+    transform: translateX(0);
+    transition:
+        transform var(--tabs-dur, 250ms) var(--tabs-ease, cubic-bezier(0.22, 1, 0.36, 1)),
+        width     var(--tabs-dur, 250ms) var(--tabs-ease, cubic-bezier(0.22, 1, 0.36, 1));
+    will-change: transform, width;
+    z-index: 0;
+    pointer-events: none;
+}
+.db-segment.t-tabs button {
+    position: relative;
+    z-index: 1;
+    background: transparent !important;
+    border: 0 !important;
+    box-shadow: none !important;
+    color: var(--text-muted, #64748b);
+    cursor: pointer;
+    border-radius: 7px;
+    padding: 8px 14px;
+    font-size: 0.84rem;
+    font-weight: 650;
+    font-family: inherit;
+    transition: color var(--tabs-dur, 250ms) var(--tabs-ease, cubic-bezier(0.22, 1, 0.36, 1));
+}
+.db-segment.t-tabs button:hover {
+    color: var(--text-heading, #111827);
+}
+.db-segment.t-tabs button.active,
+.db-segment.t-tabs button[aria-pressed="true"] {
+    background: transparent !important;
+    box-shadow: none !important;
+    color: #ffffff !important;
+}
+.db-segment.t-tabs .tab-count-pill,
+.db-segment.t-tabs span[id*="badge"] {
+    position: relative;
+    z-index: 2;
+    transition: background var(--tabs-dur, 250ms) var(--tabs-ease, cubic-bezier(0.22, 1, 0.36, 1)),
+                color var(--tabs-dur, 250ms) var(--tabs-ease, cubic-bezier(0.22, 1, 0.36, 1));
+}
+.db-segment.t-tabs button.active .tab-count-pill,
+.db-segment.t-tabs button[aria-pressed="true"] .tab-count-pill {
+    background: rgba(255, 255, 255, 0.28);
+    color: #ffffff;
+}
+@media (prefers-reduced-motion: reduce) {
+    .db-segment.t-tabs .t-tabs-pill,
+    .db-segment.t-tabs button {
+        transition: none !important;
+    }
+}
 .db-attention { display:flex; align-items:center; gap:12px; border:1px solid #d4e5e3; border-radius:10px; background:#f4fbfa; padding:12px 16px; }
 .db-attention>span { color:#188678; font-size:1.2rem; }
 .db-attention strong { font-size:.88rem; color:#23564f; font-weight:700; }
