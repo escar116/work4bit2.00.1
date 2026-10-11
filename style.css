@@ -7235,5 +7235,33 @@ body:not(.light-theme):has(.dark-mode) .skel-bone {
     user-select: none;
 }
 
+/* ==========================================================================
+   TRANSITIONS-DEV: CONTENT REVEAL (14-skeleton-reveal.md)
+   Cross-fade and un-blur reveal for tab contents when dynamic data arrives.
+   ========================================================================== */
+.t-skel-reveal {
+    animation: t-skel-reveal var(--reveal-dur, 400ms) var(--reveal-ease, ease-in-out) forwards;
+}
+
+@keyframes t-skel-reveal {
+    0% {
+        opacity: 0;
+        filter: blur(var(--reveal-blur, 2px));
+    }
+    100% {
+        opacity: 1;
+        filter: blur(0);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .t-skel-reveal {
+        animation: none !important;
+        opacity: 1 !important;
+        filter: none !important;
+    }
+}
+
+
 
 

@@ -1388,13 +1388,22 @@ function showApp() {
   const sidebarName = $('#sidebar-user-name');
   if (sidebarName) sidebarName.textContent = userName;
 
+  // Cache and restore isMentor state immediately on entry
+  if (userData?.id) {
+    const cachedMentor = localStorage.getItem(`cached_is_mentor_${userData.id}`);
+    if (cachedMentor !== null) {
+      userData.isMentor = cachedMentor === 'true';
+    }
+  }
+
   const currentPhoto = userData?.photoURL || (userData?.id ? localStorage.getItem(`cached_photo_${userData.id}`) : null);
   if (userData?.id && currentPhoto) {
     userData.photoURL = currentPhoto;
     setUserPhoto(userData.id, currentPhoto);
   }
   updateAllUserAvatars(currentPhoto, userName);
-  if (!currentPhoto && userData?.id) {
+
+  if (userData?.id) {
     getDoc(doc(firestore, "user_profiles", userData.id)).then(pDoc => {
       if (pDoc.exists()) {
         const pData = pDoc.data();
@@ -1404,8 +1413,19 @@ function showApp() {
           setUserPhoto(userData.id, pPhoto);
           updateAllUserAvatars(pPhoto, userName);
         }
+        if (pData.isMentor !== undefined) {
+          userData.isMentor = pData.isMentor === true;
+          try {
+            localStorage.setItem(`cached_is_mentor_${userData.id}`, String(userData.isMentor));
+          } catch (e) {}
+          if (typeof updateMentoringCalloutBanner === 'function') {
+            updateMentoringCalloutBanner();
+          }
+        }
+        if (pData.bio !== undefined) userData.bio = pData.bio;
+        if (pData.skills !== undefined) userData.skills = pData.skills;
       }
-    }).catch(e => console.warn('Could not load user profile photo:', e));
+    }).catch(e => console.warn('Could not sync user profile:', e));
   }
 
   if (currentUser?.uid && !sessionStorage.getItem(`w4a_session_logged_in_${currentUser.uid}`)) {
@@ -1924,6 +1944,7 @@ async function loadDashboard(isSilent = false) {
     const stats = summarizeDashboard(submitted, received, listings, isJobOffer);
     const paintDashboard = () => {
       container.innerHTML = renderDashboard(stats, reviewResult, dashboardScope, dashboardPeriod, userData?.fullName?.trim().split(/\s+/)[0] || 'Student');
+      container.classList.add('t-skel-reveal');
       container.querySelectorAll('[data-dashboard-scope], [data-dashboard-months]').forEach(button => {
         button.addEventListener('click', () => {
           const scope = button.dataset.dashboardScope;
@@ -2196,9 +2217,10 @@ async function loadServices(isSilent = false) {
   }
   if (!isSilent) grid.innerHTML = getSkeletonCardsHtml(6);
   try {
-    const [reqRes, appRes, revSnap, firestoreAppsSnap, statusSnap] = await Promise.all([
+    const [reqRes, appRes, allAppsRes, revSnap, firestoreAppsSnap, statusSnap] = await Promise.all([
       listHelpRequests(dc, SERVER_ONLY),
       userData?.id ? listApplicationsByApplicant(dc, { userId: userData.id }, SERVER_ONLY) : { data: { applications: [] } },
+      listAllApplicationsAdmin(dc, SERVER_ONLY).catch(() => ({ data: { applications: [] } })),
       getDocs(collection(firestore, "reviews")).catch(() => ({ forEach: () => {} })),
       getDocs(collection(firestore, "applications")).catch(() => ({ forEach: () => {} })),
       getDocs(collection(firestore, "service_status")).catch(() => ({ forEach: () => {} }))
@@ -2224,13 +2246,40 @@ async function loadServices(isSilent = false) {
       providerRatingsMap[uid] = (sums[uid] / counts[uid]).toFixed(1);
     }
 
-    // Sync completed transactions per request and provider
+    // Reset and sync completed transactions per request and provider
+    for (const k of Object.keys(completedTxCountsMap)) delete completedTxCountsMap[k];
+    const completedAppIds = new Set();
+
+    // 1. Data Connect applications (primary source)
+    const dcApps = allAppsRes?.data?.applications || [];
+    dcApps.forEach(a => {
+      if (a.status === 'COMPLETED') {
+        completedAppIds.add(a.id);
+        if (a.helpRequest?.id) {
+          completedTxCountsMap[a.helpRequest.id] = (completedTxCountsMap[a.helpRequest.id] || 0) + 1;
+        }
+        if (a.applicant?.id) {
+          completedTxCountsMap[a.applicant.id] = (completedTxCountsMap[a.applicant.id] || 0) + 1;
+        }
+      }
+    });
+
+    // 2. Firestore applications collection (for any mirrored completed transactions)
     firestoreAppsSnap.forEach(d => {
       const data = d.data();
-      if (data.status === 'COMPLETED') {
+      const appId = d.id || data.id;
+      if (data.status === 'COMPLETED' && !completedAppIds.has(appId)) {
+        completedAppIds.add(appId);
         if (data.helpRequestId) completedTxCountsMap[data.helpRequestId] = (completedTxCountsMap[data.helpRequestId] || 0) + 1;
         if (data.applicantId) completedTxCountsMap[data.applicantId] = (completedTxCountsMap[data.applicantId] || 0) + 1;
         if (data.posterId) completedTxCountsMap[data.posterId] = (completedTxCountsMap[data.posterId] || 0) + 1;
+      }
+    });
+
+    // 3. Map provider totals: link completed counts to the provider user ID
+    allRequests.forEach(r => {
+      if (r.requester?.id && completedTxCountsMap[r.id]) {
+        completedTxCountsMap[r.requester.id] = (completedTxCountsMap[r.requester.id] || 0) + completedTxCountsMap[r.id];
       }
     });
 
@@ -2593,7 +2642,7 @@ function renderServices(requests) {
     const hasApplied = activeAppliedIds.has(r.id);
     const isExpired = isDeadlineExpired(r);
     const card = document.createElement('article');
-    card.className = 'request-card';
+    card.className = 'request-card t-skel-reveal';
     card.dataset.listingKind = isOffer ? 'offer' : 'request';
 
     let btnText = isOffer ? 'Avail' : 'Apply';
@@ -3556,7 +3605,7 @@ async function loadPostedJobs(isSilent = false) {
       const countLabel = isOffer ? `${pending.length} order request(s)` : `${pending.length} candidate(s)`;
       
       const jobEl = document.createElement('div');
-      jobEl.className = 'job-card';
+      jobEl.className = 'job-card t-skel-reveal';
       jobEl.innerHTML = `
         <div class="job-card-header">
           <div class="job-card-header-main" style="display: flex; gap: 0.75rem; align-items: flex-start;">
@@ -3660,7 +3709,7 @@ async function loadMentoringRequests(isSilent = false) {
       const proposedAmt = (pending[0] && pending[0].priceOffer !== undefined) ? pending[0].priceOffer : job.budget;
 
       const jobEl = document.createElement('div');
-      jobEl.className = 'job-card';
+      jobEl.className = 'job-card t-skel-reveal';
       jobEl.innerHTML = `
         <div class="flex justify-between items-start mb-2">
           <div>
@@ -3739,7 +3788,7 @@ async function loadMyApplications(isSilent = false) {
     apps.forEach(app => {
       const isOffer = isJobOffer(app.helpRequest);
       const card = document.createElement('div');
-      card.className = 'application-card';
+      card.className = 'application-card t-skel-reveal';
       const statusClass = app.status === 'APPROVED' ? 'badge-approved' : app.status === 'COMPLETED' ? 'badge-normal' : 'badge-pending';
       const statusText = app.status === 'APPROVED' 
         ? (isOffer ? 'Order Accepted' : 'Application Accepted')
@@ -4780,6 +4829,7 @@ function renderTransactionsTable(filter = 'all') {
 
   list.forEach(item => {
     const tr = document.createElement('tr');
+    tr.className = 't-skel-reveal';
     const isCompleted = item.status === 'COMPLETED';
     const isEarning = item.type === 'EARNING';
     const amountPrefix = isEarning ? '+ ' : '- ';
@@ -4851,6 +4901,7 @@ function loadActivityLogs() {
   const logs = getUserLogs(uid);
 
   container.innerHTML = renderLogsSection(logs, activeLogsCategory, logsSearchQuery);
+  container.classList.add('t-skel-reveal');
   attachLogsEvents();
 }
 
@@ -4977,6 +5028,33 @@ function setupReviewDialog() {
 
       if (reviewTarget.conv.application) {
         reviewTarget.conv.application.status = 'COMPLETED';
+      }
+
+      // Mirror completed transaction to Firestore applications collection
+      try {
+        const appId = reviewTarget.conv?.application?.id;
+        if (appId) {
+          const applicantId = reviewTarget.conv.application.applicantId || reviewTarget.conv.application.applicant?.id || '';
+          const posterId = helpReq?.requester?.id || helpReq?.requesterId || reviewTarget.otherUser?.id || '';
+          await setDoc(doc(firestore, "applications", appId), {
+            id: appId,
+            status: 'COMPLETED',
+            helpRequestId: helpReq?.id || '',
+            applicantId: applicantId,
+            posterId: posterId,
+            priceOffer: reviewTarget.conv.application.priceOffer || helpReq?.budget || 0,
+            completedAt: Date.now()
+          }, { merge: true });
+        }
+      } catch (mirrorErr) {
+        console.warn('Error mirroring completed application to Firestore:', mirrorErr);
+      }
+
+      if (helpReq?.id) {
+        completedTxCountsMap[helpReq.id] = (completedTxCountsMap[helpReq.id] || 0) + 1;
+      }
+      if (helpReq?.requester?.id) {
+        completedTxCountsMap[helpReq.requester.id] = (completedTxCountsMap[helpReq.requester.id] || 0) + 1;
       }
 
       logUserAction('complete transaction', `Completed transaction for "${helpReq?.title || 'Listing'}"`, currentUser?.uid || userData?.id);
@@ -5163,6 +5241,10 @@ async function loadProfile() {
       userData.portfolio = data.portfolio || [];
       if (data.preferredRole) userData.preferredRole = data.preferredRole;
       userData.isMentor = data.isMentor === true;
+      try { localStorage.setItem(`cached_is_mentor_${userData.id}`, String(userData.isMentor)); } catch(e) {}
+      if (typeof updateMentoringCalloutBanner === 'function') {
+        updateMentoringCalloutBanner();
+      }
       const docPhoto = data.photoURL || data.profilePicture || '';
       if (docPhoto) {
         userData.photoURL = docPhoto;
@@ -5701,7 +5783,32 @@ window.openViewProfileDialog = async function(userId) {
     renderMentoringGrid(filtered);
   }
 
+  function updateMentoringCalloutBanner() {
+    const calloutTitle = document.getElementById('mentoring-callout-title');
+    const calloutSub = document.getElementById('mentoring-callout-subtitle');
+    const calloutCtaLabel = document.getElementById('mentoring-cta-label');
+    if (!calloutTitle) return;
+
+    if (userData?.isMentor === true) {
+      calloutTitle.textContent = "You are active as a Peer Mentor!";
+      if (calloutSub) calloutSub.innerHTML = 'You are currently visible in the Mentoring Hub. Update your specialties or availability in your <button type="button" class="mentoring-callout-link" id="btn-callout-goto-profile">Profile</button>.';
+      if (calloutCtaLabel) calloutCtaLabel.textContent = "Manage in Profile";
+    } else {
+      calloutTitle.textContent = "Want to be a mentor?";
+      if (calloutSub) calloutSub.innerHTML = 'Apply to become one in your <button type="button" class="mentoring-callout-link" id="btn-callout-goto-profile">Profile</button> by enabling peer mentoring to guide campus peers.';
+      if (calloutCtaLabel) calloutCtaLabel.textContent = "Apply in Profile";
+    }
+    const dynamicLink = document.getElementById('btn-callout-goto-profile');
+    if (dynamicLink) {
+      dynamicLink.onclick = (e) => {
+        e.preventDefault();
+        triggerProfilePeerMentorEdit();
+      };
+    }
+  }
+
   async function loadMentoring() {
+    updateMentoringCalloutBanner();
     const grid = document.getElementById('mentoring-users-grid');
     if (devPreview && allUsersData.length > 0) {
       applyMentoringFiltersAndRender();
@@ -5735,17 +5842,29 @@ window.openViewProfileDialog = async function(userId) {
     }
     
     try {
-      const [res, profilesSnap, revSnap, appsSnap] = await Promise.all([
+      const [res, allAppsRes, profilesSnap, revSnap, appsSnap] = await Promise.all([
         listAllUsers(dc),
+        listAllApplicationsAdmin(dc, SERVER_ONLY).catch(() => ({ data: { applications: [] } })),
         getDocs(collection(firestore, "user_profiles")).catch(() => ({ forEach: () => {} })),
         getDocs(collection(firestore, "reviews")).catch(() => ({ forEach: () => {} })),
         getDocs(collection(firestore, "applications")).catch(() => ({ forEach: () => {} }))
       ]);
       let users = res.data.users || [];
-      users = users.filter(u => u.id !== userData.id);
+      users = users.filter(u => u.id !== userData?.id);
       
       const profilesMap = {};
       profilesSnap.forEach(d => { profilesMap[d.id] = d.data(); });
+
+      // Immediate reactive update of current user's mentor status from Firestore
+      if (userData?.id && profilesMap[userData.id]) {
+        if (profilesMap[userData.id].isMentor !== undefined) {
+          userData.isMentor = profilesMap[userData.id].isMentor === true;
+          try {
+            localStorage.setItem(`cached_is_mentor_${userData.id}`, String(userData.isMentor));
+          } catch (e) {}
+        }
+      }
+      updateMentoringCalloutBanner();
       
       const revMap = {};
       revSnap.forEach(d => {
@@ -5756,9 +5875,18 @@ window.openViewProfileDialog = async function(userId) {
       });
 
       const mentorTxCounts = {};
+      const completedMentorAppIds = new Set();
+      (allAppsRes.data?.applications || []).forEach(a => {
+        if (a.status === 'COMPLETED') {
+          completedMentorAppIds.add(a.id);
+          if (a.applicant?.id) mentorTxCounts[a.applicant.id] = (mentorTxCounts[a.applicant.id] || 0) + 1;
+        }
+      });
       appsSnap.forEach(d => {
         const data = d.data();
-        if (data.status === 'COMPLETED') {
+        const id = d.id || data.id;
+        if (data.status === 'COMPLETED' && !completedMentorAppIds.has(id)) {
+          completedMentorAppIds.add(id);
           if (data.applicantId) mentorTxCounts[data.applicantId] = (mentorTxCounts[data.applicantId] || 0) + 1;
           if (data.posterId) mentorTxCounts[data.posterId] = (mentorTxCounts[data.posterId] || 0) + 1;
         }
@@ -5776,27 +5904,6 @@ window.openViewProfileDialog = async function(userId) {
         u.rating = revMap[u.id] ? (revMap[u.id].sum / revMap[u.id].count).toFixed(1) : '5.0';
         u.completedSessions = mentorTxCounts[u.id] || 0;
       });
-      
-      // Update dynamic mentoring callout banner state
-      const calloutTitle = document.getElementById('mentoring-callout-title');
-      const calloutSub = document.getElementById('mentoring-callout-subtitle');
-      const calloutCtaLabel = document.getElementById('mentoring-cta-label');
-      if (userData?.isMentor === true) {
-        if (calloutTitle) calloutTitle.textContent = "You are active as a Peer Mentor!";
-        if (calloutSub) calloutSub.innerHTML = 'You are currently visible in the Mentoring Hub. Update your specialties or availability in your <button type="button" class="mentoring-callout-link" id="btn-callout-goto-profile">Profile</button>.';
-        if (calloutCtaLabel) calloutCtaLabel.textContent = "Manage in Profile";
-      } else {
-        if (calloutTitle) calloutTitle.textContent = "Want to be a mentor?";
-        if (calloutSub) calloutSub.innerHTML = 'Apply to become one in your <button type="button" class="mentoring-callout-link" id="btn-callout-goto-profile">Profile</button> by enabling peer mentoring to guide campus peers.';
-        if (calloutCtaLabel) calloutCtaLabel.textContent = "Apply in Profile";
-      }
-      const dynamicLink = document.getElementById('btn-callout-goto-profile');
-      if (dynamicLink) {
-        dynamicLink.onclick = (e) => {
-          e.preventDefault();
-          triggerProfilePeerMentorEdit();
-        };
-      }
 
       allUsersData = users;
       applyMentoringFiltersAndRender();
@@ -5816,7 +5923,7 @@ window.openViewProfileDialog = async function(userId) {
     
     users.forEach(u => {
       const card = document.createElement('div');
-      card.className = 'job-card';
+      card.className = 'job-card t-skel-reveal';
       
       const skills = u.skills || [];
       let skillsHtml = '';
@@ -6162,6 +6269,10 @@ window.openViewProfileDialog = async function(userId) {
           userData.isMentor = isMentor;
           try { localStorage.setItem(`cached_bio_${userData.id}`, bio); } catch(err) {}
           try { localStorage.setItem(`cached_skills_${userData.id}`, JSON.stringify(skills)); } catch(err) {}
+          try { localStorage.setItem(`cached_is_mentor_${userData.id}`, String(isMentor)); } catch(err) {}
+          if (typeof updateMentoringCalloutBanner === 'function') {
+            updateMentoringCalloutBanner();
+          }
           
           const updatePayload = {
             bio: bio,
