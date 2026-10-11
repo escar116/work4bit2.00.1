@@ -19,7 +19,7 @@ import {
   deleteUser, deleteApplication
 } from '@work4abit/dataconnect';
 import { summarizeDashboard } from './dashboard-stats.js';
-import { renderDashboard } from './dashboard-view.js';
+import { renderDashboard, renderDashboardPanels } from './dashboard-view.js';
 import { setupWorkspace } from './workspace.js';
 import { setupLandingPage } from './landing-page.js';
 import './workspace-remodel.css';
@@ -1949,18 +1949,71 @@ async function loadDashboard(isSilent = false) {
     });
 
     const stats = summarizeDashboard(submitted, received, listings, isJobOffer);
+    let scopeSlidingTabs = null;
+    let periodSlidingTabs = null;
+
+    const bindPeriodTabs = () => {
+      const periodContainer = container.querySelector('#dashboard-period-tabs');
+      if (periodContainer) {
+        periodSlidingTabs = initSlidingTabs(periodContainer, '.period-tab-btn');
+        periodSlidingTabs?.sync(false);
+        periodContainer.querySelectorAll('.period-tab-btn').forEach(btn => {
+          btn.addEventListener('click', (e) => {
+            e.preventDefault();
+            const period = Number(btn.dataset.dashboardMonths);
+            if (period === dashboardPeriod) return;
+            dashboardPeriod = period;
+            periodContainer.querySelectorAll('.period-tab-btn').forEach(b => {
+              b.classList.remove('active');
+              b.setAttribute('aria-pressed', 'false');
+            });
+            btn.classList.add('active');
+            btn.setAttribute('aria-pressed', 'true');
+            periodSlidingTabs?.moveTo(btn, true);
+
+            const wrap = container.querySelector('#dashboard-panels-wrap');
+            if (wrap) {
+              wrap.innerHTML = renderDashboardPanels(stats, reviewResult, dashboardScope, dashboardPeriod);
+              bindPeriodTabs();
+            }
+          });
+        });
+      }
+    };
+
     const paintDashboard = () => {
       container.innerHTML = renderDashboard(stats, reviewResult, dashboardScope, dashboardPeriod, userData?.fullName?.trim().split(/\s+/)[0] || 'Student');
       container.classList.add('t-skel-reveal');
-      container.querySelectorAll('[data-dashboard-scope], [data-dashboard-months]').forEach(button => {
-        button.addEventListener('click', () => {
-          const scope = button.dataset.dashboardScope;
-          if (scope) dashboardScope = scope;
-          else dashboardPeriod = Number(button.dataset.dashboardMonths);
-          paintDashboard();
-          container.querySelector(scope ? `[data-dashboard-scope="${scope}"]` : `[data-dashboard-months="${dashboardPeriod}"]`)?.focus({ preventScroll: true });
+
+      const scopeContainer = container.querySelector('#dashboard-scope-tabs');
+      if (scopeContainer) {
+        scopeSlidingTabs = initSlidingTabs(scopeContainer, '.scope-tab-btn');
+        scopeSlidingTabs?.sync(false);
+        scopeContainer.querySelectorAll('.scope-tab-btn').forEach(button => {
+          button.addEventListener('click', (e) => {
+            e.preventDefault();
+            const scope = button.dataset.dashboardScope;
+            if (scope === dashboardScope) return;
+            dashboardScope = scope;
+            scopeContainer.querySelectorAll('.scope-tab-btn').forEach(b => {
+              b.classList.remove('active');
+              b.setAttribute('aria-pressed', 'false');
+            });
+            button.classList.add('active');
+            button.setAttribute('aria-pressed', 'true');
+            scopeSlidingTabs?.moveTo(button, true);
+
+            const wrap = container.querySelector('#dashboard-panels-wrap');
+            if (wrap) {
+              wrap.innerHTML = renderDashboardPanels(stats, reviewResult, dashboardScope, dashboardPeriod);
+              bindPeriodTabs();
+            }
+          });
         });
-      });
+      }
+
+      bindPeriodTabs();
+
       container.querySelector('a[href="/applications"]')?.addEventListener('click', event => {
         event.preventDefault();
         navigateTo('applications');
@@ -4322,17 +4375,23 @@ async function selectConversation(convId) {
   const isCompleted = conv.application?.helpRequest?.status === 'COMPLETED' || conv.application?.status === 'COMPLETED';
   const isTerminated = conv.application?.status === 'TERMINATED';
   const isOffer = isJobOffer(conv.application?.helpRequest);
+  const isMentoring = conv.application?.helpRequest?.category === 'MENTORING' ||
+                      conv.application?.helpRequest?.title?.toLowerCase().startsWith('mentoring:');
 
   // Role Access Rule:
   // On Service Offer: The poster is the service provider. The applicant/buyer is the Customer. ONLY Customer can Complete.
+  // On Mentoring: The poster is the mentor. The applicant is the student seeking mentoring. ONLY Applicant can Complete.
   // On Service Request: The poster is the client in need of help. ONLY Poster can Complete.
   // BOTH parties have access to Terminate.
   const isCustomerOnOffer = isOffer && !isPoster;
-  const isPosterOnRequest = !isOffer && isPoster;
-  const canComplete = isCustomerOnOffer || isPosterOnRequest;
+  const isApplicantOnMentoring = isMentoring && !isPoster;
+  const isPosterOnRequest = !isOffer && !isMentoring && isPoster;
+  const canComplete = isCustomerOnOffer || isApplicantOnMentoring || isPosterOnRequest;
   const isClient = canComplete;
 
-  const typeTag = isOffer
+  const typeTag = isMentoring
+    ? '<span class="badge" style="background: rgba(245, 158, 11, 0.12); color: #d97706; border: 1px solid rgba(245, 158, 11, 0.25); font-size: 10px; padding: 2px 7px;">Mentoring</span>'
+    : isOffer
     ? '<span class="badge badge-standing" style="font-size: 10px; padding: 2px 7px;">Service Offer</span>'
     : '<span class="badge badge-request" style="font-size: 10px; padding: 2px 7px;">Service Request</span>';
 
