@@ -114,7 +114,8 @@
 #section-messages :is(.conv-header,.chat-header,.chat-input-row) { background:white; border-color:#e4e7f2; }
 #section-messages .chat-messages { background:#fcfcff; }
 #section-messages .conversation-item.active { background: rgba(167, 46, 255, 0.08); border-left-color: rgb(96, 63, 242); }
-#section-profile .profile-hero { background:linear-gradient(115deg, rgba(167, 46, 255, 0.07) 0%, rgba(96, 63, 242, 0.03) 50%, #f7fafc 80%); border:1px solid #dce0f0; border-top:4px solid rgb(96, 63, 242); border-radius:15px; padding:28px; box-shadow:none; }
+#section-profile .profile-hero { position:relative; overflow:hidden; background:linear-gradient(115deg, rgba(167, 46, 255, 0.07) 0%, rgba(96, 63, 242, 0.03) 50%, #f7fafc 80%); border:1px solid #dce0f0; border-radius:16px; padding:28px; box-shadow:none; }
+#section-profile .profile-hero::before { content:''; position:absolute; top:0; left:0; right:0; height:3.5px; background:linear-gradient(90deg, rgb(96, 63, 242), #a855f7); }
 #section-profile .profile-user-name { color:#192036; letter-spacing:-.035em; }
 #section-profile .credentials-card { padding:26px; }
 #section-profile .profile-block-heading { font-size:1.05rem; letter-spacing:-.02em; color:#192036; }
@@ -227,8 +228,100 @@
   #section-services .services-header-actions { width:100%; }
   #section-services .services-header-actions .btn { width:100%; justify-content:center; }
   #section-mentoring .page-header { padding:20px; }
-  #section-profile :is(.profile-hero,.credentials-card) { padding:20px; }
-  #section-profile .profile-hero-info { min-width:0!important; flex-basis:100%!important; }
+  /* Profile View Mobile Refinement */
+  #section-profile :is(.profile-hero, .credentials-card) { padding:20px 16px; border-radius:15px; }
+  #section-profile .profile-hero {
+    flex-direction:column!important;
+    align-items:center!important;
+    text-align:center!important;
+    gap:14px!important;
+  }
+  #section-profile .profile-avatar-wrapper {
+    margin:0 auto!important;
+  }
+  #section-profile .profile-hero-info {
+    min-width:0!important;
+    flex-basis:auto!important;
+    width:100%!important;
+    display:flex!important;
+    flex-direction:column!important;
+    align-items:center!important;
+    text-align:center!important;
+  }
+  #section-profile .profile-name-badges-row {
+    width:100%!important;
+    display:flex!important;
+    flex-direction:column!important;
+    align-items:center!important;
+    justify-content:center!important;
+    gap:6px!important;
+    margin-bottom:6px!important;
+  }
+  #section-profile .profile-user-name {
+    font-size:1.4rem!important;
+    font-weight:800!important;
+    letter-spacing:-.025em!important;
+    text-align:center!important;
+    margin:0!important;
+  }
+  #section-profile .profile-badges-row {
+    display:flex!important;
+    align-items:center!important;
+    justify-content:center!important;
+    gap:6px!important;
+    flex-wrap:wrap!important;
+  }
+  #section-profile #profile-student-id {
+    font-size:.88rem!important;
+    font-weight:700!important;
+    color:#334155!important;
+    margin:2px 0 3px 0!important;
+  }
+  #section-profile #profile-program-sub {
+    font-size:.82rem!important;
+    line-height:1.42!important;
+    color:#64748b!important;
+    margin:0 0 6px 0!important;
+  }
+  #section-profile .profile-faculty-pill {
+    display:inline-flex!important;
+    align-items:center!important;
+    justify-content:center!important;
+    gap:5px!important;
+    padding:4px 14px!important;
+    background:rgba(96, 63, 242, 0.05)!important;
+    border:1px solid rgba(96, 63, 242, 0.14)!important;
+    border-radius:999px!important;
+    font-size:.75rem!important;
+    color:#475569!important;
+    margin:4px auto 0 auto!important;
+    max-width:100%!important;
+    word-break:break-word!important;
+  }
+  #section-profile .edit-profile-pill-btn {
+    width:100%!important;
+    max-width:240px!important;
+    margin:8px auto 0 auto!important;
+    padding:9px 18px!important;
+    border-radius:999px!important;
+    font-size:.84rem!important;
+    font-weight:600!important;
+    background:white!important;
+    border:1px solid #d8dced!important;
+    color:rgb(96, 63, 242)!important;
+    display:inline-flex!important;
+    align-items:center!important;
+    justify-content:center!important;
+    gap:7px!important;
+  }
+  #section-profile .portfolio-grid {
+    grid-template-columns:minmax(0, 1fr)!important;
+  }
+  #section-profile > div > div > div[style*="repeat(auto-fit, minmax(300px, 1fr))"],
+  #section-profile div[style*="repeat(auto-fit, minmax(300px, 1fr))"] {
+    grid-template-columns:minmax(0, 1fr)!important;
+    gap:1rem!important;
+  }
   #section-applications .job-card { padding:18px; }
   #app-views .main-content .tab-btn { padding:10px 12px; white-space:nowrap; }
 }
@@ -393,4 +486,25 @@
     white-space:nowrap;
   }
   #section-logs .logs-header-actions { gap:8px; }
+}
+
+@media (max-width: 400px) {
+  #section-profile .profile-hero {
+    padding:18px 12px 16px 12px!important;
+  }
+  #section-profile .profile-user-name {
+    font-size:1.24rem!important;
+  }
+  #section-profile .profile-avatar-wrapper {
+    width:76px!important;
+    height:76px!important;
+  }
+  #section-profile .profile-avatar-circle {
+    width:76px!important;
+    height:76px!important;
+    font-size:1.45rem!important;
+  }
+  #section-profile :is(.profile-hero, .credentials-card) {
+    padding:16px 12px!important;
+  }
 }

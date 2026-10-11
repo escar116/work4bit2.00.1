@@ -1019,15 +1019,17 @@
                                     <div class="skel-bone" style="width: 84px; height: 84px; border-radius: 50%;"></div>
                                 </div>
                                 <div class="profile-hero-info" style="flex: 1; min-width: 250px;">
-                                    <div class="flex items-center gap-3 flex-wrap mb-2">
+                                    <div class="profile-name-badges-row flex items-center gap-3 flex-wrap mb-2">
                                         <div class="skel-bone" style="width: 210px; height: 26px; border-radius: 6px;"></div>
-                                        <div class="skel-bone" style="width: 110px; height: 22px; border-radius: 999px;"></div>
-                                        <div class="skel-bone" style="width: 80px; height: 22px; border-radius: 999px;"></div>
+                                        <div class="profile-badges-row flex items-center gap-2">
+                                            <div class="skel-bone" style="width: 110px; height: 22px; border-radius: 999px;"></div>
+                                            <div class="skel-bone" style="width: 80px; height: 22px; border-radius: 999px;"></div>
+                                        </div>
                                     </div>
                                     <div class="skel-bone mb-2" style="width: 90px; height: 16px; border-radius: 4px;"></div>
                                     <div class="skel-bone mb-1" style="width: 240px; height: 14px; border-radius: 4px;"></div>
                                     <div class="skel-bone mb-2" style="width: 180px; height: 14px; border-radius: 4px;"></div>
-                                    <div class="skel-bone mt-2" style="width: 200px; height: 12px; border-radius: 4px;"></div>
+                                    <div class="profile-faculty-pill skel-bone mt-2" style="width: 200px; height: 16px; border-radius: 999px;"></div>
                                 </div>
                                 <div class="skel-bone" style="width: 120px; height: 38px; border-radius: 999px; align-self: flex-start;"></div>
                             </div>
@@ -1154,14 +1156,16 @@
                                     <input type="file" id="profile-avatar-file-input" accept="image/jpeg,image/png,image/webp,image/gif" class="hidden">
                                 </div>
                                 <div class="profile-hero-info" style="flex: 1; min-width: 250px;">
-                                    <div class="flex items-center gap-3 flex-wrap mb-1">
+                                    <div class="profile-name-badges-row flex items-center gap-3 flex-wrap mb-1">
                                         <h2 class="profile-user-name" id="profile-name" style="margin: 0;">Juan Dela Cruz</h2>
-                                        <span class="badge badge-approved" id="profile-verification"> Verified Student</span>
-                                        <div class="profile-availability-pill" id="profile-availability-badge" style="margin: 0;">Available</div>
+                                        <div class="profile-badges-row flex items-center gap-2">
+                                            <span class="badge badge-approved" id="profile-verification"> Verified Student</span>
+                                            <div class="profile-availability-pill" id="profile-availability-badge" style="margin: 0;">Available</div>
+                                        </div>
                                     </div>
                                     <div class="text-sm font-bold text-muted mb-1" id="profile-student-id" style="color: var(--text-heading);">N/A</div>
                                     <p class="profile-user-program text-muted" id="profile-program-sub" style="margin-bottom: 0.25rem;">BS Computer Engineering<br>Cagayan State University</p>
-                                    <p class="text-xs text-muted mt-2">Faculty Reference: <strong id="profile-faculty">Not provided</strong></p>
+                                    <p class="profile-faculty-pill text-xs text-muted mt-2">Faculty Reference: <strong id="profile-faculty">Not provided</strong></p>
                                 </div>
                                 <button type="button" id="btn-edit-profile" class="edit-profile-pill-btn" style="align-self: flex-start;">
                                     <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -1967,6 +1971,21 @@
                     </div>
                     <p id="review-payment-note" class="text-xs text-muted mt-2" style="border-top: 1px dashed var(--border-card); padding-top: 0.5rem; margin-bottom: 0;">
                         ✓ Completing this job confirms the deliverables were received and releases payment of <strong><span id="review-payment-confirm-amt">₱0</span></strong> to the applicant.
+                    </p>
+                </div>
+
+                <!-- Negotiated Price Input -->
+                <div class="form-group" id="review-price-input-group" style="background: rgba(96, 63, 242, 0.04); border: 1px solid rgba(96, 63, 242, 0.16); border-radius: 12px; padding: 0.95rem 1.15rem; margin-bottom: 1.25rem;">
+                    <label class="form-label" for="review-negotiated-price" style="display: flex; justify-content: space-between; align-items: center; font-weight: 600; margin-bottom: 0.35rem; color: var(--text-heading); font-size: 0.88rem;">
+                        <span>Agreed / Negotiated Price</span>
+                        <span class="badge" style="background: rgba(96, 63, 242, 0.12); color: rgb(96, 63, 242); font-weight: 600; font-size: 0.72rem;">Adjustable</span>
+                    </label>
+                    <div style="position: relative; display: flex; align-items: center;">
+                        <span style="position: absolute; left: 14px; font-size: 1.15rem; font-weight: 700; color: var(--color-green); pointer-events: none;">₱</span>
+                        <input type="number" id="review-negotiated-price" class="form-control" min="0" step="1" placeholder="0" style="padding-left: 32px; font-size: 1.25rem; font-weight: 700; color: var(--color-green); background: white; border: 1px solid var(--border-card);" required>
+                    </div>
+                    <p class="text-xs text-muted mt-2 mb-0" id="review-price-help-text" style="line-height: 1.4;">
+                        Initial rate: <strong id="review-original-price">₱0</strong>. If a different amount was agreed upon during your chat, enter the final negotiated price here so transactions and earnings remain accurate.
                     </p>
                 </div>
 

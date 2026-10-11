@@ -1923,11 +1923,12 @@ async function loadDashboard(isSilent = false) {
   }
 
   try {
-    const [appResult, postResult, posterAppResult, reviewResult] = await Promise.allSettled([
+    const [appResult, postResult, posterAppResult, reviewResult, negotiatedMapRes] = await Promise.allSettled([
       listApplicationsByApplicant(dc, { userId: userData.id }, SERVER_ONLY),
       listMyHelpRequestsWithApplications(dc, { userId: userData.id }, SERVER_ONLY),
       listApplicationsForMyRequests(dc, { userId: userData.id }, SERVER_ONLY),
-      getDocs(query(collection(firestore, "reviews"), where("targetUserId", "==", userData.id)))
+      getDocs(query(collection(firestore, "reviews"), where("targetUserId", "==", userData.id))),
+      getNegotiatedPricesMap()
     ]);
     if ([appResult, postResult, posterAppResult].some(result => result.status === 'rejected')) {
       throw new Error('One or more dashboard data sources could not be loaded.');
@@ -1935,14 +1936,23 @@ async function loadDashboard(isSilent = false) {
 
     const submitted = appResult.value.data?.applications || [];
     const listings = postResult.value.data?.helpRequests || [];
+    const negMap = (negotiatedMapRes.status === 'fulfilled' && negotiatedMapRes.value) ? negotiatedMapRes.value : cachedNegotiatedPrices;
+
+    submitted.forEach(a => {
+      if (a?.id && negMap[a.id] != null) a.priceOffer = negMap[a.id];
+    });
 
     // Aggregate received applications from poster query and helpRequests
     const received = [...(posterAppResult.value.data?.applications || [])];
     const seenAppIds = new Set(received.map(a => a.id));
+    received.forEach(a => {
+      if (a?.id && negMap[a.id] != null) a.priceOffer = negMap[a.id];
+    });
     listings.forEach(post => {
       (post.applications_on_helpRequest || []).forEach(a => {
+        if (a?.id && negMap[a.id] != null) a.priceOffer = negMap[a.id];
         if (!seenAppIds.has(a.id)) {
-          received.push({ ...a, helpRequest: post });
+          received.push({ ...a, helpRequest: post, priceOffer: negMap[a.id] != null ? negMap[a.id] : a.priceOffer });
           seenAppIds.add(a.id);
         }
       });
@@ -3832,6 +3842,9 @@ async function loadMyApplications(isSilent = false) {
   try {
     const res = await listApplicationsByApplicant(dc, { userId: userData?.id }, SERVER_ONLY).catch(() => ({ data: { applications: [] } }));
     let apps = (res.data?.applications || []).filter(a => a.status !== 'REJECTED');
+    apps.forEach(a => {
+      if (a?.id && cachedNegotiatedPrices[a.id] != null) a.priceOffer = cachedNegotiatedPrices[a.id];
+    });
     apps.sort((a, b) => (parseTransactionDateTime(b.createdAt).timestamp || 0) - (parseTransactionDateTime(a.createdAt).timestamp || 0));
     if (devPreview && apps.length === 0) {
       apps = [
@@ -4190,6 +4203,37 @@ function setupApplicationTabs() {
 let reviewTarget = null;
 let activeSubscriptionConvId = null;
 
+let cachedNegotiatedPrices = {};
+try {
+  cachedNegotiatedPrices = JSON.parse(localStorage.getItem('negotiated_prices_map') || '{}');
+} catch (e) {
+  cachedNegotiatedPrices = {};
+}
+
+async function getNegotiatedPricesMap() {
+  const map = { ...cachedNegotiatedPrices };
+  try {
+    const snap = await getDocs(collection(firestore, "applications"));
+    snap.forEach(d => {
+      const data = d.data();
+      const id = d.id || data.id;
+      if (id && (data.negotiatedPrice != null || data.priceOffer != null)) {
+        const val = Number(data.negotiatedPrice != null ? data.negotiatedPrice : data.priceOffer);
+        if (Number.isFinite(val)) {
+          map[id] = val;
+        }
+      }
+    });
+    cachedNegotiatedPrices = map;
+    try {
+      localStorage.setItem('negotiated_prices_map', JSON.stringify(map));
+    } catch (err) {}
+  } catch (e) {
+    console.warn('Could not sync negotiated prices from Firestore:', e);
+  }
+  return map;
+}
+
 async function sortConversationsByActivity(items) {
   await Promise.all(items.map(async (conv) => {
     const createdAt = parseTransactionDateTime(conv.createdAt).timestamp || 0;
@@ -4539,16 +4583,41 @@ async function selectConversation(convId) {
         ? `Pay to Provider: ${otherUser.fullName}`
         : `Client: ${otherUser.fullName} (You: Provider)`;
     }
-    const amtEl = $('#review-payment-amount');
-    if (amtEl) amtEl.textContent = peso(price);
-    const confAmtEl = $('#review-payment-confirm-amt');
-    if (confAmtEl) confAmtEl.textContent = peso(price);
-    const noteEl = $('#review-payment-note');
-    if (noteEl) {
-      noteEl.innerHTML = isClient
-        ? `✓ Completing this order confirms deliverables were received and releases payment of <strong><span id="review-payment-confirm-amt">${peso(price)}</span></strong> to ${otherUser.fullName}.`
-        : `✓ Confirming completion certifies that deliverables were fulfilled for ${otherUser.fullName}. Your earnings of <strong><span id="review-payment-confirm-amt">${peso(price)}</span></strong> will be settled.`;
+    const priceInput = $('#review-negotiated-price');
+    const origPriceEl = $('#review-original-price');
+    const storedNegotiated = conv.application?.id ? cachedNegotiatedPrices[conv.application.id] : null;
+    if (storedNegotiated != null && Number.isFinite(Number(storedNegotiated))) {
+      price = Number(storedNegotiated);
     }
+    if (priceInput) {
+      priceInput.value = price > 0 ? price : '';
+    }
+    if (origPriceEl) {
+      origPriceEl.textContent = peso(price);
+    }
+
+    const updateReviewAmounts = (val) => {
+      const num = Math.max(0, Number(val) || 0);
+      const amtEl = $('#review-payment-amount');
+      if (amtEl) amtEl.textContent = peso(num);
+      const confAmtEl = $('#review-payment-confirm-amt');
+      if (confAmtEl) confAmtEl.textContent = peso(num);
+      const noteEl = $('#review-payment-note');
+      if (noteEl) {
+        noteEl.innerHTML = isClient
+          ? `✓ Completing this order confirms deliverables were received and releases payment of <strong><span id="review-payment-confirm-amt">${peso(num)}</span></strong> to ${otherUser.fullName}.`
+          : `✓ Confirming completion certifies that deliverables were fulfilled for ${otherUser.fullName}. Your earnings of <strong><span id="review-payment-confirm-amt">${peso(num)}</span></strong> will be settled.`;
+      }
+    };
+    updateReviewAmounts(price);
+
+    if (priceInput && !priceInput.dataset.boundInputListener) {
+      priceInput.dataset.boundInputListener = 'true';
+      priceInput.addEventListener('input', (evt) => {
+        updateReviewAmounts(evt.target.value);
+      });
+    }
+
     const submitBtn = $('#review-submit-btn');
     if (submitBtn) {
       submitBtn.textContent = isClient ? 'Confirm Payment & Complete' : 'Confirm Delivery & Complete';
@@ -4813,10 +4882,11 @@ async function loadTransactions() {
   const tbody = $('#transactions-tbody');
   tbody.innerHTML = getSkeletonTableRowsHtml(4, 5);
   try {
-    const [appRes, myPostRes, posterAppRes] = await Promise.all([
+    const [appRes, myPostRes, posterAppRes, negotiatedMap] = await Promise.all([
       listApplicationsByApplicant(dc, { userId: userData.id }, SERVER_ONLY),
       listMyHelpRequestsWithApplications(dc, { userId: userData.id }, SERVER_ONLY),
-      listApplicationsForMyRequests(dc, { userId: userData.id }, SERVER_ONLY)
+      listApplicationsForMyRequests(dc, { userId: userData.id }, SERVER_ONLY),
+      getNegotiatedPricesMap()
     ]);
     const apps = appRes.data.applications || [];
     const myPosts = myPostRes.data.helpRequests || [];
@@ -4834,6 +4904,7 @@ async function loadTransactions() {
       const isMentor = isMentoringJob(a.helpRequest);
       const counterpartName = a.helpRequest?.requester?.fullName || 'Peer';
       const dateInfo = getAppDateInfo(a);
+      const finalAmount = negotiatedMap[a.id] != null ? negotiatedMap[a.id] : (Number(a.priceOffer) || Number(a.helpRequest?.budget) || 0);
 
       if (isMentor) {
         // Applicant requested mentoring -> USER IS MENTEE (Paying mentor for guidance)
@@ -4841,7 +4912,7 @@ async function loadTransactions() {
           id: a.id,
           title: a.helpRequest?.title || 'Mentoring Session',
           counterpart: `Paid to Mentor: ${counterpartName}`,
-          amount: Number(a.priceOffer) || Number(a.helpRequest?.budget) || 0,
+          amount: finalAmount,
           status: a.status,
           type: 'PAYMENT',
           date: dateInfo.formatted,
@@ -4853,7 +4924,7 @@ async function loadTransactions() {
           id: a.id,
           title: a.helpRequest?.title || 'Standing Service Order',
           counterpart: `Paid to Provider: ${counterpartName}`,
-          amount: Number(a.priceOffer) || Number(a.helpRequest?.budget) || 0,
+          amount: finalAmount,
           status: a.status,
           type: 'PAYMENT',
           date: dateInfo.formatted,
@@ -4865,7 +4936,7 @@ async function loadTransactions() {
           id: a.id,
           title: a.helpRequest?.title || 'Job Proposal',
           counterpart: `Client: ${counterpartName}`,
-          amount: Number(a.priceOffer) || 0,
+          amount: finalAmount,
           status: a.status,
           type: 'EARNING',
           date: dateInfo.formatted,
@@ -4882,13 +4953,14 @@ async function loadTransactions() {
       appsOnJob.forEach(a => {
         const clientOrFreelancer = a.applicant?.fullName || 'Peer';
         const dateInfo = getAppDateInfo(a);
+        const finalAmount = negotiatedMap[a.id] != null ? negotiatedMap[a.id] : (Number(a.priceOffer) || Number(p.budget) || 0);
         if (isMentor) {
           // Poster is the mentor -> USER IS MENTOR (Earning from student mentee)
           txList.push({
             id: a.id,
             title: p.title || 'Mentoring Session',
             counterpart: `Mentee: ${clientOrFreelancer}`,
-            amount: Number(a.priceOffer) || Number(p.budget) || 0,
+            amount: finalAmount,
             status: a.status,
             type: 'EARNING',
             date: dateInfo.formatted,
@@ -4900,7 +4972,7 @@ async function loadTransactions() {
             id: a.id,
             title: p.title || 'Standing Service Offer',
             counterpart: `Client: ${clientOrFreelancer}`,
-            amount: Number(a.priceOffer) || Number(p.budget) || 0,
+            amount: finalAmount,
             status: a.status,
             type: 'EARNING',
             date: dateInfo.formatted,
@@ -4912,7 +4984,7 @@ async function loadTransactions() {
             id: a.id,
             title: p.title || 'Service Request',
             counterpart: `Paid to Provider: ${clientOrFreelancer}`,
-            amount: Number(a.priceOffer) || Number(p.budget) || 0,
+            amount: finalAmount,
             status: a.status,
             type: 'PAYMENT',
             date: dateInfo.formatted,
@@ -5179,6 +5251,15 @@ function setupReviewDialog() {
     });
   });
 
+  const priceInput = $('#review-negotiated-price');
+  priceInput?.addEventListener('input', (e) => {
+    const num = Math.max(0, Number(e.target.value) || 0);
+    const amtEl = $('#review-payment-amount');
+    if (amtEl) amtEl.textContent = peso(num);
+    const confAmtEl = $('#review-payment-confirm-amt');
+    if (confAmtEl) confAmtEl.textContent = peso(num);
+  });
+
   $('#review-form')?.addEventListener('submit', async (e) => {
     e.preventDefault();
     if (!selectedRating || !reviewTarget) return;
@@ -5187,6 +5268,9 @@ function setupReviewDialog() {
     try {
       const helpReq = reviewTarget.conv?.application?.helpRequest;
       const isOffer = isJobOffer(helpReq);
+      const priceInput = $('#review-negotiated-price');
+      const negotiatedPriceVal = priceInput && priceInput.value.trim() !== '' ? Math.max(0, Number(priceInput.value) || 0) : null;
+      const finalPrice = negotiatedPriceVal !== null ? negotiatedPriceVal : (Number(reviewTarget.conv?.application?.priceOffer) || Number(helpReq?.budget) || 0);
 
       // 1. Complete the job / order
       if (isOffer) {
@@ -5205,6 +5289,7 @@ function setupReviewDialog() {
 
       if (reviewTarget.conv.application) {
         reviewTarget.conv.application.status = 'COMPLETED';
+        reviewTarget.conv.application.priceOffer = finalPrice;
       }
 
       // Mirror completed transaction to Firestore applications collection
@@ -5219,9 +5304,15 @@ function setupReviewDialog() {
             helpRequestId: helpReq?.id || '',
             applicantId: applicantId,
             posterId: posterId,
-            priceOffer: reviewTarget.conv.application.priceOffer || helpReq?.budget || 0,
+            priceOffer: finalPrice,
+            negotiatedPrice: finalPrice,
             completedAt: Date.now()
           }, { merge: true });
+
+          cachedNegotiatedPrices[appId] = finalPrice;
+          try {
+            localStorage.setItem('negotiated_prices_map', JSON.stringify(cachedNegotiatedPrices));
+          } catch (err) {}
         }
       } catch (mirrorErr) {
         console.warn('Error mirroring completed application to Firestore:', mirrorErr);
@@ -5234,9 +5325,9 @@ function setupReviewDialog() {
         completedTxCountsMap[helpReq.requester.id] = (completedTxCountsMap[helpReq.requester.id] || 0) + 1;
       }
 
-      logUserAction('complete transaction', `Completed transaction for "${helpReq?.title || 'Listing'}"`, currentUser?.uid || userData?.id);
+      logUserAction('complete transaction', `Completed transaction for "${helpReq?.title || 'Listing'}" (${peso(finalPrice)})`, currentUser?.uid || userData?.id);
       if (reviewTarget.otherUser?.id) {
-        logUserAction('complete transaction', `Completed transaction for "${helpReq?.title || 'Listing'}"`, reviewTarget.otherUser.id);
+        logUserAction('complete transaction', `Completed transaction for "${helpReq?.title || 'Listing'}" (${peso(finalPrice)})`, reviewTarget.otherUser.id);
       }
 
       // 2. Submit the review to Firestore
@@ -5260,11 +5351,12 @@ function setupReviewDialog() {
       // 3. Post completion confirmation in Realtime Database chat
       try {
         const ratingStars = '★'.repeat(selectedRating) + '☆'.repeat(5 - selectedRating);
+        const priceLabel = `Agreed Payment Settled: ${peso(finalPrice)}`;
         const completionText = isOffer
           ? (reviewTarget.isClient
-              ? `Deliverables Received & Payment Released!\nRating given: ${ratingStars} (${selectedRating}/5)`
-              : `Order Fulfilled & Completed!\nRating given: ${ratingStars} (${selectedRating}/5)`)
-          : `Job Completed & Payment Released!\nRating given: ${ratingStars} (${selectedRating}/5)`;
+              ? `Deliverables Received & Payment Released!\n${priceLabel}\nRating given: ${ratingStars} (${selectedRating}/5)`
+              : `Order Fulfilled & Completed!\n${priceLabel}\nRating given: ${ratingStars} (${selectedRating}/5)`)
+          : `Job Completed & Payment Released!\n${priceLabel}\nRating given: ${ratingStars} (${selectedRating}/5)`;
 
         await push(ref(db, `conversations/${reviewTarget.conv.id}/messages`), {
           senderId: userData.id,
