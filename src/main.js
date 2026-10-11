@@ -5768,12 +5768,36 @@ window.openViewProfileDialog = async function(userId) {
       users = users.filter(u => profilesMap[u.id]?.isMentor === true);
 
       users.forEach(u => {
+        if (profilesMap[u.id]?.photoURL) {
+          setUserPhoto(u.id, profilesMap[u.id].photoURL);
+        }
         u.bio = profilesMap[u.id]?.bio || '';
         u.skills = profilesMap[u.id]?.skills || [];
         u.rating = revMap[u.id] ? (revMap[u.id].sum / revMap[u.id].count).toFixed(1) : '5.0';
         u.completedSessions = mentorTxCounts[u.id] || 0;
       });
       
+      // Update dynamic mentoring callout banner state
+      const calloutTitle = document.getElementById('mentoring-callout-title');
+      const calloutSub = document.getElementById('mentoring-callout-subtitle');
+      const calloutCtaLabel = document.getElementById('mentoring-cta-label');
+      if (userData?.isMentor === true) {
+        if (calloutTitle) calloutTitle.textContent = "You are active as a Peer Mentor!";
+        if (calloutSub) calloutSub.innerHTML = 'You are currently visible in the Mentoring Hub. Update your specialties or availability in your <button type="button" class="mentoring-callout-link" id="btn-callout-goto-profile">Profile</button>.';
+        if (calloutCtaLabel) calloutCtaLabel.textContent = "Manage in Profile";
+      } else {
+        if (calloutTitle) calloutTitle.textContent = "Want to be a mentor?";
+        if (calloutSub) calloutSub.innerHTML = 'Apply to become one in your <button type="button" class="mentoring-callout-link" id="btn-callout-goto-profile">Profile</button> by enabling peer mentoring to guide campus peers.';
+        if (calloutCtaLabel) calloutCtaLabel.textContent = "Apply in Profile";
+      }
+      const dynamicLink = document.getElementById('btn-callout-goto-profile');
+      if (dynamicLink) {
+        dynamicLink.onclick = (e) => {
+          e.preventDefault();
+          triggerProfilePeerMentorEdit();
+        };
+      }
+
       allUsersData = users;
       applyMentoringFiltersAndRender();
     } catch(e) {
@@ -5957,6 +5981,38 @@ window.openViewProfileDialog = async function(userId) {
         }
       });
     }
+
+    const btnCallout = document.getElementById('btn-mentoring-apply-mentor');
+    const btnLink = document.getElementById('btn-callout-goto-profile');
+    btnCallout?.addEventListener('click', (e) => {
+      e.preventDefault();
+      triggerProfilePeerMentorEdit();
+    });
+    btnLink?.addEventListener('click', (e) => {
+      e.preventDefault();
+      triggerProfilePeerMentorEdit();
+    });
+  }
+
+  function triggerProfilePeerMentorEdit() {
+    navigateTo('profile');
+    setTimeout(() => {
+      const editBtn = document.getElementById('btn-edit-profile');
+      if (editBtn) {
+        editBtn.click();
+        setTimeout(() => {
+          const isMentorEl = document.getElementById('edit-is-mentor');
+          if (isMentorEl) {
+            isMentorEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            const container = isMentorEl.closest('label') || isMentorEl.parentElement;
+            if (container) {
+              container.classList.add('highlight-pulse');
+              setTimeout(() => container.classList.remove('highlight-pulse'), 2200);
+            }
+          }
+        }, 350);
+      }
+    }, 200);
   }
 
   function setupEditProfile() {
