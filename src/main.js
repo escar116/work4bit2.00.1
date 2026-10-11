@@ -2121,6 +2121,13 @@ function markAsStandingOffer(id) {
   } catch (e) {}
 }
 
+function isMentoringJob(job) {
+  if (!job) return false;
+  const category = String(job.category || '').trim().toUpperCase();
+  const title = String(job.title || '').trim();
+  return category === 'MENTORING' || /^mentoring\s*:/i.test(title);
+}
+
 function isJobOffer(job) {
   if (!job) return false;
   if (String(job.category || '').toUpperCase() === 'MENTORING' || /^mentoring\s*:/i.test(job.title || '')) return false;
@@ -4824,10 +4831,23 @@ async function loadTransactions() {
     // 1. Applicant applications/orders
     apps.forEach(a => {
       const isOffer = isJobOffer(a.helpRequest);
+      const isMentor = isMentoringJob(a.helpRequest);
       const counterpartName = a.helpRequest?.requester?.fullName || 'Peer';
       const dateInfo = getAppDateInfo(a);
 
-      if (isOffer) {
+      if (isMentor) {
+        // Applicant requested mentoring -> USER IS MENTEE (Paying mentor for guidance)
+        txList.push({
+          id: a.id,
+          title: a.helpRequest?.title || 'Mentoring Session',
+          counterpart: `Paid to Mentor: ${counterpartName}`,
+          amount: Number(a.priceOffer) || Number(a.helpRequest?.budget) || 0,
+          status: a.status,
+          type: 'PAYMENT',
+          date: dateInfo.formatted,
+          timestamp: dateInfo.timestamp
+        });
+      } else if (isOffer) {
         // Applicant ordered a standing service -> USER IS CLIENT (Paying)
         txList.push({
           id: a.id,
@@ -4857,11 +4877,24 @@ async function loadTransactions() {
     // 2. Poster postings (myPosts)
     myPosts.forEach(p => {
       const isOffer = isJobOffer(p);
+      const isMentor = isMentoringJob(p);
       const appsOnJob = p.applications_on_helpRequest || [];
       appsOnJob.forEach(a => {
         const clientOrFreelancer = a.applicant?.fullName || 'Peer';
         const dateInfo = getAppDateInfo(a);
-        if (isOffer) {
+        if (isMentor) {
+          // Poster is the mentor -> USER IS MENTOR (Earning from student mentee)
+          txList.push({
+            id: a.id,
+            title: p.title || 'Mentoring Session',
+            counterpart: `Mentee: ${clientOrFreelancer}`,
+            amount: Number(a.priceOffer) || Number(p.budget) || 0,
+            status: a.status,
+            type: 'EARNING',
+            date: dateInfo.formatted,
+            timestamp: dateInfo.timestamp
+          });
+        } else if (isOffer) {
           // Poster offered a standing service -> USER IS PROVIDER (Earning)
           txList.push({
             id: a.id,

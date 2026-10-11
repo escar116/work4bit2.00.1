@@ -109,13 +109,15 @@ export function summarizeDashboard(submitted = [], received = [], listings = [],
       const job = posts.get(application.helpRequest?.id) || application.helpRequest || {};
       const value = application.priceOffer ?? job.budget;
       const amount = value == null || value === '' ? null : Number(value);
+      const mentoringJob = isMentoring(job);
       records.set(application.id, {
         side,
         status: String(application.status || 'UNKNOWN').toUpperCase(),
-        mentoring: isMentoring(job),
-        // Mentoring proposals are stored as applications to service requests.
-        // Apply the same earning/payment rule used by the Transactions page.
-        earning: side === 'received' ? isOffer(job) : !isOffer(job),
+        mentoring: mentoringJob,
+        // Mentoring: The poster is the mentor (provides mentorship -> EARNS).
+        // The applicant is the student mentee (receives mentorship -> PAYS).
+        // For general services: received applications to offers earn, while received requests pay.
+        earning: mentoringJob ? (side === 'received') : (side === 'received' ? isOffer(job) : !isOffer(job)),
         amount: Number.isFinite(amount) && amount >= 0 ? amount : null,
         date: validDate(application.createdAt),
       });
