@@ -6753,4 +6753,276 @@ dialog.workspace-guide::backdrop {
     border-radius: 50%;
 }
 
+/* ==========================================================================
+   DEDICATED LOGOUT OVERLAY & CARD
+   ========================================================================== */
+.logout-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 999999;
+    background: rgba(10, 12, 24, 0.78);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 1;
+    transition: opacity 0.3s ease, visibility 0.3s ease;
+}
+
+.logout-overlay.hidden {
+    display: none !important;
+}
+
+.logout-card {
+    background: rgba(18, 21, 43, 0.94);
+    border: 1px solid rgba(167, 46, 255, 0.35);
+    border-radius: 20px;
+    padding: 36px 48px;
+    text-align: center;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.55), 0 0 45px rgba(96, 63, 242, 0.22);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+    min-width: 290px;
+    animation: logoutCardPop 0.32s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes logoutCardPop {
+    from { transform: scale(0.92); opacity: 0; }
+    to { transform: scale(1); opacity: 1; }
+}
+
+.logout-spinner {
+    width: 44px;
+    height: 44px;
+    border: 3.5px solid rgba(167, 46, 255, 0.2);
+    border-top-color: rgb(245, 0, 254);
+    border-right-color: rgb(167, 46, 255);
+    border-radius: 50%;
+    animation: logoutSpin 0.75s linear infinite;
+    margin-bottom: 6px;
+}
+
+@keyframes logoutSpin {
+    to { transform: rotate(360deg); }
+}
+
+.logout-title {
+    color: #ffffff;
+    font-size: 1.25rem;
+    font-weight: 700;
+    margin: 0;
+    letter-spacing: -0.3px;
+}
+
+.logout-subtitle {
+    color: rgba(255, 255, 255, 0.65);
+    font-size: 0.88rem;
+    margin: 0;
+}
+
+/* ==========================================================================
+   SIDEBAR NAVIGATION BADGES
+   ========================================================================== */
+.nav-badge {
+    margin-left: auto;
+    background: linear-gradient(135deg, rgb(245, 0, 254) 0%, rgb(167, 46, 255) 100%);
+    color: #ffffff;
+    font-size: 0.72rem;
+    font-weight: 700;
+    min-width: 19px;
+    height: 19px;
+    padding: 0 6px;
+    border-radius: 10px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 2px 8px rgba(245, 0, 254, 0.45);
+    line-height: 1;
+    animation: navBadgePop 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+.nav-badge.hidden {
+    display: none !important;
+}
+
+@keyframes navBadgePop {
+    from { transform: scale(0.6); opacity: 0; }
+    to { transform: scale(1); opacity: 1; }
+}
+
+.nav-btn.active .nav-badge {
+    background: #ffffff;
+    color: rgb(96, 63, 242);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+}
+
+.sidebar-collapsed .nav-badge {
+    position: absolute;
+    top: 4px;
+    right: 8px;
+    min-width: 16px;
+    height: 16px;
+    font-size: 0.62rem;
+    padding: 0 4px;
+}
+
+/* ==========================================================================
+   SERVICE OFFERS (PINKISH / FUCHSIA) VS REQUESTS (BLUEWISH) THEMES
+   ========================================================================== */
+
+/* --- 1. Service Offers Theme (Fuchsia / Purple rgb(245,0,254) / rgb(167,46,255)) --- */
+.nav-btn[data-target="service-offers"].active {
+    background: linear-gradient(135deg, rgba(245, 0, 254, 0.24) 0%, rgba(167, 46, 255, 0.28) 100%) !important;
+    border-left: 3.5px solid rgb(245, 0, 254) !important;
+    box-shadow: 0 4px 18px rgba(245, 0, 254, 0.25) !important;
+    color: #ffffff !important;
+}
+.nav-btn[data-target="service-offers"].active .nav-icon {
+    stroke: rgb(245, 0, 254) !important;
+}
+
+#btn-post-offer {
+    background: linear-gradient(135deg, rgb(245, 0, 254) 0%, rgb(167, 46, 255) 100%) !important;
+    color: #ffffff !important;
+    border: none !important;
+    box-shadow: 0 4px 16px rgba(245, 0, 254, 0.35) !important;
+    transition: transform 0.2s ease, box-shadow 0.2s ease !important;
+}
+#btn-post-offer:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 22px rgba(245, 0, 254, 0.48) !important;
+}
+
+[data-services-theme="offers"] .request-card,
+.request-card[data-listing-kind="offer"] {
+    border-top: 3px solid rgb(245, 0, 254) !important;
+    transition: transform 0.22s ease, box-shadow 0.22s ease, border-color 0.22s ease;
+}
+[data-services-theme="offers"] .request-card:hover,
+.request-card[data-listing-kind="offer"]:hover {
+    box-shadow: 0 10px 30px rgba(245, 0, 254, 0.16) !important;
+    border-color: rgba(245, 0, 254, 0.35) !important;
+}
+
+[data-services-theme="offers"] .request-card .request-card-price,
+.request-card[data-listing-kind="offer"] .request-card-price {
+    color: rgb(215, 0, 225) !important;
+    font-weight: 800 !important;
+}
+
+[data-services-theme="offers"] .request-card .badge.badge-normal,
+.request-card[data-listing-kind="offer"] .badge.badge-normal {
+    background: rgba(245, 0, 254, 0.08) !important;
+    color: rgb(190, 0, 200) !important;
+    border: 1px solid rgba(245, 0, 254, 0.25) !important;
+    font-weight: 600;
+}
+
+[data-services-theme="offers"] .request-card .btn.btn-purple,
+.request-card[data-listing-kind="offer"] .btn.btn-purple {
+    background: linear-gradient(135deg, rgb(245, 0, 254) 0%, rgb(167, 46, 255) 100%) !important;
+    border: none !important;
+    color: #ffffff !important;
+    box-shadow: 0 2px 10px rgba(245, 0, 254, 0.3) !important;
+}
+[data-services-theme="offers"] .request-card .btn.btn-purple:hover,
+.request-card[data-listing-kind="offer"] .btn.btn-purple:hover {
+    background: linear-gradient(135deg, rgb(255, 60, 255) 0%, rgb(185, 80, 255) 100%) !important;
+    box-shadow: 0 4px 14px rgba(245, 0, 254, 0.45) !important;
+}
+
+[data-services-theme="offers"] #marketplace-search-primary:focus {
+    border-color: rgb(245, 0, 254) !important;
+    box-shadow: 0 0 0 3px rgba(245, 0, 254, 0.2) !important;
+}
+
+/* --- 2. Service Requests Theme (Electric Blue rgb(3,51,217) / rgb(14,116,244)) --- */
+.nav-btn[data-target="service-requests"].active {
+    background: linear-gradient(135deg, rgba(3, 51, 217, 0.28) 0%, rgba(14, 116, 244, 0.24) 100%) !important;
+    border-left: 3.5px solid rgb(14, 116, 244) !important;
+    box-shadow: 0 4px 18px rgba(3, 51, 217, 0.25) !important;
+    color: #ffffff !important;
+}
+.nav-btn[data-target="service-requests"].active .nav-icon {
+    stroke: rgb(56, 189, 248) !important;
+}
+
+#btn-post-request {
+    background: linear-gradient(135deg, rgb(3, 51, 217) 0%, rgb(14, 116, 244) 100%) !important;
+    color: #ffffff !important;
+    border: none !important;
+    box-shadow: 0 4px 16px rgba(3, 51, 217, 0.35) !important;
+    transition: transform 0.2s ease, box-shadow 0.2s ease !important;
+}
+#btn-post-request:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 22px rgba(14, 116, 244, 0.48) !important;
+}
+
+[data-services-theme="requests"] .request-card,
+.request-card[data-listing-kind="request"] {
+    border-top: 3px solid rgb(14, 116, 244) !important;
+    transition: transform 0.22s ease, box-shadow 0.22s ease, border-color 0.22s ease;
+}
+[data-services-theme="requests"] .request-card:hover,
+.request-card[data-listing-kind="request"]:hover {
+    box-shadow: 0 10px 30px rgba(3, 51, 217, 0.16) !important;
+    border-color: rgba(14, 116, 244, 0.35) !important;
+}
+
+[data-services-theme="requests"] .request-card .request-card-price,
+.request-card[data-listing-kind="request"] .request-card-price {
+    color: rgb(3, 51, 217) !important;
+    font-weight: 800 !important;
+}
+
+[data-services-theme="requests"] .request-card .badge.badge-normal,
+.request-card[data-listing-kind="request"] .badge.badge-normal {
+    background: rgba(3, 51, 217, 0.08) !important;
+    color: rgb(3, 51, 217) !important;
+    border: 1px solid rgba(14, 116, 244, 0.28) !important;
+    font-weight: 600;
+}
+
+[data-services-theme="requests"] .request-card .btn.btn-purple,
+.request-card[data-listing-kind="request"] .btn.btn-purple {
+    background: linear-gradient(135deg, rgb(3, 51, 217) 0%, rgb(14, 116, 244) 100%) !important;
+    border: none !important;
+    color: #ffffff !important;
+    box-shadow: 0 2px 10px rgba(3, 51, 217, 0.3) !important;
+}
+[data-services-theme="requests"] .request-card .btn.btn-purple:hover,
+.request-card[data-listing-kind="request"] .btn.btn-purple:hover {
+    background: linear-gradient(135deg, rgb(15, 75, 255) 0%, rgb(40, 140, 255) 100%) !important;
+    box-shadow: 0 4px 14px rgba(14, 116, 244, 0.45) !important;
+}
+
+[data-services-theme="requests"] #marketplace-search-primary:focus {
+    border-color: rgb(14, 116, 244) !important;
+    box-shadow: 0 0 0 3px rgba(3, 51, 217, 0.2) !important;
+}
+
+/* --- 3. New Listing Dialog Modal Dynamic Themes --- */
+#dialog-new-request[data-listing-mode="OFFER"] #new-request-submit {
+    background: linear-gradient(135deg, rgb(245, 0, 254) 0%, rgb(167, 46, 255) 100%) !important;
+    box-shadow: 0 4px 14px rgba(245, 0, 254, 0.35) !important;
+    border: none !important;
+}
+#dialog-new-request[data-listing-mode="OFFER"] #new-listing-modal-title {
+    color: rgb(167, 46, 255);
+}
+
+#dialog-new-request[data-listing-mode="REQUEST"] #new-request-submit {
+    background: linear-gradient(135deg, rgb(3, 51, 217) 0%, rgb(14, 116, 244) 100%) !important;
+    box-shadow: 0 4px 14px rgba(3, 51, 217, 0.35) !important;
+    border: none !important;
+}
+#dialog-new-request[data-listing-mode="REQUEST"] #new-listing-modal-title {
+    color: rgb(14, 116, 244);
+}
+
+
 

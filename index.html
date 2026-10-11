@@ -82,6 +82,15 @@
         </main>
     </div>
 
+    <!-- Dedicated Logout Loading Screen -->
+    <div id="logout-screen" class="logout-overlay hidden" aria-live="assertive" role="alert">
+        <div class="logout-card">
+            <div class="logout-spinner"></div>
+            <h3 class="logout-title">Signing out...</h3>
+            <p class="logout-subtitle">Closing your session securely</p>
+        </div>
+    </div>
+
     <!-- ==========================================================================
          2. AUTH & PUBLIC VIEWS (LANDING, LOGIN, REGISTER, FORGOT, PENDING)
          ========================================================================== -->
@@ -417,12 +426,14 @@
                             <rect x="8" y="2" width="8" height="4" rx="1" ry="1"></rect>
                         </svg>
                         <span class="nav-btn-label">Applications</span>
+                        <span class="nav-badge hidden" id="nav-badge-applications">0</span>
                     </button>
                     <button type="button" class="nav-btn" data-target="messages" title="Messages">
                         <svg class="nav-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                             <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
                         </svg>
                         <span class="nav-btn-label">Messages</span>
+                        <span class="nav-badge hidden" id="nav-badge-messages">0</span>
                     </button>
                     <button type="button" class="nav-btn" data-target="transactions" title="Transactions">
                         <svg class="nav-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -554,17 +565,6 @@
                             </div>
                         </div>
 
-                        <!-- Segmented Marketplace Navigation Tabs: Service Offers vs Service Requests -->
-                        <div class="marketplace-tabs-container mt-3" id="services-marketplace-tabs">
-                            <button type="button" class="marketplace-tab-btn active" id="tab-service-offers" data-services-tab="offers">
-                                <span>Service Offers</span>
-                                <span class="tab-count-pill" id="offers-count-badge">0</span>
-                            </button>
-                            <button type="button" class="marketplace-tab-btn" id="tab-service-requests" data-services-tab="requests">
-                                <span>Service Requests</span>
-                                <span class="tab-count-pill" id="requests-count-badge">0</span>
-                            </button>
-                        </div>
                     </div>
 
                     <!-- Combined Search & Filter Bar (Matching media_1790608311299.png) -->
@@ -1396,12 +1396,6 @@
             </div>
             <p class="text-muted text-sm mb-3" id="new-listing-modal-desc">Offer your equipment (3D printing, laser cutting, paper printing) or skills. Standing services stay active continuously for multiple orders.</p>
             
-            <!-- Type Switcher inside Modal -->
-            <div class="tabs mb-4" id="modal-type-tabs">
-                <button type="button" class="tab-btn active" id="modal-tab-offer" data-mode="OFFER">Service Offer (Skills/Tools)</button>
-                <button type="button" class="tab-btn" id="modal-tab-request" data-mode="REQUEST">Service Request (Need Help)</button>
-            </div>
-
             <form id="new-request-form">
                 <input type="hidden" id="nr-listing-type" value="OFFER">
                 <div class="form-group">

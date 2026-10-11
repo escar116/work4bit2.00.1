@@ -1043,6 +1043,29 @@ async function updateNotificationCenter() {
       });
     }
 
+    // Update Sidebar Navigation Badges
+    const appBadgeEl = $('#nav-badge-applications');
+    const pendingAppsCount = notifs.filter(n => n.id.startsWith('app_pending_')).length;
+    if (appBadgeEl) {
+      if (pendingAppsCount > 0) {
+        appBadgeEl.textContent = pendingAppsCount > 99 ? '99+' : pendingAppsCount;
+        appBadgeEl.classList.remove('hidden');
+      } else {
+        appBadgeEl.classList.add('hidden');
+      }
+    }
+
+    const msgBadgeEl = $('#nav-badge-messages');
+    const unreadMsgNotifs = notifs.filter(n => n.unread && (n.id.startsWith('msg_') || n.title.toLowerCase().includes('message') || n.title.toLowerCase().includes('approved'))).length;
+    if (msgBadgeEl) {
+      if (unreadMsgNotifs > 0) {
+        msgBadgeEl.textContent = unreadMsgNotifs > 99 ? '99+' : unreadMsgNotifs;
+        msgBadgeEl.classList.remove('hidden');
+      } else {
+        msgBadgeEl.classList.add('hidden');
+      }
+    }
+
     // Render in notification list trays
     listEls.forEach(listEl => {
       if (notifs.length === 0) {
@@ -1223,6 +1246,8 @@ function showAuth(section = 'landing') {
   if (conversationsSubscription) { conversationsSubscription(); conversationsSubscription = null; }
   hide($('#app-views'));
   hide($('#loading-screen'));
+  const logoutScreen = $('#logout-screen');
+  if (logoutScreen) logoutScreen.classList.add('hidden');
   show($('#auth-views'));
   $$('#auth-views > section').forEach(s => s.classList.add('hidden'));
   const target = $(`#section-${section}`);
@@ -1317,6 +1342,10 @@ function clearUserSessionDOM() {
     badge.textContent = '0';
     badge.classList.remove('active');
   });
+  const appBadge = $('#nav-badge-applications');
+  if (appBadge) { appBadge.textContent = '0'; appBadge.classList.add('hidden'); }
+  const msgBadge = $('#nav-badge-messages');
+  if (msgBadge) { msgBadge.textContent = '0'; msgBadge.classList.add('hidden'); }
   currentNotifications = [];
 
   activeConvId = null;
@@ -1989,6 +2018,11 @@ function isDeadlineExpired(job) {
 function setServicesTab(tab) {
   currentServicesTab = tab;
   const isOffer = tab === 'offers';
+
+  const secServices = $('#section-services');
+  if (secServices) {
+    secServices.dataset.servicesTheme = isOffer ? 'offers' : 'requests';
+  }
 
   $('#tab-service-offers')?.classList.toggle('active', isOffer);
   $('#tab-service-requests')?.classList.toggle('active', !isOffer);
@@ -2790,6 +2824,9 @@ function setNewListingModalMode(mode = 'OFFER') {
   const isOffer = mode === 'OFFER';
   const typeInput = $('#nr-listing-type');
   if (typeInput) typeInput.value = mode;
+
+  const dialog = $('#dialog-new-request');
+  if (dialog) dialog.dataset.listingMode = mode;
 
   $('#modal-tab-offer')?.classList.toggle('active', isOffer);
   $('#modal-tab-request')?.classList.toggle('active', !isOffer);
@@ -6854,6 +6891,9 @@ function setupMobileSidebar() {
 function setupLogout() {
   $('#btn-logout')?.addEventListener('click', async (e) => {
     e.preventDefault();
+    const logoutScreen = $('#logout-screen');
+    if (logoutScreen) logoutScreen.classList.remove('hidden');
+
     if (currentUser?.uid) {
       logUserAction('log out', `Signed out from session`, currentUser.uid);
       sessionStorage.removeItem(`w4a_session_logged_in_${currentUser.uid}`);
@@ -6870,12 +6910,25 @@ function setupLogout() {
     }
     if (conversationsSubscription) { conversationsSubscription(); conversationsSubscription = null; }
     if (currentUser?.uid) {
-      try { await remove(ref(db, `presence/${currentUser.uid}`)); } catch (e) {}
-      try { await setDoc(doc(firestore, "user_profiles", currentUser.uid), { isOnline: false }, { merge: true }); } catch (e) {}
+      try {
+        await Promise.race([
+          Promise.all([
+            remove(ref(db, `presence/${currentUser.uid}`)).catch(() => {}),
+            setDoc(doc(firestore, "user_profiles", currentUser.uid), { isOnline: false }, { merge: true }).catch(() => {})
+          ]),
+          new Promise(res => setTimeout(res, 800))
+        ]);
+      } catch (e) {}
     }
     clearUserSessionDOM();
     history.pushState(null, '', '/');
-    await signOut(auth);
+    try {
+      await Promise.race([
+        signOut(auth),
+        new Promise(res => setTimeout(res, 1200))
+      ]);
+    } catch (e) {}
+    showAuth('landing');
   });
 }
 
