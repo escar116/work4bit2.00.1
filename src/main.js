@@ -5414,13 +5414,29 @@ async function loadProfile() {
     }
 
     const reviews = (reviewsSnap.docs || []).map(d => ({ id: d.id, ...d.data() }));
-    // Batch lookup missing reviewer names concurrently
-    const missingReviewers = reviews.filter(r => !r.reviewerName && r.reviewerId);
-    if (missingReviewers.length > 0) {
-      await Promise.all(missingReviewers.map(async r => {
+    // Batch lookup reviewer details (names and photos) concurrently
+    const reviewerIds = [...new Set(reviews.map(r => r.reviewerId).filter(Boolean))];
+    if (reviewerIds.length > 0) {
+      await Promise.all(reviewerIds.map(async uid => {
         try {
-          const res = await getUserProfile(dc, { id: r.reviewerId });
-          if (res?.data?.user) r.reviewerName = res.data.user.fullName;
+          const matchingRev = reviews.find(r => r.reviewerId === uid);
+          if (!matchingRev?.reviewerName) {
+            const res = await getUserProfile(dc, { id: uid });
+            if (res?.data?.user?.fullName) {
+              reviews.forEach(r => {
+                if (r.reviewerId === uid) r.reviewerName = res.data.user.fullName;
+              });
+            }
+          }
+          if (!getUserPhoto(uid)) {
+            const profileSnap = await getDoc(doc(firestore, "user_profiles", uid));
+            if (profileSnap.exists()) {
+              const pData = profileSnap.data();
+              if (pData?.photoURL) {
+                setUserPhoto(uid, pData.photoURL);
+              }
+            }
+          }
         } catch(e) {}
       }));
     }
@@ -5646,17 +5662,19 @@ function renderReviewsProfile(reviews) {
   const html = reviews.map(r => {
     const stars = '★'.repeat(Number(r.rating)) + '☆'.repeat(5 - Number(r.rating));
     const name = r.reviewerName || (r.reviewer ? r.reviewer.fullName : 'Student');
-    const initial = name.charAt(0).toUpperCase();
+    const reviewerId = r.reviewerId || r.reviewer?.id || '';
+    const avatarContent = reviewerId ? renderUserAvatar(reviewerId, name) : name.charAt(0).toUpperCase();
+    const clickAttr = reviewerId ? `onclick="openViewProfileDialog('${reviewerId}')" role="button" tabindex="0" title="View ${escapeHtml(name)} profile"` : '';
     return `
     <div class="feedback-item mb-4 pb-4" style="border-bottom: 1px solid var(--border-card);">
         <div style="display: flex; align-items: center; margin-bottom: 8px;">
-            <div style="width: 36px; height: 36px; border-radius: 50%; background-color: var(--color-purple); color: white; display: flex; align-items: center; justify-content: center; font-weight: bold; margin-right: 12px; flex-shrink: 0; font-size: 0.95rem;">${initial}</div>
-            <strong style="color: var(--text-heading); font-size: 0.95rem;">${name}</strong>
+            <div class="avatar ${reviewerId ? 'cursor-pointer' : ''}" ${clickAttr} style="width: 36px; height: 36px; border-radius: 50%; background-color: var(--color-purple); color: white; display: flex; align-items: center; justify-content: center; font-weight: bold; margin-right: 12px; flex-shrink: 0; font-size: 0.95rem; overflow: hidden; padding: 0; transition: opacity 0.15s ease;">${avatarContent}</div>
+            <strong class="${reviewerId ? 'cursor-pointer hover:underline' : ''}" ${clickAttr} style="color: var(--text-heading); font-size: 0.95rem;">${escapeHtml(name)}</strong>
         </div>
         <div style="margin-bottom: 8px;">
             <span style="color: var(--color-rating); font-size: 0.85rem; letter-spacing: 1px;">${stars}</span>
         </div>
-        <p class="text-sm" style="color: var(--text-heading); line-height: 1.5; margin: 0; word-break: break-word;">${r.comment || ''}</p>
+        <p class="text-sm" style="color: var(--text-heading); line-height: 1.5; margin: 0; word-break: break-word;">${escapeHtml(r.comment || '')}</p>
     </div>`;
   }).join('');
   
