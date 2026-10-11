@@ -1344,15 +1344,19 @@
                     <!-- Admin Management Tabs -->
                     <div class="db-segment t-tabs mt-6" id="admin-management-tabs" role="group" aria-label="Admin category">
                         <span class="t-tabs-pill" aria-hidden="true"></span>
-                        <button type="button" class="tab-btn active admin-tab-btn" data-admintab="pending" aria-pressed="true">Pending
-                            Verifications (<span id="admin-pending-tab-badge">0</span>)</button>
-                        <button type="button" class="tab-btn admin-tab-btn" data-admintab="users" aria-pressed="false">All Registered
-                            Students</button>
-                        <button type="button" class="tab-btn admin-tab-btn" data-admintab="applications" aria-pressed="false">All
-                            Applications & Bids</button>
+                        <button type="button" class="tab-btn active admin-tab-btn" data-admintab="pending" aria-pressed="true">
+                            <span>Pending Verifications</span>
+                            <span class="tab-count-pill" id="admin-pending-tab-badge">0</span>
+                        </button>
+                        <button type="button" class="tab-btn admin-tab-btn" data-admintab="users" aria-pressed="false">
+                            <span>All Registered Students</span>
+                        </button>
+                        <button type="button" class="tab-btn admin-tab-btn" data-admintab="applications" aria-pressed="false">
+                            <span>All Applications & Bids</span>
+                        </button>
                         <button type="button" class="tab-btn admin-tab-btn" data-admintab="audit-logs" aria-pressed="false">
-                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right: 5px; vertical-align: -2px;"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
-                            Activity & Audit Logs (<span id="admin-logs-tab-badge">0</span>)
+                            <span>Activity & Audit Logs</span>
+                            <span class="tab-count-pill" id="admin-logs-tab-badge">0</span>
                         </button>
                     </div>
 

@@ -216,8 +216,8 @@
   z-index: 1;
 }
 
-#app-views .main-content .db-segment > button:is(.active, [aria-pressed="true"], :hover)::after,
-#app-views .main-content .db-segment > button:has(+ button:is(.active, [aria-pressed="true"], :hover))::after {
+#app-views .main-content .db-segment > button:is(.active, [aria-pressed="true"])::after,
+#app-views .main-content .db-segment > button:has(+ button:is(.active, [aria-pressed="true"]))::after {
   opacity: 0;
 }
 #app-views .main-content .db-segment > button:hover {

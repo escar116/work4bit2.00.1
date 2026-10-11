@@ -6575,8 +6575,8 @@ dialog.workspace-guide::backdrop {
 .db-segment { display:inline-flex; align-items:center; gap:4px; border:1px solid var(--border-card,#dbe2f2); background:var(--bg-card,#fff); padding:4px; border-radius:10px; position:relative; }
 .db-segment button { position:relative; border:0; border-radius:7px; background:transparent; color:var(--text-muted,#64748b); cursor:pointer; padding:8px 14px; font-size:.84rem; font-weight:650; font-family:inherit; }
 .db-segment button:not(:last-child)::after { content:''; position:absolute; right:-2.5px; top:50%; transform:translateY(-50%); width:1px; height:16px; background:var(--border-card,#dbe2f2); pointer-events:none; transition:opacity .15s ease; z-index:1; }
-.db-segment button:is(.active,[aria-pressed="true"],:hover)::after,
-.db-segment button:has(+ button:is(.active,[aria-pressed="true"],:hover))::after { opacity:0; }
+.db-segment button:is(.active,[aria-pressed="true"])::after,
+.db-segment button:has(+ button:is(.active,[aria-pressed="true"]))::after { opacity:0; }
 .db-segment button[aria-pressed="true"],.db-segment button.active { background:#6554e8; color:white; box-shadow:0 2px 5px #6554e833; }
 .db-segment button:focus-visible,.db-attention a:focus-visible { outline:3px solid #a89ff6; outline-offset:3px; }
 
@@ -6632,6 +6632,20 @@ dialog.workspace-guide::backdrop {
     background: transparent !important;
     box-shadow: none !important;
     color: #ffffff !important;
+}
+.tab-count-pill {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.72rem;
+    font-weight: 700;
+    padding: 0.15rem 0.55rem;
+    border-radius: 999px;
+    background: rgba(100, 116, 139, 0.14);
+    color: var(--text-heading, #111827);
+    line-height: 1;
+    margin-left: 6px;
+    vertical-align: middle;
 }
 .db-segment.t-tabs .tab-count-pill,
 .db-segment.t-tabs span[id*="badge"] {
