@@ -3529,7 +3529,6 @@ async function updateApplicationTabCounts() {
     if (appliedEl) appliedEl.textContent = appliedCount;
     const mentoringEl = $('#apps-mentoring-count');
     if (mentoringEl) mentoringEl.textContent = mentoringCount;
-    requestAnimationFrame(() => appSlidingTabs?.sync(false));
   } catch (err) {}
 }
 
@@ -4057,13 +4056,13 @@ function initSlidingTabs(containerEl, buttonSelector) {
     if (offsetWidth === 0) return;
 
     if (!animate) {
-      const prev = pill.style.transition;
       pill.style.transition = 'none';
       pill.style.transform = `translateX(${offsetLeft}px)`;
       pill.style.width = `${offsetWidth}px`;
       void pill.offsetWidth;
-      pill.style.transition = prev;
+      pill.style.transition = '';
     } else {
+      pill.style.transition = '';
       pill.style.transform = `translateX(${offsetLeft}px)`;
       pill.style.width = `${offsetWidth}px`;
     }
@@ -4077,30 +4076,15 @@ function initSlidingTabs(containerEl, buttonSelector) {
     }
   }
 
-  // Bind click listener on buttons to slide pill smoothly
-  getButtons().forEach(btn => {
-    btn.addEventListener('click', () => {
-      requestAnimationFrame(() => moveTo(btn, true));
-    });
+  // Handle window resize only (per 16-tabs-sliding.md) to avoid interrupting in-flight transitions
+  window.addEventListener('resize', () => {
+    if (containerEl.offsetParent !== null) {
+      sync(false);
+    }
   });
-
-  // Watch for container resize or visibility changes
-  if (window.ResizeObserver) {
-    const ro = new ResizeObserver(() => {
-      if (containerEl.offsetParent !== null) {
-        sync(false);
-      }
-    });
-    ro.observe(containerEl);
-  } else {
-    window.addEventListener('resize', () => sync(false));
-  }
 
   // Initial snap without animation
-  requestAnimationFrame(() => {
-    sync(false);
-    requestAnimationFrame(() => sync(false));
-  });
+  requestAnimationFrame(() => sync(false));
 
   return {
     sync: (animate = false) => sync(animate),
@@ -4110,11 +4094,17 @@ function initSlidingTabs(containerEl, buttonSelector) {
 
 function switchAppTab(targetTab) {
   appTab = targetTab;
+  let targetBtn = null;
   $$('#applications-marketplace-tabs .marketplace-tab-btn, .tab-btn[data-tab]').forEach(b => {
-    b.classList.toggle('active', b.dataset.tab === targetTab);
-    b.setAttribute('aria-pressed', String(b.dataset.tab === targetTab));
+    const isTarget = b.dataset.tab === targetTab;
+    b.classList.toggle('active', isTarget);
+    b.setAttribute('aria-pressed', String(isTarget));
+    if (isTarget) targetBtn = b;
   });
-  appSlidingTabs?.sync(true);
+
+  if (targetBtn) {
+    appSlidingTabs?.moveTo(targetBtn, true);
+  }
 
   if ($('#posted-jobs-list')) $('#posted-jobs-list').classList.toggle('hidden', targetTab !== 'posted');
   if ($('#my-applications-list')) $('#my-applications-list').classList.toggle('hidden', targetTab !== 'applied');
@@ -6586,7 +6576,6 @@ function updateAdminDashboardMetrics() {
   const allAuditLogs = getGlobalAuditLogs();
   const logsBadge = $('#admin-logs-tab-badge');
   if (logsBadge) logsBadge.textContent = allAuditLogs.length;
-  requestAnimationFrame(() => adminSlidingTabs?.sync(false));
 }
 
 async function loadAdmin() {
