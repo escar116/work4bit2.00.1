@@ -70,7 +70,7 @@ export function setupLandingPage({ register }) {
           observer.unobserve(entry.target);
         }
       });
-    }, { threshold: 0.04 });
+    }, { threshold: 0.01, rootMargin: '80px 0px 80px 0px' });
     root.classList.add('motion-ready');
     root.querySelectorAll('.t-stagger').forEach(block => observer.observe(block));
   }

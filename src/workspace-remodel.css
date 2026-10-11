@@ -122,18 +122,62 @@
 #section-profile .edit-profile-pill-btn { border-radius:9px; background:white; border:1px solid #d8dced; color: rgb(96, 63, 242); }
 #section-logs :is(.dash-card,.job-card) { border:1px solid #e0e3f1; }
 
-/* Carry the approved landing concept through without replacing its branding. */
+/* Profile and Skeleton containment to prevent mobile overflow clipping */
+.t-skel {
+  grid-template-columns: minmax(0, 1fr) !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  box-sizing: border-box !important;
+}
+.t-skel-skeleton,
+.t-skel-content {
+  grid-column: 1 !important;
+  grid-row: 1 !important;
+  min-width: 0 !important;
+  max-width: 100% !important;
+  width: 100% !important;
+  box-sizing: border-box !important;
+  overflow-x: hidden !important;
+}
+#section-profile {
+  width: 100% !important;
+  max-width: 100% !important;
+  box-sizing: border-box !important;
+  overflow-x: hidden !important;
+}
+#section-profile :is(.profile-hero, .credentials-card, .portfolio-grid, .profile-section-block, .profile-hero-info, #profile-skel-skeleton, .skel-card, .skel-bone) {
+  max-width: 100% !important;
+  min-width: 0 !important;
+  box-sizing: border-box !important;
+}
+
+/* ==========================================================================
+   LANDING PAGE: DISTINCT COLORED SECTIONS USING THE APPROVED PALETTE
+   ========================================================================== */
 #section-landing .hero { background-image:none; background-color:#f8f9ff; }
 #section-landing .hero::before { opacity:.35; }
 #section-landing .hero h1 { font-size:clamp(44px,4.6vw,67px); line-height:1.06; }
 #section-landing .hero h1 em::after { display:none; }
 #section-landing .photo-frame { transform:none; border:0; border-radius:16px; box-shadow:none; }
-#section-landing .service { border-radius:17px; }
+
+/* 1. What We Offer: Soft Lavender Tint Section with Crisp Elevated Cards */
+#section-landing #lp-offers {
+  background: linear-gradient(180deg, #f4f0fe 0%, #ebe5fc 100%);
+  border-block: 1px solid #ded5fa;
+}
+#section-landing .service {
+  background: #ffffff;
+  border-radius: 17px;
+  box-shadow: 0 6px 20px rgba(96, 63, 242, 0.06);
+  transition: transform var(--duration-fast) var(--ease-smooth-out), box-shadow var(--duration-fast) var(--ease-smooth-out);
+}
+#section-landing .service:hover {
+  transform: translateY(-6px);
+  box-shadow: 0 18px 36px rgba(96, 63, 242, 0.12);
+}
 #section-landing .service:nth-child(1) {
   border: 1.5px solid rgba(132, 117, 237, 0.45);
   border-top: 3.5px solid #8475ed;
-  background: linear-gradient(180deg, rgba(132, 117, 237, 0.10) 0%, rgba(132, 117, 237, 0.035) 100%);
-  box-shadow: 0 4px 18px rgba(96, 63, 242, 0.08);
 }
 #section-landing .service:nth-child(1) .service-icon {
   background: #ffffff;
@@ -155,8 +199,6 @@
 #section-landing .service:nth-child(2) {
   border: 1.5px solid rgba(35, 166, 160, 0.45);
   border-top: 3.5px solid #23a6a0;
-  background: linear-gradient(180deg, rgba(35, 166, 160, 0.09) 0%, rgba(35, 166, 160, 0.03) 100%);
-  box-shadow: 0 4px 18px rgba(35, 166, 160, 0.08);
 }
 #section-landing .service:nth-child(2) .service-icon {
   background: #ffffff;
@@ -178,8 +220,6 @@
 #section-landing .service:nth-child(3) {
   border: 1.5px solid rgba(217, 119, 6, 0.45);
   border-top: 3.5px solid #d97706;
-  background: linear-gradient(180deg, rgba(217, 119, 6, 0.08) 0%, rgba(217, 119, 6, 0.025) 100%);
-  box-shadow: 0 4px 18px rgba(245, 158, 11, 0.08);
 }
 #section-landing .service:nth-child(3) .service-icon {
   background: #ffffff;
@@ -198,7 +238,165 @@
   color: #d97706;
 }
 #section-landing .service:nth-child(3) .small-label { color: #b47b28; }
-#section-landing .mission { background:#eeecfa; }
+
+/* 2. Mission Section: HEROIC RICH BRAND PURPLE COLORED SECTION */
+#section-landing .mission {
+  background: linear-gradient(135deg, #130a38 0%, #231154 38%, #3c1987 72%, #5821ba 100%) !important;
+  border-block: 1px solid rgba(167, 46, 255, 0.35) !important;
+  color: #ffffff !important;
+  position: relative;
+  overflow: hidden;
+}
+#section-landing .mission::before {
+  content: "";
+  position: absolute;
+  left: -120px;
+  top: 15%;
+  width: 550px;
+  height: 550px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(167, 46, 255, 0.22) 0%, transparent 70%);
+  pointer-events: none;
+}
+#section-landing .mission .eyebrow {
+  color: #d8cdff !important;
+  background: rgba(167, 46, 255, 0.22) !important;
+  border: 1px solid rgba(167, 46, 255, 0.4) !important;
+  padding: 5px 14px !important;
+  border-radius: 999px !important;
+  display: inline-block !important;
+  letter-spacing: 1.5px !important;
+}
+#section-landing .mission .section-heading {
+  color: #ffffff !important;
+}
+#section-landing .mission p {
+  color: #ded9fc !important;
+  font-size: 14px;
+  line-height: 1.85;
+}
+#section-landing .mission-points {
+  display: grid;
+  gap: 14px;
+  margin-top: 28px;
+}
+#section-landing .mission .point {
+  background: rgba(255, 255, 255, 0.08) !important;
+  border: 1px solid rgba(255, 255, 255, 0.14) !important;
+  border-radius: 14px !important;
+  padding: 14px 18px !important;
+  backdrop-filter: blur(8px) !important;
+  align-items: center !important;
+  transition: background 0.2s ease, transform 0.2s ease !important;
+}
+#section-landing .mission .point:hover {
+  background: rgba(255, 255, 255, 0.13) !important;
+  transform: translateX(4px) !important;
+}
+#section-landing .mission .point strong {
+  color: #ffffff !important;
+  font-size: 13.5px !important;
+  display: block;
+}
+#section-landing .mission .point span {
+  color: #cfc7f8 !important;
+  font-size: 12px;
+}
+#section-landing .mission-image img {
+  height: 405px;
+  width: 100%;
+  object-fit: cover;
+  border-radius: 18px;
+  border: 5px solid rgba(255, 255, 255, 0.16) !important;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.38) !important;
+}
+#section-landing .mission .image-tag {
+  position: absolute;
+  bottom: 20px;
+  left: 20px;
+  right: 20px;
+  background: rgba(17, 10, 48, 0.88) !important;
+  border: 1px solid rgba(255, 255, 255, 0.22) !important;
+  padding: 14px 18px;
+  border-radius: 10px;
+  font-size: 12px;
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  color: #ffffff !important;
+  backdrop-filter: blur(12px) !important;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3) !important;
+}
+#section-landing .mission .image-tag .icon {
+  color: #c4b5fd !important;
+}
+
+/* 3. How It Works: Fresh Tinted Section */
+#section-landing #lp-how {
+  background: #f7f9fd !important;
+  border-block: 1px solid #e1e8f5 !important;
+}
+
+/* 4. FAQs: Elegant Lilac Container with Distinct Cards */
+#section-landing #lp-faq {
+  background: linear-gradient(180deg, #f5f2fe 0%, #eae3fc 100%) !important;
+  border-block: 1px solid #ded5fa !important;
+  padding: 90px 0 !important;
+}
+#section-landing .faq {
+  border-top: none !important;
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 12px !important;
+}
+#section-landing details {
+  background: #ffffff !important;
+  border: 1px solid #e2dbfa !important;
+  border-radius: 14px !important;
+  padding: 0 22px !important;
+  box-shadow: 0 3px 12px rgba(96, 63, 242, 0.04) !important;
+  transition: box-shadow 0.2s ease, border-color 0.2s ease !important;
+}
+#section-landing details[open] {
+  border-color: rgba(96, 63, 242, 0.4) !important;
+  box-shadow: 0 6px 20px rgba(96, 63, 242, 0.08) !important;
+}
+#section-landing details summary {
+  padding: 20px 0 !important;
+}
+#section-landing details p {
+  margin: 0 0 18px 0 !important;
+  padding-top: 10px !important;
+  border-top: 1px solid #f0ecfc !important;
+  color: var(--muted) !important;
+  font-size: 13px !important;
+  line-height: 1.8 !important;
+}
+
+/* 5. Footer: Sleek Deep Violet Section */
+#section-landing .landing-footer {
+  background: #0f0a28 !important;
+  border-top: 1px solid #251c4a !important;
+  margin-top: 70px !important;
+}
+#section-landing .landing-footer .footer {
+  padding: 37px 0 !important;
+  display: flex !important;
+  justify-content: space-between !important;
+  align-items: center !important;
+  gap: 20px !important;
+  font-size: 11px !important;
+  color: #a49fc4 !important;
+}
+#section-landing .landing-footer .brand {
+  color: #ffffff !important;
+}
+#section-landing .landing-footer .footer-links a {
+  color: #c4beea !important;
+}
+#section-landing .landing-footer .footer-links a:hover {
+  color: #ffffff !important;
+}
 
 @media(max-width:1100px) {
   #section-dashboard .db-main-charts { grid-template-columns:minmax(0,1.5fr) minmax(250px,1fr); }
@@ -229,7 +427,16 @@
   #section-services .services-header-actions .btn { width:100%; justify-content:center; }
   #section-mentoring .page-header { padding:20px; }
   /* Profile View Mobile Refinement */
-  #section-profile :is(.profile-hero, .credentials-card) { padding:20px 16px; border-radius:15px; }
+  #section-profile :is(.profile-hero, .credentials-card) {
+    padding:20px 16px;
+    border-radius:15px;
+    width:100%!important;
+    max-width:100%!important;
+    box-sizing:border-box!important;
+    margin-left:0!important;
+    margin-right:0!important;
+    min-width:0!important;
+  }
   #section-profile .profile-hero {
     flex-direction:column!important;
     align-items:center!important;
@@ -317,6 +524,7 @@
   #section-profile .portfolio-grid {
     grid-template-columns:minmax(0, 1fr)!important;
   }
+  #section-profile [style*="minmax"],
   #section-profile > div > div > div[style*="repeat(auto-fit, minmax(300px, 1fr))"],
   #section-profile div[style*="repeat(auto-fit, minmax(300px, 1fr))"] {
     grid-template-columns:minmax(0, 1fr)!important;

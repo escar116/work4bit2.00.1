@@ -7227,8 +7227,10 @@ dialog.workspace-guide::backdrop {
 .t-skel {
     position: relative;
     display: grid;
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
     width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
 }
 
 .t-skel-skeleton,
@@ -7236,6 +7238,9 @@ dialog.workspace-guide::backdrop {
     grid-column: 1;
     grid-row: 1;
     width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
 }
 
 .t-skel-skeleton {
