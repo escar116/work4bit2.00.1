@@ -5073,6 +5073,13 @@ function loadActivityLogs() {
   container.innerHTML = renderLogsSection(logs, activeLogsCategory, logsSearchQuery);
   container.classList.add('t-skel-reveal');
   attachLogsEvents();
+
+  // The chip row scrolls horizontally on mobile; keep the selected filter visible after re-render.
+  const pills = container.querySelector('.logs-category-pills');
+  const activePill = pills?.querySelector('.logs-pill-btn.active');
+  if (pills && activePill && pills.scrollWidth > pills.clientWidth) {
+    pills.scrollLeft = activePill.offsetLeft - (pills.clientWidth - activePill.offsetWidth) / 2;
+  }
 }
 
 function attachLogsEvents() {

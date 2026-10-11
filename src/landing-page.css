@@ -35,5 +35,25 @@
 @media(prefers-reduced-motion:reduce) { #section-landing.motion-ready .t-stagger:not(.is-shown) .t-stagger-line { opacity:1; transform:none; filter:none; } }
 
 #section-landing .mobile-signin { display:none; }
-@media(max-width:720px) { #section-landing .mobile-signin { display:block; } }
+
+/* Mobile header: keep Sign in one tap away without crowding the bar. */
+@media(max-width:720px) {
+  #section-landing .mobile-signin { display:none!important; }
+  #section-landing .account { gap:8px; }
+  #section-landing .account .signin {
+    display:inline-flex; align-items:center; justify-content:center;
+    padding:9px 13px; border:1px solid var(--line); border-radius:10px;
+    background:#fff; color:var(--ink); font-size:11px; font-weight:700; white-space:nowrap;
+  }
+  #section-landing .account .button { padding:9px 13px; }
+  #section-landing .account .button > span[aria-hidden="true"] { display:none; }
+}
+@media(max-width:400px) {
+  #section-landing .nav { gap:6px; }
+  #section-landing .brand { font-size:13px; gap:7px; }
+  #section-landing .brand img { width:26px; height:26px; }
+  #section-landing .account { gap:6px; }
+  #section-landing .account .signin { border-color:transparent; background:transparent; padding:9px 6px; }
+  #section-landing .account .button { padding:9px 11px; }
+}
 body:has(#section-landing:not(.hidden)) { overflow-x:clip; }
