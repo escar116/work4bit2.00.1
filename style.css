@@ -52,6 +52,14 @@
     --color-rating: #facc15;
     --color-purple: var(--primary-purple);
     
+    /* transitions-dev: Skeleton loader & reveal tokens (14-skeleton-reveal.md) */
+    --pulse-dur: 1000ms;
+    --pulse-count: infinite;
+    --pulse-min: 0.5;
+    --reveal-dur: 400ms;
+    --reveal-blur: 2px;
+    --reveal-ease: ease-in-out;
+    
     /* Shadows */
     --shadow-card: 0 1px 3px 0 rgba(0, 0, 0, 0.04), 0 1px 2px -1px rgba(0, 0, 0, 0.02);
     --shadow-hover: 0 6px 16px rgba(0, 0, 0, 0.06);
@@ -6471,9 +6479,12 @@ dialog.workspace-guide::backdrop {
 .db-banner-date { display:grid; gap:5px; text-align:right; font-size:.73rem; }
 .db-banner-date span { color:#dbd6ee; font-size:.7rem; }
 .db-toolbar { display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:12px; }
-.db-segment { display:inline-flex; gap:3px; border:1px solid var(--border-card,#dbe2f2); background:var(--bg-card,#fff); padding:4px; border-radius:10px; }
-.db-segment button { border:0; border-radius:7px; background:transparent; color:var(--text-muted,#64748b); cursor:pointer; padding:8px 14px; font-size:.84rem; font-weight:650; font-family:inherit; }
-.db-segment button[aria-pressed="true"] { background:#6554e8; color:white; box-shadow:0 2px 5px #6554e833; }
+.db-segment { display:inline-flex; align-items:center; gap:4px; border:1px solid var(--border-card,#dbe2f2); background:var(--bg-card,#fff); padding:4px; border-radius:10px; position:relative; }
+.db-segment button { position:relative; border:0; border-radius:7px; background:transparent; color:var(--text-muted,#64748b); cursor:pointer; padding:8px 14px; font-size:.84rem; font-weight:650; font-family:inherit; }
+.db-segment button:not(:last-child)::after { content:''; position:absolute; right:-2.5px; top:50%; transform:translateY(-50%); width:1px; height:16px; background:var(--border-card,#dbe2f2); pointer-events:none; transition:opacity .15s ease; z-index:1; }
+.db-segment button:is(.active,[aria-pressed="true"],:hover)::after,
+.db-segment button:has(+ button:is(.active,[aria-pressed="true"],:hover))::after { opacity:0; }
+.db-segment button[aria-pressed="true"],.db-segment button.active { background:#6554e8; color:white; box-shadow:0 2px 5px #6554e833; }
 .db-segment button:focus-visible,.db-attention a:focus-visible { outline:3px solid #a89ff6; outline-offset:3px; }
 .db-attention { display:flex; align-items:center; gap:12px; border:1px solid #d4e5e3; border-radius:10px; background:#f4fbfa; padding:12px 16px; }
 .db-attention>span { color:#188678; font-size:1.2rem; }
@@ -7029,6 +7040,111 @@ dialog.workspace-guide::backdrop {
 }
 #dialog-new-request[data-listing-mode="REQUEST"] #new-listing-modal-title {
     color: rgb(14, 116, 244);
+}
+
+/* ==========================================================================
+   TRANSITIONS-DEV: SKELETON LOADER AND REVEAL (14-skeleton-reveal.md)
+   ========================================================================== */
+.t-skel {
+    position: relative;
+    display: grid;
+    grid-template-columns: 1fr;
+    width: 100%;
+}
+
+.t-skel-skeleton,
+.t-skel-content {
+    grid-column: 1;
+    grid-row: 1;
+    width: 100%;
+}
+
+.t-skel-skeleton {
+    z-index: 1;
+    opacity: 1;
+    filter: blur(0);
+    transition:
+        opacity var(--reveal-dur) var(--reveal-ease),
+        filter  var(--reveal-dur) var(--reveal-ease),
+        visibility 0s var(--reveal-dur);
+}
+
+.t-skel-content {
+    z-index: 2;
+    opacity: 0;
+    filter: blur(var(--reveal-blur));
+    pointer-events: none;
+    transition:
+        opacity var(--reveal-dur) var(--reveal-ease),
+        filter  var(--reveal-dur) var(--reveal-ease);
+}
+
+.t-skel.is-revealed .t-skel-skeleton {
+    opacity: 0;
+    filter: blur(var(--reveal-blur));
+    pointer-events: none;
+    visibility: hidden;
+}
+
+.t-skel.is-revealed .t-skel-content {
+    opacity: 1;
+    filter: blur(0);
+    pointer-events: auto;
+}
+
+/* Snap-back when replaying: kill transitions so the reverse
+   (revealed → skeleton) is instant. Drop `.is-resetting`
+   after a forced reflow and the next reveal animates again. */
+.t-skel.is-resetting .t-skel-skeleton,
+.t-skel.is-resetting .t-skel-content {
+    transition: none !important;
+}
+
+/* Pulse: place the animation on the bar/avatar children, not
+   on the skeleton itself, so the skeleton's opacity / filter
+   stay free for the cross-fade transition above. */
+.t-skel-skeleton.is-pulsing > * {
+    animation: t-skel-pulse var(--pulse-dur) ease-in-out var(--pulse-count);
+}
+
+.t-skel-skeleton.is-pulsing .skel-bone {
+    animation: t-skel-pulse var(--pulse-dur) ease-in-out var(--pulse-count);
+}
+
+.t-skel-skeleton.is-pulsing .skel-card {
+    animation: none;
+}
+
+@keyframes t-skel-pulse {
+    0%, 100% { opacity: 1; }
+    50%      { opacity: var(--pulse-min); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .t-skel-skeleton, .t-skel-content {
+        transition: none !important;
+    }
+    .t-skel-skeleton.is-pulsing > *,
+    .t-skel-skeleton.is-pulsing .skel-bone {
+        animation: none !important;
+    }
+}
+
+/* Skeleton bones and cards styling */
+.skel-bone {
+    background: rgba(100, 116, 139, 0.14);
+    display: block;
+    flex-shrink: 0;
+}
+
+body.dark-theme .skel-bone,
+body:not(.light-theme):has(.dark-mode) .skel-bone {
+    background: rgba(255, 255, 255, 0.09);
+}
+
+.profile-skel .skel-card {
+    pointer-events: none;
+    user-select: none;
 }
 
 

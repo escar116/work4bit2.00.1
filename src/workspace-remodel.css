@@ -172,7 +172,7 @@
 #app-views .main-content .db-segment {
   display:inline-flex;
   align-items:center;
-  gap:3px;
+  gap:4px;
   max-width:100%;
   min-width:0;
   box-sizing:border-box;
@@ -182,8 +182,10 @@
   background:var(--bg-card,#fff);
   box-shadow:none;
   overflow-x:auto;
+  position:relative;
 }
 #app-views .main-content .db-segment > button {
+  position:relative;
   flex:0 0 auto;
   margin:0;
   padding:8px 14px;
@@ -197,6 +199,26 @@
   font-weight:650;
   white-space:nowrap;
   cursor:pointer;
+}
+
+/* Vertical visual division lines (does not touch outer border) */
+#app-views .main-content .db-segment > button:not(:last-child)::after {
+  content: '';
+  position: absolute;
+  right: -2.5px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 1px;
+  height: 16px;
+  background: var(--border-card, #dbe2f2);
+  pointer-events: none;
+  transition: opacity 0.15s ease;
+  z-index: 1;
+}
+
+#app-views .main-content .db-segment > button:is(.active, [aria-pressed="true"], :hover)::after,
+#app-views .main-content .db-segment > button:has(+ button:is(.active, [aria-pressed="true"], :hover))::after {
+  opacity: 0;
 }
 #app-views .main-content .db-segment > button:hover {
   background:#f0edff;

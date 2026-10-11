@@ -5051,6 +5051,19 @@ function renderReviews(reviews, prefix) {
 
 async function loadProfile() {
   if (!userData) return;
+  const skel = document.querySelector('#profile-skel');
+  const skeleton = skel?.querySelector('.t-skel-skeleton');
+  if (skel) {
+    skel.classList.add('is-resetting');
+    skel.classList.remove('is-revealed');
+    skel.setAttribute('data-state', 'loading');
+    if (skeleton) skeleton.classList.remove('is-pulsing');
+    if (skeleton) void skeleton.offsetWidth;
+    skel.classList.remove('is-resetting');
+    if (skeleton) skeleton.classList.add('is-pulsing');
+  }
+  const startTime = Date.now();
+
   const currentPhoto = userData.photoURL || localStorage.getItem(`cached_photo_${userData.id}`) || null;
   updateAllUserAvatars(currentPhoto, userData.fullName);
   $('#profile-name').textContent = userData.fullName || 'Student User';
@@ -5145,8 +5158,37 @@ async function loadProfile() {
     }
     renderReviewsProfile(reviews);
     renderPortfolio(userData.portfolio || []);
+
+    // Preload project & portfolio images before dismissing skeleton loader
+    const imagesToPreload = [];
+    if (userData.photoURL) imagesToPreload.push(userData.photoURL);
+    (userData.portfolio || []).forEach(item => {
+      if (item.imageUrl) imagesToPreload.push(item.imageUrl);
+    });
+
+    if (imagesToPreload.length > 0) {
+      const preloadPromises = imagesToPreload.map(src => new Promise(resolve => {
+        const img = new Image();
+        img.onload = resolve;
+        img.onerror = resolve;
+        img.src = src;
+      }));
+      await Promise.race([
+        Promise.all(preloadPromises),
+        new Promise(resolve => setTimeout(resolve, 2000))
+      ]);
+    }
   } catch (err) {
     console.error('Error loading profile:', err);
+  } finally {
+    const elapsed = Date.now() - startTime;
+    if (elapsed < 450) {
+      await new Promise(resolve => setTimeout(resolve, 450 - elapsed));
+    }
+    if (skel) {
+      skel.setAttribute('data-state', 'ready');
+      skel.classList.add('is-revealed');
+    }
   }
 }
 
