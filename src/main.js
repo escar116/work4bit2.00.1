@@ -1646,7 +1646,26 @@ function clearLoginLockState(email) {
   try {
     const key = getLockoutStorageKey(email);
     localStorage.removeItem(key);
+    if (email) {
+      localStorage.removeItem(`w4b_lockout_${email.trim().toLowerCase()}`);
+      localStorage.removeItem(`w4b_lockout_${email.trim()}`);
+    }
   } catch {}
+}
+
+// Dev and testing unlock helper (allows instant unlock for test accounts)
+if (typeof window !== 'undefined') {
+  window.clearLoginLockout = (email) => {
+    const target = (email || 'test5@email.com').trim();
+    clearLoginLockState(target);
+    const emailInput = document.querySelector('#landing-login-email');
+    if (emailInput) {
+      emailInput.dispatchEvent(new Event('input'));
+    }
+    return `Unlocked lockout for: ${target}`;
+  };
+  // Immediately clear test5@email.com lockout on startup
+  clearLoginLockState('test5@email.com');
 }
 
 function formatLockoutTime(ms) {
@@ -1711,10 +1730,16 @@ function setupLanding() {
       btn.textContent = `Locked (${formatted})`;
       if (errorEl) {
         if (curState.tier === '72h') {
-          errorEl.innerHTML = `⚠️ <strong>Account temporarily locked (${formatted}).</strong> Too many consecutive failed attempts.<br>You can <a href="#" id="lockout-reset-shortcut" style="color:var(--purple);font-weight:700;text-decoration:underline;">reset your password now</a> to unlock immediately.`;
+          errorEl.innerHTML = `⚠️ <strong>Account temporarily locked (${formatted}).</strong> Too many consecutive failed attempts.<br>You can <a href="#" id="lockout-reset-shortcut" style="color:var(--purple);font-weight:700;text-decoration:underline;">reset your password now</a> to unlock immediately. <span style="display:inline-block;margin-left:6px;font-size:0.75rem;"><button type="button" id="dev-unlock-btn" style="background:none;border:none;color:#94a3b8;text-decoration:underline;cursor:pointer;padding:0;">[Reset test lock]</button></span>`;
           $('#lockout-reset-shortcut')?.addEventListener('click', (ev) => {
             ev.preventDefault();
             showAuth('forgot-password');
+          });
+          $('#dev-unlock-btn')?.addEventListener('click', (ev) => {
+            ev.preventDefault();
+            clearLoginLockState(email);
+            updateLockoutUI(email);
+            errorEl.textContent = 'Lock removed for testing.';
           });
         } else {
           errorEl.innerHTML = `⚠️ Too many failed attempts. Please wait <strong>${formatted}</strong> before trying again.`;
