@@ -1568,6 +1568,97 @@ onAuthStateChanged(auth, async (user) => {
   }
 });
 
+// ============================================================================
+// LOGIN RATE-LIMITING & CONSECUTIVE FAILED ATTEMPTS LOCKOUT
+// 3rd failed attempt -> 10-second lock
+// 4th+ failed attempt -> 72-hour lock
+// ============================================================================
+const LOCKOUT_SHORT_DURATION_MS = 10 * 1000; // 10 seconds
+const LOCKOUT_LONG_DURATION_MS = 72 * 60 * 60 * 1000; // 72 hours
+
+function getLockoutStorageKey(email) {
+  const normalized = (email || '').trim().toLowerCase();
+  return normalized ? `w4b_lockout_${normalized}` : 'w4b_lockout_client';
+}
+
+function getLoginLockState(email) {
+  try {
+    const key = getLockoutStorageKey(email);
+    const data = JSON.parse(localStorage.getItem(key) || '{}');
+    const now = Date.now();
+    if (data.lockUntil && data.lockUntil > now) {
+      return {
+        isLocked: true,
+        remainingMs: data.lockUntil - now,
+        attempts: data.attempts || 0,
+        lockUntil: data.lockUntil,
+        tier: data.tier || (data.attempts >= 4 ? '72h' : '10s')
+      };
+    }
+    return {
+      isLocked: false,
+      remainingMs: 0,
+      attempts: data.attempts || 0,
+      lockUntil: null,
+      tier: null
+    };
+  } catch {
+    return { isLocked: false, remainingMs: 0, attempts: 0, lockUntil: null, tier: null };
+  }
+}
+
+function recordFailedLoginAttempt(email) {
+  try {
+    const key = getLockoutStorageKey(email);
+    const state = getLoginLockState(email);
+    const nextAttempts = (state.attempts || 0) + 1;
+    const now = Date.now();
+    let lockUntil = null;
+    let tier = null;
+
+    if (nextAttempts === 3) {
+      lockUntil = now + LOCKOUT_SHORT_DURATION_MS;
+      tier = '10s';
+    } else if (nextAttempts >= 4) {
+      lockUntil = now + LOCKOUT_LONG_DURATION_MS;
+      tier = '72h';
+    }
+
+    localStorage.setItem(key, JSON.stringify({
+      attempts: nextAttempts,
+      lockUntil,
+      tier,
+      lastAttemptAt: now
+    }));
+
+    return {
+      attempts: nextAttempts,
+      isLocked: Boolean(lockUntil && lockUntil > now),
+      remainingMs: lockUntil ? Math.max(0, lockUntil - now) : 0,
+      tier
+    };
+  } catch {
+    return { attempts: 1, isLocked: false, remainingMs: 0, tier: null };
+  }
+}
+
+function clearLoginLockState(email) {
+  try {
+    const key = getLockoutStorageKey(email);
+    localStorage.removeItem(key);
+  } catch {}
+}
+
+function formatLockoutTime(ms) {
+  const totalSeconds = Math.ceil(ms / 1000);
+  if (totalSeconds < 60) return `${totalSeconds}s`;
+  const totalMinutes = Math.ceil(totalSeconds / 60);
+  if (totalMinutes < 60) return `${totalMinutes}m`;
+  const hours = Math.floor(totalMinutes / 60);
+  const mins = totalMinutes % 60;
+  return mins > 0 ? `${hours}h ${mins}m` : `${hours}h`;
+}
+
 // -- Landing Page  ------------------------------------------------------------
 function setupLanding() {
   setupLandingPage({ register: () => showAuth('register') });
@@ -1578,6 +1669,68 @@ function setupLanding() {
   const topRegisterBtn = $('#landing-top-register-btn');
   const topLoginBtn = $('#landing-top-login-btn');
   const forgotLink = $('#landing-forgot-link');
+  const emailInput = $('#landing-login-email');
+
+  let lockoutInterval = null;
+
+  function updateLockoutUI(email) {
+    const state = getLoginLockState(email);
+    const btn = $('#landing-login-btn');
+    if (!btn) return state.isLocked;
+
+    if (lockoutInterval) {
+      clearInterval(lockoutInterval);
+      lockoutInterval = null;
+    }
+
+    if (!state.isLocked) {
+      btn.disabled = false;
+      btn.textContent = 'Sign In';
+      return false;
+    }
+
+    // Is currently locked
+    btn.disabled = true;
+    const renderLockedText = () => {
+      const curState = getLoginLockState(email);
+      if (!curState.isLocked) {
+        if (lockoutInterval) {
+          clearInterval(lockoutInterval);
+          lockoutInterval = null;
+        }
+        btn.disabled = false;
+        btn.textContent = 'Sign In';
+        if (errorEl) {
+          errorEl.textContent = 'Lockout period ended. You may now attempt to sign in.';
+          show(errorEl);
+        }
+        return;
+      }
+
+      const formatted = formatLockoutTime(curState.remainingMs);
+      btn.textContent = `Locked (${formatted})`;
+      if (errorEl) {
+        if (curState.tier === '72h') {
+          errorEl.innerHTML = `⚠️ <strong>Account temporarily locked (${formatted}).</strong> Too many consecutive failed attempts.<br>You can <a href="#" id="lockout-reset-shortcut" style="color:var(--purple);font-weight:700;text-decoration:underline;">reset your password now</a> to unlock immediately.`;
+          $('#lockout-reset-shortcut')?.addEventListener('click', (ev) => {
+            ev.preventDefault();
+            showAuth('forgot-password');
+          });
+        } else {
+          errorEl.innerHTML = `⚠️ Too many failed attempts. Please wait <strong>${formatted}</strong> before trying again.`;
+        }
+        show(errorEl);
+      }
+    };
+
+    renderLockedText();
+    lockoutInterval = setInterval(renderLockedText, 1000);
+    return true;
+  }
+
+  emailInput?.addEventListener('input', () => {
+    updateLockoutUI(emailInput.value);
+  });
 
   form?.addEventListener('submit', async (e) => {
     e.preventDefault();
@@ -1585,18 +1738,46 @@ function setupLanding() {
     const email = $('#landing-login-email').value.trim();
     const password = $('#landing-login-password').value;
     const btn = $('#landing-login-btn');
+
+    if (updateLockoutUI(email)) {
+      return;
+    }
+
     btn.disabled = true; btn.textContent = 'Signing in...';
     try {
       const cred = await signInWithEmailAndPassword(auth, email, password);
+      clearLoginLockState(email);
+      if (lockoutInterval) clearInterval(lockoutInterval);
       if (cred?.user?.uid) {
         setDoc(doc(firestore, "user_profiles", cred.user.uid), { authProvider: 'password' }, { merge: true }).catch(() => {});
       }
     } catch (err) {
-      errorEl.textContent = err.code === 'auth/invalid-credential' ? 'Invalid email or password.' : (err.message || 'Login failed.');
-      show(errorEl);
+      if (err.code === 'auth/invalid-credential' || err.code === 'auth/wrong-password' || err.code === 'auth/user-not-found') {
+        const failResult = recordFailedLoginAttempt(email);
+        if (failResult.isLocked) {
+          updateLockoutUI(email);
+        } else {
+          const remaining = 3 - failResult.attempts;
+          if (remaining === 1) {
+            errorEl.textContent = 'Invalid email or password. 1 attempt remaining before temporary lock.';
+          } else {
+            errorEl.textContent = 'Invalid email or password.';
+          }
+          show(errorEl);
+        }
+      } else if (err.code === 'auth/too-many-requests') {
+        recordFailedLoginAttempt(email);
+        updateLockoutUI(email);
+      } else {
+        errorEl.textContent = err.message || 'Login failed.';
+        show(errorEl);
+      }
     } finally {
-      btn.disabled = false;
-      btn.textContent = 'Sign In';
+      const curState = getLoginLockState(email);
+      if (!curState.isLocked) {
+        btn.disabled = false;
+        btn.textContent = 'Sign In';
+      }
     }
   });
 
@@ -1866,6 +2047,7 @@ function setupForgotPassword() {
       // 3. For email/password accounts, send password reset link
       btn.textContent = 'Sending reset link...';
       await sendPasswordResetEmail(auth, email);
+      clearLoginLockState(email);
       showForgotMessage(
         `<strong>Password reset link sent!</strong> We've sent a link to <strong>${email}</strong>.<br><br><em>If you don't see it in your inbox, <strong>please check your Spam / Junk folder</strong>.</em>`,
         'success'
