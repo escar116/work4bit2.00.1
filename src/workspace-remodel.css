@@ -716,3 +716,69 @@
     padding:16px 12px!important;
   }
 }
+
+/* Applications Hub & Service Card Actions: Cohesive Edit and Delete Buttons */
+#app-views .main-content :is(.btn-edit-service, .edit-job-btn),
+#section-applications :is(.btn-edit-service, .edit-job-btn) {
+  background: rgba(96, 63, 242, 0.08) !important;
+  color: #603ff2 !important;
+  border: 1px solid rgba(96, 63, 242, 0.35) !important;
+  font-weight: 600 !important;
+  padding: 3px 10px !important;
+  font-size: 11px !important;
+  border-radius: 6px !important;
+  line-height: 1.4 !important;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
+  cursor: pointer !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+}
+
+#app-views .main-content :is(.btn-edit-service, .edit-job-btn):hover,
+#section-applications :is(.btn-edit-service, .edit-job-btn):hover {
+  background: #603ff2 !important;
+  color: #ffffff !important;
+  border-color: #603ff2 !important;
+  box-shadow: 0 4px 12px rgba(96, 63, 242, 0.28) !important;
+  transform: translateY(-1px) !important;
+}
+
+#app-views .main-content :is(.btn-edit-service, .edit-job-btn):active,
+#section-applications :is(.btn-edit-service, .edit-job-btn):active {
+  transform: translateY(0) !important;
+  box-shadow: none !important;
+}
+
+#app-views .main-content :is(.btn-delete-service, .delete-job-btn, .cancel-my-app-btn),
+#section-applications :is(.btn-delete-service, .delete-job-btn, .cancel-my-app-btn) {
+  background: rgba(239, 68, 68, 0.08) !important;
+  color: #ef4444 !important;
+  border: 1px solid rgba(239, 68, 68, 0.35) !important;
+  font-weight: 600 !important;
+  padding: 3px 10px !important;
+  font-size: 11px !important;
+  border-radius: 6px !important;
+  line-height: 1.4 !important;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
+  cursor: pointer !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+}
+
+#app-views .main-content :is(.btn-delete-service, .delete-job-btn, .cancel-my-app-btn):hover,
+#section-applications :is(.btn-delete-service, .delete-job-btn, .cancel-my-app-btn):hover {
+  background: #ef4444 !important;
+  color: #ffffff !important;
+  border-color: #ef4444 !important;
+  box-shadow: 0 4px 12px rgba(239, 68, 68, 0.28) !important;
+  transform: translateY(-1px) !important;
+}
+
+#app-views .main-content :is(.btn-delete-service, .delete-job-btn, .cancel-my-app-btn):active,
+#section-applications :is(.btn-delete-service, .delete-job-btn, .cancel-my-app-btn):active {
+  transform: translateY(0) !important;
+  box-shadow: none !important;
+}
+

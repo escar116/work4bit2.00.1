@@ -3906,8 +3906,8 @@ async function loadPostedJobs(isSilent = false) {
           <div class="job-card-header-actions">
             <span class="badge badge-normal">${peso(job.budget)} ${isOffer ? 'base' : ''}</span>
             <span class="badge badge-pending">${countLabel}</span>
-            <button type="button" class="btn btn-outline btn-sm edit-job-btn" style="padding: 3px 10px; font-size: 11px;">Edit</button>
-            <button type="button" class="btn btn-outline btn-sm delete-job-btn btn-delete-service" style="padding: 3px 10px; font-size: 11px;">Delete</button>
+            <button type="button" class="btn btn-outline btn-sm edit-job-btn btn-edit-service">Edit</button>
+            <button type="button" class="btn btn-outline btn-sm delete-job-btn btn-delete-service">Delete</button>
           </div>
         </div>
         <div class="candidates-list"></div>
@@ -4096,7 +4096,7 @@ async function loadMyApplications(isSilent = false) {
         </div>
         <div style="display: flex; align-items: center; gap: 0.5rem;">
           <span class="badge ${statusClass}">${statusText}</span>
-          ${app.status === 'PENDING' ? `<button type="button" class="btn btn-outline btn-sm cancel-my-app-btn" style="border-color: #ef4444; color: #ef4444; padding: 2px 8px; font-size: 11px;">Cancel</button>` : ''}
+          ${app.status === 'PENDING' ? `<button type="button" class="btn btn-outline btn-sm cancel-my-app-btn btn-delete-service">Cancel</button>` : ''}
         </div>
       `;
       card.querySelector('.cancel-my-app-btn')?.addEventListener('click', async (e) => {

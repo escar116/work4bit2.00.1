@@ -4148,6 +4148,21 @@ body.light-theme .skeleton-loader {
     border: 1px solid var(--color-green);
     font-weight: 600;
 }
+.btn-edit-service {
+    background: rgba(96, 63, 242, 0.08);
+    color: #603ff2;
+    border: 1px solid rgba(96, 63, 242, 0.4);
+    font-weight: 600;
+    transition: all 0.2s ease;
+    cursor: pointer;
+}
+.btn-edit-service:hover {
+    background: #603ff2;
+    color: #ffffff;
+    border-color: #603ff2;
+    box-shadow: 0 4px 12px rgba(96, 63, 242, 0.25);
+    transform: translateY(-1px);
+}
 .btn-delete-service {
     background: rgba(239, 68, 68, 0.08);
     color: #ef4444;
