@@ -7085,14 +7085,14 @@ dialog.workspace-guide::backdrop {
    SERVICE OFFERS (PINKISH / FUCHSIA) VS REQUESTS (BLUEWISH) THEMES
    ========================================================================== */
 
-/* --- 1. Service Offers Theme (Fuchsia / Purple rgb(245,0,254) / rgb(167,46,255)) --- */
-.nav-btn[data-target="service-offers"].active {
+/* --- 1. Admin Theme (Fuchsia / Purple rgb(245,0,254) / rgb(167,46,255)) --- */
+.nav-btn[data-target="admin"].active {
     background: linear-gradient(135deg, rgba(245, 0, 254, 0.24) 0%, rgba(167, 46, 255, 0.28) 100%) !important;
     border-left: 3.5px solid rgb(245, 0, 254) !important;
     box-shadow: 0 4px 18px rgba(245, 0, 254, 0.25) !important;
     color: #ffffff !important;
 }
-.nav-btn[data-target="service-offers"].active .nav-icon {
+.nav-btn[data-target="admin"].active .nav-icon {
     stroke: rgb(245, 0, 254) !important;
 }
 

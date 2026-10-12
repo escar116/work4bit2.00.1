@@ -3777,11 +3777,11 @@ async function updateApplicationTabCounts() {
   if (!userData?.id && !devPreview) return;
   if (devPreview) {
     const postedEl = $('#apps-posted-count');
-    if (postedEl) postedEl.textContent = '1';
+    if (postedEl) postedEl.textContent = $('#posted-jobs-list')?.querySelectorAll('.job-card').length || '0';
     const appliedEl = $('#apps-applied-count');
-    if (appliedEl) appliedEl.textContent = '1';
+    if (appliedEl) appliedEl.textContent = $('#my-applications-list')?.querySelectorAll('.application-card').length || '0';
     const mentoringEl = $('#apps-mentoring-count');
-    if (mentoringEl) mentoringEl.textContent = '0';
+    if (mentoringEl) mentoringEl.textContent = $('#mentoring-requests-list')?.querySelectorAll('.job-card').length || '0';
     return;
   }
   try {
@@ -3957,6 +3957,8 @@ async function loadPostedJobs(isSilent = false) {
             } catch (err) {}
           }
           showToast(`Deleted ${itemName}.`);
+          updateApplicationTabCounts();
+          updateBadges();
           loadPostedJobs();
           loadServices(true);
           loadDashboard(true);
@@ -4024,7 +4026,7 @@ async function loadMentoringRequests(isSilent = false) {
             </div>
             <div class="candidate-price">${peso(app.priceOffer)}</div>
             <div class="candidate-actions">
-              <button type="button" class="btn btn-outline btn-sm reject-btn" style="border-color:#ef4444; color:#ef4444;">Decline</button>
+              <button type="button" class="btn btn-outline btn-sm reject-btn">Decline</button>
               <button type="button" class="btn btn-purple btn-sm approve-btn">Accept</button>
             </div>
           `;
@@ -4103,6 +4105,19 @@ async function loadMyApplications(isSilent = false) {
         e.preventDefault();
         const itemName = isOffer ? 'order request' : 'application';
         if (!confirm(`Are you sure you want to cancel this ${itemName}?`)) return;
+
+        // Optimistic instant feedback: visually remove card and decrement count pill immediately
+        card.style.transition = 'opacity 0.2s ease, transform 0.2s ease';
+        card.style.opacity = '0';
+        card.style.transform = 'translateY(-4px)';
+        setTimeout(() => card.remove(), 200);
+
+        const appliedPill = $('#apps-applied-count');
+        if (appliedPill) {
+          const current = parseInt(appliedPill.textContent || '0', 10);
+          appliedPill.textContent = Math.max(0, current - 1);
+        }
+
         try {
           try {
             await deleteApplication(dc, { id: app.id });
@@ -4110,11 +4125,15 @@ async function loadMyApplications(isSilent = false) {
             await updateApplicationStatus(dc, { id: app.id, status: 'REJECTED' });
           }
           showToast(`Cancelled ${itemName}.`);
-          loadMyApplications();
+          updateApplicationTabCounts();
+          updateBadges();
+          loadMyApplications(true);
           loadServices(true);
           loadDashboard(true);
         } catch (err) {
           showToast('Could not cancel: ' + err.message, 'error');
+          loadMyApplications();
+          updateApplicationTabCounts();
         }
       });
       container.appendChild(card);
@@ -4219,6 +4238,8 @@ async function handleApprove(application, job, approveBtn = null, rejectBtn = nu
       }
     }
     showToast(isOffer ? 'Order accepted! Chat created.' : 'Application approved! Chat created.');
+    updateApplicationTabCounts();
+    updateBadges();
     if (application?.applicantId) {
       logUserAction('get accepted', `Application accepted for "${job?.title || 'Listing'}"`, application.applicantId);
     }
@@ -4257,6 +4278,8 @@ async function handleReject(application, rejectBtn = null, approveBtn = null) {
   try {
     await updateApplicationStatus(dc, { id: application.id, status: 'REJECTED' });
     showToast('Application rejected.');
+    updateApplicationTabCounts();
+    updateBadges();
     loadApplications();
   } catch (err) {
     showToast('Error: ' + err.message, 'error');
@@ -6832,6 +6855,7 @@ let adminUsersData = [];
 let adminPendingData = [];
 let adminAppsData = [];
 let adminRequestsData = [];
+let adminLiveListingsData = [];
 let adminSearchQuery = '';
   let activeMentoringTarget = null;
   let allUsersData = [];
@@ -7011,15 +7035,23 @@ async function loadAdmin() {
   setupAdminPeriodSelect();
 
   try {
-    const [usersRes, reqsRes, appsRes] = await Promise.all([
+    const [usersRes, reqsRes, appsRes, livePostsRes] = await Promise.all([
       listAllUsers(dc, SERVER_ONLY).catch(() => ({ data: { users: [] } })),
       listAllHelpRequestsAdmin(dc, SERVER_ONLY).catch(() => ({ data: { helpRequests: [] } })),
-      listAllApplicationsAdmin(dc, SERVER_ONLY).catch(() => ({ data: { applications: [] } }))
+      listAllApplicationsAdmin(dc, SERVER_ONLY).catch(() => ({ data: { applications: [] } })),
+      listHelpRequests(dc, SERVER_ONLY).catch(() => ({ data: { helpRequests: [] } }))
     ]);
 
     adminUsersData = usersRes.data?.users || [];
     adminRequestsData = reqsRes.data?.helpRequests || [];
     adminAppsData = appsRes.data?.applications || [];
+
+    const fetchedLive = livePostsRes.data?.helpRequests || [];
+    if (fetchedLive.length > 0) {
+      adminLiveListingsData = fetchedLive.filter(r => r.status !== 'DELETED');
+    } else {
+      adminLiveListingsData = adminRequestsData.filter(r => (r.status === 'OPEN' || !r.status) && r.status !== 'DELETED');
+    }
 
     // Fallback ONLY if DataConnect returned zero records and devPreview is active
     if (devPreview && adminUsersData.length === 0 && adminRequestsData.length === 0) {
@@ -7030,12 +7062,18 @@ async function loadAdmin() {
         { id: 'u4', fullName: 'Maria Santos', email: 'maria@university.edu', studentId: '2024-34011', verificationStatus: 'verified' }
       ];
       adminRequestsData = [
-        { id: 'r1', title: '3D Printing of Enclosure Case', category: '3D Design', budget: 450, status: 'OPEN', requesterId: 'u1' },
+        { id: 'r1', title: '3D Printing of Enclosure Case (ABS/PLA)', category: '3D Design', budget: 450, status: 'OPEN', requesterId: 'u1' },
         { id: 'r2', title: 'Circuit Schematic & PCB Review', category: 'PCB & Hardware Design', budget: 1200, status: 'OPEN', requesterId: 'u2' },
         { id: 'r3', title: 'Arduino Firmware for Water IoT', category: 'Embedded Systems', budget: 2500, status: 'COMPLETED', requesterId: 'u3' },
         { id: 'r4', title: 'Laser Cutting Acrylic Chassis', category: 'CAD & 3D Modeling', budget: 650, status: 'COMPLETED', requesterId: 'u4' },
         { id: 'r5', title: 'Mentoring: SolidWorks CAD', category: 'Mentoring', budget: 800, status: 'OPEN', requesterId: 'u2' },
         { id: 'r6', title: 'React Web App Frontend Bugfix', category: 'Software Development', budget: 1500, status: 'COMPLETED', requesterId: 'u1' }
+      ];
+      adminLiveListingsData = [
+        { id: 'r1', title: '3D Printing of Enclosure Case (ABS/PLA)', category: '3D Design', budget: 450, status: 'OPEN', requester: { id: 'u1', fullName: 'Charles B.', email: 'charlesjanparaggua@gmail.com', studentId: '2023-10482' }, urgency: 'LOW' },
+        { id: 'r2', title: 'Circuit Schematic & PCB Review', category: 'PCB & Hardware Design', budget: 1200, status: 'OPEN', requester: { id: 'u2', fullName: 'Engr. Noel Villanueva', email: 'noel@university.edu', studentId: 'FAC-01' }, urgency: 'NORMAL', deadline: '2026-10-25' },
+        { id: 'r5', title: 'Mentoring: SolidWorks CAD', category: 'Mentoring', budget: 800, status: 'OPEN', requester: { id: 'u2', fullName: 'Engr. Noel Villanueva', email: 'noel@university.edu', studentId: 'FAC-01' }, urgency: 'NORMAL' },
+        { id: 'r7', title: 'Mentoring: Python & Data Analysis', category: 'Mentoring', budget: 1500, status: 'OPEN', requester: { id: 'u3', fullName: 'Anna Salcedo', email: 'anna@university.edu', studentId: '2022-90124' }, urgency: 'NORMAL' }
       ];
       adminAppsData = [
         { id: 'a1', helpRequestId: 'r3', applicantId: 'u1', priceOffer: 2500, status: 'COMPLETED' },
@@ -7044,6 +7082,9 @@ async function loadAdmin() {
         { id: 'a4', helpRequestId: 'r1', applicantId: 'u2', priceOffer: 450, status: 'TERMINATED' }
       ];
     }
+
+    const listingsBadge = $('#admin-listings-tab-badge');
+    if (listingsBadge) listingsBadge.textContent = adminLiveListingsData.length;
 
     adminPendingData = adminUsersData.filter(u => u.verificationStatus === 'pending');
 
@@ -7103,6 +7144,7 @@ function renderCurrentAdminTab() {
   if (adminActiveTab === 'pending') renderAdminPending();
   else if (adminActiveTab === 'users') renderAdminUsers();
   else if (adminActiveTab === 'applications') renderAdminApplications();
+  else if (adminActiveTab === 'listings') renderAdminListings();
   else if (adminActiveTab === 'audit-logs') renderAdminAuditLogs();
 }
 
@@ -7324,7 +7366,7 @@ function renderAdminApplications() {
       <td><div class="truncate" style="max-width: 220px;">"${a.message}"</div></td>
       <td><span class="badge ${badgeClass}">${a.status || 'Pending'}</span></td>
       <td>
-        <button type="button" class="btn btn-outline btn-sm delete-app-btn" style="border-color: #ef4444; color: #ef4444;">Delete</button>
+        <button type="button" class="btn btn-outline btn-sm delete-app-btn btn-delete-service">Delete</button>
       </td>
     `;
     
@@ -7343,6 +7385,115 @@ function renderAdminApplications() {
     tbody.appendChild(tr);
   });
 }
+
+function renderAdminListings() {
+  const tbody = $('#admin-all-listings-tbody');
+  if (!tbody) return;
+
+  let list = adminLiveListingsData;
+
+  if (adminSearchQuery) {
+    const q = adminSearchQuery.toLowerCase();
+    list = list.filter(item => {
+      const title = (item.title || '').toLowerCase();
+      const cat = (item.category || '').toLowerCase();
+      const posterName = (item.requester?.fullName || '').toLowerCase();
+      const posterEmail = (item.requester?.email || '').toLowerCase();
+      const isOffer = isJobOffer(item);
+      const isMentoring = item.category === 'MENTORING' || (item.title && item.title.toLowerCase().startsWith('mentoring:'));
+      const typeStr = isMentoring ? 'mentoring' : (isOffer ? 'service offer' : 'service request');
+      return title.includes(q) || cat.includes(q) || posterName.includes(q) || posterEmail.includes(q) || typeStr.includes(q);
+    });
+  }
+
+  tbody.innerHTML = '';
+
+  const listingsBadge = $('#admin-listings-tab-badge');
+  if (listingsBadge) listingsBadge.textContent = adminLiveListingsData.length;
+
+  if (list.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="7" class="text-center text-muted" style="padding: 2.5rem;">No active services or mentoring listings currently online.</td></tr>';
+    return;
+  }
+
+  list.forEach(item => {
+    const isOffer = isJobOffer(item);
+    const isMentoring = item.category === 'MENTORING' || (item.title && item.title.toLowerCase().startsWith('mentoring:'));
+    const tr = document.createElement('tr');
+
+    const typeBadge = isMentoring
+      ? `<span class="badge" style="background: rgba(14, 165, 233, 0.12); color: #0284c7; border: 1px solid rgba(14, 165, 233, 0.3); font-weight: 600;">Mentoring</span>`
+      : (isOffer
+        ? `<span class="badge badge-standing">Service Offer</span>`
+        : `<span class="badge badge-request">Service Request</span>`);
+
+    const poster = item.requester || (window.__usersMap && item.requesterId ? window.__usersMap.get(item.requesterId) : null) || { fullName: 'Student Poster', email: '' };
+
+    tr.innerHTML = `
+      <td>
+        <div style="font-weight: 600; color: var(--text-heading, #1e293b);">${item.title}</div>
+        <small class="text-muted">${item.description ? item.description.slice(0, 65) + (item.description.length > 65 ? '...' : '') : 'Active campus listing'}</small>
+      </td>
+      <td>${typeBadge}</td>
+      <td>
+        <div class="flex items-center gap-2">
+          <div class="avatar avatar-sm cursor-pointer" onclick="openViewProfileDialog('${poster.id || ''}')" style="overflow:hidden;padding:0;">${renderUserAvatar(poster.id, poster.fullName)}</div>
+          <div>
+            <strong class="cursor-pointer hover:underline" onclick="openViewProfileDialog('${poster.id || ''}')">${poster.fullName || 'Student'}</strong>
+            <div class="text-xs text-muted">${poster.studentId ? `ID: ${poster.studentId}` : (poster.email || '')}</div>
+          </div>
+        </div>
+      </td>
+      <td><span class="badge badge-skill">${item.category || (isMentoring ? 'Mentoring' : 'General')}</span></td>
+      <td><strong>${peso(item.budget)} ${isOffer ? '<small class="text-muted">base</small>' : ''}</strong></td>
+      <td>
+        <span class="badge" style="background: rgba(16, 185, 129, 0.1); color: #10b981; border: 1px solid rgba(16, 185, 129, 0.3); font-weight: 600; display: inline-flex; align-items: center; gap: 4px;">
+          <span style="width: 6px; height: 6px; border-radius: 50%; background: #10b981; display: inline-block;"></span>
+          Live Online
+        </span>
+      </td>
+      <td>
+        <button type="button" class="btn btn-outline btn-sm delete-listing-btn btn-delete-service">Delete</button>
+      </td>
+    `;
+
+    tr.querySelector('.delete-listing-btn')?.addEventListener('click', async (e) => {
+      e.preventDefault();
+      const kindLabel = isMentoring ? 'mentoring listing' : (isOffer ? 'service offer' : 'service request');
+      if (!confirm(`Are you sure you want to permanently remove and take down "${item.title}" from the live website?`)) return;
+
+      try {
+        await updateHelpRequestStatus(dc, { id: item.id, status: 'DELETED' });
+        if (isOffer) {
+          knownStandingOfferIds.delete(item.id);
+          try { localStorage.setItem('standing_offer_ids', JSON.stringify(Array.from(knownStandingOfferIds))); } catch (err) {}
+        }
+        
+        // Optimistic instant feedback: visually fade and remove row
+        tr.style.transition = 'opacity 0.2s ease, transform 0.2s ease';
+        tr.style.opacity = '0';
+        tr.style.transform = 'translateY(-4px)';
+        setTimeout(() => tr.remove(), 200);
+
+        adminLiveListingsData = adminLiveListingsData.filter(x => x.id !== item.id);
+        const b = $('#admin-listings-tab-badge');
+        if (b) b.textContent = adminLiveListingsData.length;
+
+        showToast(`Removed "${item.title}" from live website.`);
+        logUserAction('delete', `Admin took down live ${kindLabel} "${item.title}" (${item.id})`, userData?.id);
+
+        loadServices(true);
+        loadApplications(true);
+      } catch (err) {
+        showToast('Failed to delete live listing: ' + err.message, 'error');
+        renderAdminListings();
+      }
+    });
+
+    tbody.appendChild(tr);
+  });
+}
+
 
 function openApplicantDetails(user) {
   const body = $('#applicant-modal-body');
@@ -7727,6 +7878,8 @@ function setupAdminTabs() {
           searchInput.placeholder = 'Search audit logs by user name, email, student ID, action, or details...';
         } else if (adminActiveTab === 'applications') {
           searchInput.placeholder = 'Search applications by job title, applicant, or message...';
+        } else if (adminActiveTab === 'listings') {
+          searchInput.placeholder = 'Search live posts by title, poster, category, or type...';
         } else {
           searchInput.placeholder = 'Search by name, student ID, email, faculty...';
         }

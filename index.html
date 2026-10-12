@@ -1358,6 +1358,10 @@
                         <button type="button" class="tab-btn admin-tab-btn" data-admintab="applications" aria-pressed="false">
                             <span>All Applications & Bids</span>
                         </button>
+                        <button type="button" class="tab-btn admin-tab-btn" data-admintab="listings" aria-pressed="false">
+                            <span>Live Services & Mentoring</span>
+                            <span class="tab-count-pill" id="admin-listings-tab-badge">0</span>
+                        </button>
                         <button type="button" class="tab-btn admin-tab-btn" data-admintab="audit-logs" aria-pressed="false">
                             <span>Activity & Audit Logs</span>
                             <span class="tab-count-pill" id="admin-logs-tab-badge">0</span>
@@ -1420,6 +1424,32 @@
                                 <tbody id="admin-all-apps-tbody">
                                     <tr>
                                         <td colspan="6" class="text-center">
+                                            <div class="loader"></div>
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- Tab 5: Live Services & Mentoring Listings (Public Website) -->
+                    <div id="admin-tab-listings" class="admin-tab-content hidden">
+                        <div class="transactions-table-wrapper dash-card">
+                            <table class="data-table">
+                                <thead>
+                                    <tr>
+                                        <th>Listing Title</th>
+                                        <th>Type</th>
+                                        <th>Poster / Student</th>
+                                        <th>Category</th>
+                                        <th>Budget / Rate</th>
+                                        <th>Status</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="admin-all-listings-tbody">
+                                    <tr>
+                                        <td colspan="7" class="text-center">
                                             <div class="loader"></div>
                                         </td>
                                     </tr>
