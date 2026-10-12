@@ -7305,6 +7305,10 @@ function updateTableHeaderSortUI(tableEl, tabKey) {
     th.classList.toggle('sorted-desc', isSorted && dir === 'desc');
     th.setAttribute('aria-sort', isSorted ? (dir === 'asc' ? 'ascending' : 'descending') : 'none');
 
+    th.title = isSorted
+      ? `Sorted by ${th.textContent.trim()} (${dir === 'asc' ? 'Ascending' : 'Descending'}) - Click to toggle`
+      : `Click to sort by ${th.textContent.trim()}`;
+
     let indicator = th.querySelector('.th-sort-icon');
     if (!indicator) {
       indicator = document.createElement('span');
@@ -7314,10 +7318,10 @@ function updateTableHeaderSortUI(tableEl, tabKey) {
 
     if (isSorted) {
       indicator.innerHTML = dir === 'asc'
-        ? `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="18 15 12 9 6 15"></polyline></svg>`
-        : `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"></polyline></svg>`;
+        ? `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.8"><polyline points="18 15 12 9 6 15"></polyline></svg>`
+        : `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.8"><polyline points="6 9 12 15 18 9"></polyline></svg>`;
     } else {
-      indicator.innerHTML = `<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" opacity="0.35"><path d="M7 15l5 5 5-5M7 9l5-5 5 5"/></svg>`;
+      indicator.innerHTML = `<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#64748b" stroke-width="2.2"><path d="M7 15l5 5 5-5M7 9l5-5 5 5"/></svg>`;
     }
   });
 }
@@ -7380,11 +7384,18 @@ function renderAdminPagination(containerId, tabKey, totalItems) {
 
   container.innerHTML = html;
 
+  const scrollToTop = () => {
+    const tabContent = container.closest('.admin-tab-content');
+    const tableWrapper = tabContent?.querySelector('.transactions-table-wrapper');
+    if (tableWrapper) tableWrapper.scrollTop = 0;
+  };
+
   container.querySelector('.admin-page-prev')?.addEventListener('click', (e) => {
     e.preventDefault();
     if (state.page > 1) {
       state.page--;
       renderCurrentAdminTab();
+      scrollToTop();
     }
   });
 
@@ -7393,6 +7404,7 @@ function renderAdminPagination(containerId, tabKey, totalItems) {
     if (state.page < totalPages) {
       state.page++;
       renderCurrentAdminTab();
+      scrollToTop();
     }
   });
 
@@ -7403,6 +7415,7 @@ function renderAdminPagination(containerId, tabKey, totalItems) {
       if (p && p !== state.page) {
         state.page = p;
         renderCurrentAdminTab();
+        scrollToTop();
       }
     });
   });
