@@ -1376,21 +1376,41 @@
 
                     <!-- Tab 1: Pending Verifications -->
                     <div id="admin-tab-pending" class="admin-tab-content">
-                        <div id="admin-list" class="admin-list">
-                            <div class="loader"></div>
+                        <div class="transactions-table-wrapper dash-card">
+                            <table class="data-table" id="admin-pending-table">
+                                <thead>
+                                    <tr>
+                                        <th data-sort="student" class="sortable-th">Student</th>
+                                        <th data-sort="studentId" class="sortable-th">Student ID</th>
+                                        <th data-sort="role" class="sortable-th">Role / Faculty</th>
+                                        <th data-sort="status" class="sortable-th">Status</th>
+                                        <th>Certificate</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="admin-all-pending-tbody">
+                                    <tr>
+                                        <td colspan="6" class="text-center">
+                                            <div class="loader"></div>
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
                         </div>
+                        <div id="admin-pending-pagination" class="admin-pagination-wrapper"></div>
+                        <div id="admin-list" class="hidden"></div>
                     </div>
 
                     <!-- Tab 2: All Users Directory -->
                     <div id="admin-tab-users" class="admin-tab-content hidden">
                         <div class="transactions-table-wrapper dash-card">
-                            <table class="data-table">
+                            <table class="data-table" id="admin-users-table">
                                 <thead>
                                     <tr>
-                                        <th>Student</th>
-                                        <th>Student ID</th>
-                                        <th>Role / Faculty</th>
-                                        <th>Status</th>
+                                        <th data-sort="student" class="sortable-th">Student</th>
+                                        <th data-sort="studentId" class="sortable-th">Student ID</th>
+                                        <th data-sort="role" class="sortable-th">Role / Faculty</th>
+                                        <th data-sort="status" class="sortable-th">Status</th>
                                         <th>Certificate</th>
                                         <th>Actions</th>
                                     </tr>
@@ -1404,46 +1424,48 @@
                                 </tbody>
                             </table>
                         </div>
+                        <div id="admin-users-pagination" class="admin-pagination-wrapper"></div>
                     </div>
 
                     <!-- Tab 3: All Applications -->
                     <div id="admin-tab-applications" class="admin-tab-content hidden">
                         <div class="transactions-table-wrapper dash-card">
-                            <table class="data-table">
+                            <table class="data-table" id="admin-apps-table">
                                 <thead>
                                     <tr>
-                                        <th>Job Title</th>
-                                        <th>Applicant</th>
-                                        <th>Student ID</th>
-                                        <th>Offer</th>
-                                        <th>Message</th>
-                                        <th>Status</th>
+                                        <th data-sort="jobTitle" class="sortable-th">Job Title</th>
+                                        <th data-sort="applicant" class="sortable-th">Applicant</th>
+                                        <th data-sort="studentId" class="sortable-th">Student ID</th>
+                                        <th data-sort="offer" class="sortable-th">Offer</th>
+                                        <th data-sort="message" class="sortable-th">Message</th>
+                                        <th data-sort="status" class="sortable-th">Status</th>
                                         <th>Actions</th>
                                     </tr>
                                 </thead>
                                 <tbody id="admin-all-apps-tbody">
                                     <tr>
-                                        <td colspan="6" class="text-center">
+                                        <td colspan="7" class="text-center">
                                             <div class="loader"></div>
                                         </td>
                                     </tr>
                                 </tbody>
                             </table>
                         </div>
+                        <div id="admin-apps-pagination" class="admin-pagination-wrapper"></div>
                     </div>
 
                     <!-- Tab 5: Live Services & Mentoring Listings (Public Website) -->
                     <div id="admin-tab-listings" class="admin-tab-content hidden">
                         <div class="transactions-table-wrapper dash-card">
-                            <table class="data-table">
+                            <table class="data-table" id="admin-listings-table">
                                 <thead>
                                     <tr>
-                                        <th>Listing Title</th>
-                                        <th>Type</th>
-                                        <th>Poster / Student</th>
-                                        <th>Category</th>
-                                        <th>Budget / Rate</th>
-                                        <th>Status</th>
+                                        <th data-sort="title" class="sortable-th">Listing Title</th>
+                                        <th data-sort="type" class="sortable-th">Type</th>
+                                        <th data-sort="poster" class="sortable-th">Poster / Student</th>
+                                        <th data-sort="category" class="sortable-th">Category</th>
+                                        <th data-sort="budget" class="sortable-th">Budget / Rate</th>
+                                        <th data-sort="status" class="sortable-th">Status</th>
                                         <th>Actions</th>
                                     </tr>
                                 </thead>
@@ -1456,6 +1478,7 @@
                                 </tbody>
                             </table>
                         </div>
+                        <div id="admin-listings-pagination" class="admin-pagination-wrapper"></div>
                     </div>
 
                     <!-- Tab 4: Platform Activity & System Audit Logs -->
@@ -1558,12 +1581,12 @@
                             <table class="data-table" id="admin-audit-logs-table">
                                 <thead>
                                     <tr>
-                                        <th style="min-width: 155px;">Date & Time</th>
-                                        <th style="min-width: 190px;">User / Performed By</th>
-                                        <th style="min-width: 130px;">Action Type</th>
-                                        <th style="min-width: 250px;">Action Details</th>
-                                        <th style="min-width: 120px;">Module / Scope</th>
-                                        <th style="min-width: 130px;">Client Device</th>
+                                        <th data-sort="timestamp" class="sortable-th" style="min-width: 155px;">Date & Time</th>
+                                        <th data-sort="user" class="sortable-th" style="min-width: 190px;">User / Performed By</th>
+                                        <th data-sort="action" class="sortable-th" style="min-width: 130px;">Action Type</th>
+                                        <th data-sort="details" class="sortable-th" style="min-width: 250px;">Action Details</th>
+                                        <th data-sort="module" class="sortable-th" style="min-width: 120px;">Module / Scope</th>
+                                        <th data-sort="device" class="sortable-th" style="min-width: 130px;">Client Device</th>
                                     </tr>
                                 </thead>
                                 <tbody id="admin-audit-logs-tbody">
@@ -1575,6 +1598,7 @@
                                 </tbody>
                             </table>
                         </div>
+                        <div id="admin-audit-pagination" class="admin-pagination-wrapper"></div>
                     </div>
                 </section>
 

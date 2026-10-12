@@ -1059,6 +1059,20 @@ async function syncUnreadBadges() {
   }
 }
 
+function updateBadges() {
+  try {
+    updateApplicationTabCounts();
+  } catch (err) {
+    console.warn('updateBadges/updateApplicationTabCounts error:', err);
+  }
+  try {
+    updateNotificationCenter();
+  } catch (err) {
+    console.warn('updateBadges/updateNotificationCenter error:', err);
+  }
+}
+window.updateBadges = updateBadges;
+
 async function updateNotificationCenter() {
   if (!userData) return;
   const bellBtns = [$('#btn-notifications'), $('#btn-mobile-notifications')].filter(Boolean);
@@ -3957,7 +3971,11 @@ async function loadPostedJobs(isSilent = false) {
             } catch (err) {}
           }
           showToast(`Deleted ${itemName}.`);
-          updateApplicationTabCounts();
+          if (jobEl) {
+            jobEl.style.transition = 'opacity 0.2s, transform 0.2s';
+            jobEl.style.opacity = '0';
+            setTimeout(() => { jobEl.remove(); }, 200);
+          }
           updateBadges();
           loadPostedJobs();
           loadServices(true);
@@ -4275,14 +4293,21 @@ async function handleReject(application, rejectBtn = null, approveBtn = null) {
     approveBtn.style.pointerEvents = 'none';
   }
 
+  const candidateRow = rejectBtn?.closest('.candidate-row') || rejectBtn?.closest('.candidate-card') || rejectBtn?.closest('tr');
+  if (candidateRow) {
+    candidateRow.style.transition = 'opacity 0.2s ease, transform 0.2s ease';
+    candidateRow.style.opacity = '0.35';
+  }
+
   try {
     await updateApplicationStatus(dc, { id: application.id, status: 'REJECTED' });
     showToast('Application rejected.');
-    updateApplicationTabCounts();
+    if (candidateRow) candidateRow.remove();
     updateBadges();
     loadApplications();
   } catch (err) {
     showToast('Error: ' + err.message, 'error');
+    if (candidateRow) candidateRow.style.opacity = '1';
     if (rejectBtn) {
       rejectBtn.disabled = false;
       rejectBtn.textContent = 'Decline';
@@ -7140,6 +7165,266 @@ async function loadAdmin() {
   }
 }
 
+// --- Admin File Explorer Sorting & 50-Item Pagination State ---
+const adminSortState = {
+  pending: { col: 'student', dir: 'asc' },
+  users: { col: 'student', dir: 'asc' },
+  applications: { col: 'jobTitle', dir: 'asc' },
+  listings: { col: 'title', dir: 'asc' },
+  'audit-logs': { col: 'timestamp', dir: 'desc' }
+};
+
+const adminPaginationState = {
+  pending: { page: 1, pageSize: 50 },
+  users: { page: 1, pageSize: 50 },
+  applications: { page: 1, pageSize: 50 },
+  listings: { page: 1, pageSize: 50 },
+  'audit-logs': { page: 1, pageSize: 50 }
+};
+
+function handleAdminTableSort(tabKey, colName) {
+  if (!adminSortState[tabKey]) return;
+  const current = adminSortState[tabKey];
+  if (current.col === colName) {
+    current.dir = current.dir === 'asc' ? 'desc' : 'asc';
+  } else {
+    current.col = colName;
+    current.dir = (colName === 'timestamp' || colName === 'offer' || colName === 'budget') ? 'desc' : 'asc';
+  }
+  if (adminPaginationState[tabKey]) {
+    adminPaginationState[tabKey].page = 1;
+  }
+  renderCurrentAdminTab();
+}
+
+function sortAdminItems(items, col, dir, tabKey) {
+  return [...items].sort((a, b) => {
+    let valA, valB;
+    if (tabKey === 'pending' || tabKey === 'users') {
+      if (col === 'student') {
+        valA = (a.fullName || '').toLowerCase();
+        valB = (b.fullName || '').toLowerCase();
+      } else if (col === 'studentId') {
+        valA = (a.studentId || '').toLowerCase();
+        valB = (b.studentId || '').toLowerCase();
+      } else if (col === 'role') {
+        valA = ((a.preferredRole || '') + ' ' + (a.facultyReference || '')).toLowerCase();
+        valB = ((b.preferredRole || '') + ' ' + (b.facultyReference || '')).toLowerCase();
+      } else if (col === 'status') {
+        valA = (a.verificationStatus || '').toLowerCase();
+        valB = (b.verificationStatus || '').toLowerCase();
+      } else if (col === 'certificate') {
+        valA = a.certificateUrl && a.certificateUrl !== 'none' ? 1 : 0;
+        valB = b.certificateUrl && b.certificateUrl !== 'none' ? 1 : 0;
+      }
+    } else if (tabKey === 'applications') {
+      if (col === 'jobTitle') {
+        valA = (a.helpRequest?.title || '').toLowerCase();
+        valB = (b.helpRequest?.title || '').toLowerCase();
+      } else if (col === 'applicant') {
+        valA = (a.applicant?.fullName || '').toLowerCase();
+        valB = (b.applicant?.fullName || '').toLowerCase();
+      } else if (col === 'studentId') {
+        valA = (a.applicant?.studentId || '').toLowerCase();
+        valB = (b.applicant?.studentId || '').toLowerCase();
+      } else if (col === 'offer') {
+        valA = Number(a.priceOffer || 0);
+        valB = Number(b.priceOffer || 0);
+      } else if (col === 'message') {
+        valA = (a.message || '').toLowerCase();
+        valB = (b.message || '').toLowerCase();
+      } else if (col === 'status') {
+        valA = (a.status || '').toLowerCase();
+        valB = (b.status || '').toLowerCase();
+      }
+    } else if (tabKey === 'listings') {
+      if (col === 'title') {
+        valA = (a.title || '').toLowerCase();
+        valB = (b.title || '').toLowerCase();
+      } else if (col === 'type') {
+        const getT = x => (x.category === 'MENTORING' || (x.title && x.title.toLowerCase().startsWith('mentoring:'))) ? 'mentoring' : (isJobOffer(x) ? 'service offer' : 'service request');
+        valA = getT(a);
+        valB = getT(b);
+      } else if (col === 'poster') {
+        const pA = a.requester || (window.__usersMap && a.requesterId ? window.__usersMap.get(a.requesterId) : null) || {};
+        const pB = b.requester || (window.__usersMap && b.requesterId ? window.__usersMap.get(b.requesterId) : null) || {};
+        valA = (pA.fullName || '').toLowerCase();
+        valB = (pB.fullName || '').toLowerCase();
+      } else if (col === 'category') {
+        valA = (a.category || '').toLowerCase();
+        valB = (b.category || '').toLowerCase();
+      } else if (col === 'budget') {
+        valA = Number(a.budget || 0);
+        valB = Number(b.budget || 0);
+      } else if (col === 'status') {
+        valA = (a.status || '').toLowerCase();
+        valB = (b.status || '').toLowerCase();
+      }
+    } else if (tabKey === 'audit-logs') {
+      if (col === 'timestamp') {
+        valA = Number(a.timestamp || 0);
+        valB = Number(b.timestamp || 0);
+      } else if (col === 'user') {
+        valA = (a.userName || '').toLowerCase();
+        valB = (b.userName || '').toLowerCase();
+      } else if (col === 'action') {
+        valA = (a.action || '').toLowerCase();
+        valB = (b.action || '').toLowerCase();
+      } else if (col === 'details') {
+        valA = (a.details || '').toLowerCase();
+        valB = (b.details || '').toLowerCase();
+      } else if (col === 'module') {
+        valA = (a.module || '').toLowerCase();
+        valB = (b.module || '').toLowerCase();
+      } else if (col === 'device') {
+        valA = (a.device || '').toLowerCase();
+        valB = (b.device || '').toLowerCase();
+      }
+    }
+
+    if (valA === undefined) valA = '';
+    if (valB === undefined) valB = '';
+
+    if (typeof valA === 'number' && typeof valB === 'number') {
+      return dir === 'asc' ? valA - valB : valB - valA;
+    }
+    if (valA < valB) return dir === 'asc' ? -1 : 1;
+    if (valA > valB) return dir === 'asc' ? 1 : -1;
+    return 0;
+  });
+}
+
+function updateTableHeaderSortUI(tableEl, tabKey) {
+  if (!tableEl) return;
+  const { col, dir } = adminSortState[tabKey] || { col: '', dir: 'asc' };
+  tableEl.querySelectorAll('th[data-sort]').forEach(th => {
+    const thCol = th.dataset.sort;
+    const isSorted = thCol === col;
+    th.classList.toggle('sorted-active', isSorted);
+    th.classList.toggle('sorted-asc', isSorted && dir === 'asc');
+    th.classList.toggle('sorted-desc', isSorted && dir === 'desc');
+    th.setAttribute('aria-sort', isSorted ? (dir === 'asc' ? 'ascending' : 'descending') : 'none');
+
+    let indicator = th.querySelector('.th-sort-icon');
+    if (!indicator) {
+      indicator = document.createElement('span');
+      indicator.className = 'th-sort-icon';
+      th.appendChild(indicator);
+    }
+
+    if (isSorted) {
+      indicator.innerHTML = dir === 'asc'
+        ? `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="18 15 12 9 6 15"></polyline></svg>`
+        : `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"></polyline></svg>`;
+    } else {
+      indicator.innerHTML = `<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" opacity="0.35"><path d="M7 15l5 5 5-5M7 9l5-5 5 5"/></svg>`;
+    }
+  });
+}
+
+function renderAdminPagination(containerId, tabKey, totalItems) {
+  const container = $(`#${containerId}`);
+  if (!container) return;
+
+  const state = adminPaginationState[tabKey];
+  if (!state) return;
+
+  const totalPages = Math.ceil(totalItems / state.pageSize) || 1;
+  if (state.page > totalPages) state.page = totalPages;
+  if (state.page < 1) state.page = 1;
+
+  if (totalItems === 0) {
+    container.innerHTML = '';
+    return;
+  }
+
+  const start = (state.page - 1) * state.pageSize + 1;
+  const end = Math.min(state.page * state.pageSize, totalItems);
+
+  let html = `
+    <div class="admin-pagination-container">
+      <div class="admin-pagination-info">
+        Showing <strong>${start}</strong>–<strong>${end}</strong> of <strong>${totalItems}</strong> items
+        <span class="admin-pagination-limit-pill">Limit 50 / page</span>
+      </div>
+      <div class="admin-pagination-actions">
+        <button type="button" class="btn btn-outline btn-sm admin-page-btn admin-page-prev" ${state.page <= 1 ? 'disabled' : ''}>
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"></polyline></svg>
+          Previous
+        </button>
+        <div class="admin-page-numbers">
+  `;
+
+  for (let p = 1; p <= totalPages; p++) {
+    if (totalPages > 7) {
+      if (p !== 1 && p !== totalPages && Math.abs(p - state.page) > 2) {
+        if (p === 2 || p === totalPages - 1) {
+          html += `<span class="admin-page-ellipsis">&hellip;</span>`;
+        }
+        continue;
+      }
+    }
+    const isActive = p === state.page;
+    html += `<button type="button" class="admin-page-num ${isActive ? 'active' : ''}" data-page="${p}">${p}</button>`;
+  }
+
+  html += `
+        </div>
+        <button type="button" class="btn btn-outline btn-sm admin-page-btn admin-page-next" ${state.page >= totalPages ? 'disabled' : ''}>
+          Next
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"></polyline></svg>
+        </button>
+      </div>
+    </div>
+  `;
+
+  container.innerHTML = html;
+
+  container.querySelector('.admin-page-prev')?.addEventListener('click', (e) => {
+    e.preventDefault();
+    if (state.page > 1) {
+      state.page--;
+      renderCurrentAdminTab();
+    }
+  });
+
+  container.querySelector('.admin-page-next')?.addEventListener('click', (e) => {
+    e.preventDefault();
+    if (state.page < totalPages) {
+      state.page++;
+      renderCurrentAdminTab();
+    }
+  });
+
+  container.querySelectorAll('.admin-page-num').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      e.preventDefault();
+      const p = parseInt(btn.dataset.page, 10);
+      if (p && p !== state.page) {
+        state.page = p;
+        renderCurrentAdminTab();
+      }
+    });
+  });
+}
+
+function setupAdminTableSortListeners() {
+  $$('.data-table thead th[data-sort]').forEach(th => {
+    if (th.dataset.sortBound) return;
+    th.dataset.sortBound = 'true';
+    th.classList.add('sortable-th');
+    th.addEventListener('click', (e) => {
+      e.preventDefault();
+      const tabContent = th.closest('.admin-tab-content');
+      const tabKey = tabContent?.id?.replace('admin-tab-', '') || adminActiveTab;
+      const colName = th.dataset.sort;
+      if (tabKey && colName) {
+        handleAdminTableSort(tabKey, colName);
+      }
+    });
+  });
+}
+
 function renderCurrentAdminTab() {
   if (adminActiveTab === 'pending') renderAdminPending();
   else if (adminActiveTab === 'users') renderAdminUsers();
@@ -7149,8 +7434,9 @@ function renderCurrentAdminTab() {
 }
 
 function renderAdminPending() {
-  const container = $('#admin-list');
-  if (!container) return;
+  const tbody = $('#admin-all-pending-tbody');
+  const cardContainer = $('#admin-list');
+  if (!tbody && !cardContainer) return;
 
   let list = adminPendingData;
   if (adminSearchQuery) {
@@ -7163,72 +7449,100 @@ function renderAdminPending() {
     );
   }
 
-  container.innerHTML = '';
-  if (list.length === 0) {
-    container.innerHTML = '<div class="empty-state text-center text-muted" style="padding: 2rem;">No pending student verifications.</div>';
-    return;
-  }
+  // Sort list
+  const { col, dir } = adminSortState.pending;
+  list = sortAdminItems(list, col, dir, 'pending');
 
-  list.forEach(u => {
-    const card = document.createElement('div');
-    card.className = 'admin-card';
-    card.innerHTML = `
-      <div class="admin-card-info">
-        <div class="avatar cursor-pointer" onclick="openViewProfileDialog('${u.id}')" style="overflow:hidden;padding:0;">${renderUserAvatar(u.id, u.fullName)}</div>
-        <div>
-          <strong class="cursor-pointer hover:underline" onclick="openViewProfileDialog('${u.id}')">${u.fullName}</strong>
-          <div class="text-muted text-sm">${u.email} &bull; ID: ${u.studentId || 'N/A'} &bull; ${u.preferredRole || 'Student'}</div>
-          <div class="admin-card-meta">
-            <span class="badge badge-pending">Pending</span>
-            <small class="text-muted">Faculty: ${u.facultyReference || 'None'}</small>
+  const pendingBadge = $('#admin-pending-tab-badge');
+  if (pendingBadge) pendingBadge.textContent = adminPendingData.length;
+
+  const totalCount = list.length;
+  const pagination = adminPaginationState.pending;
+  const pagedList = list.slice((pagination.page - 1) * pagination.pageSize, pagination.page * pagination.pageSize);
+
+  if (tbody) {
+    updateTableHeaderSortUI($('#admin-pending-table'), 'pending');
+    tbody.innerHTML = '';
+    if (list.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted" style="padding: 2.5rem;">No pending student verifications.</td></tr>';
+      renderAdminPagination('admin-pending-pagination', 'pending', 0);
+      return;
+    }
+
+    pagedList.forEach(u => {
+      const tr = document.createElement('tr');
+      tr.dataset.userId = u.id;
+      tr.dataset.userEmail = (u.email || '').toLowerCase();
+      tr.innerHTML = `
+        <td>
+          <div class="flex items-center gap-2">
+            <div class="avatar avatar-sm cursor-pointer view-applicant-btn" style="overflow:hidden;padding:0;">${renderUserAvatar(u.id, u.fullName)}</div>
+            <div>
+              <strong class="cursor-pointer hover:underline view-applicant-btn">${escapeHtml(u.fullName)}</strong>
+              <div class="text-xs text-muted">${escapeHtml(u.email)}</div>
+            </div>
           </div>
-        </div>
-      </div>
-      <div class="flex items-center gap-2">
-        <button type="button" class="btn btn-outline btn-sm view-profile-btn">Full Info</button>
-        ${u.certificateUrl && u.certificateUrl !== 'none'
-        ? `<button type="button" class="btn btn-outline btn-sm view-cert-btn">View COE</button>`
-        : ''}
-        <button type="button" class="btn btn-outline btn-sm reject-btn">Reject</button>
-        <button type="button" class="btn btn-purple btn-sm approve-btn">Approve</button>
-      </div>
-    `;
+        </td>
+        <td><strong>${escapeHtml(u.studentId || 'N/A')}</strong></td>
+        <td>
+          <div>${escapeHtml(u.preferredRole || 'Student')}</div>
+          <small class="text-muted">${escapeHtml(u.facultyReference || 'None')}</small>
+        </td>
+        <td><span class="badge badge-pending">Pending</span></td>
+        <td>
+          ${u.certificateUrl && u.certificateUrl !== 'none'
+            ? `<button type="button" class="btn btn-outline btn-sm view-cert-btn">View COE</button>`
+            : `<span class="text-muted text-sm italic">No COE provided</span>`}
+        </td>
+        <td>
+          <div class="flex items-center gap-1.5">
+            <button type="button" class="btn btn-outline btn-sm view-profile-btn">Full Info</button>
+            <button type="button" class="btn btn-purple btn-sm approve-btn">Approve</button>
+            <button type="button" class="btn btn-outline btn-sm reject-btn" style="border-color: #ef4444; color: #ef4444;">Reject</button>
+          </div>
+        </td>
+      `;
 
-    card.querySelector('.view-profile-btn')?.addEventListener('click', (e) => {
-      e.preventDefault();
-      openApplicantDetails(u);
+      tr.querySelectorAll('.view-applicant-btn, .view-profile-btn').forEach(el => {
+        el.addEventListener('click', (e) => {
+          e.preventDefault();
+          openApplicantDetails(u);
+        });
+      });
+
+      tr.querySelector('.view-cert-btn')?.addEventListener('click', (e) => {
+        e.preventDefault();
+        $('#cert-preview-img').src = u.certificateUrl;
+        $('#dialog-certificate').showModal();
+      });
+
+      tr.querySelector('.approve-btn')?.addEventListener('click', async (e) => {
+        e.preventDefault();
+        try {
+          await updateUserStatus(dc, { id: u.id, status: 'verified' });
+          showToast(`${u.fullName} approved and verified!`);
+          loadAdmin();
+        } catch (err) {
+          showToast('Error: ' + err.message, 'error');
+        }
+      });
+
+      tr.querySelector('.reject-btn')?.addEventListener('click', async (e) => {
+        e.preventDefault();
+        try {
+          await updateUserStatus(dc, { id: u.id, status: 'rejected' });
+          showToast(`${u.fullName} rejected.`);
+          loadAdmin();
+        } catch (err) {
+          showToast('Error: ' + err.message, 'error');
+        }
+      });
+
+      tbody.appendChild(tr);
     });
 
-    card.querySelector('.approve-btn')?.addEventListener('click', async (e) => {
-      e.preventDefault();
-      try {
-        await updateUserStatus(dc, { id: u.id, status: 'verified' });
-        showToast(`${u.fullName} approved and verified!`);
-        loadAdmin();
-      } catch (err) {
-        showToast('Error: ' + err.message, 'error');
-      }
-    });
-
-    card.querySelector('.reject-btn')?.addEventListener('click', async (e) => {
-      e.preventDefault();
-      try {
-        await updateUserStatus(dc, { id: u.id, status: 'rejected' });
-        showToast(`${u.fullName} rejected.`);
-        loadAdmin();
-      } catch (err) {
-        showToast('Error: ' + err.message, 'error');
-      }
-    });
-
-    card.querySelector('.view-cert-btn')?.addEventListener('click', (e) => {
-      e.preventDefault();
-      $('#cert-preview-img').src = u.certificateUrl;
-      $('#dialog-certificate').showModal();
-    });
-
-    container.appendChild(card);
-  });
+    renderAdminPagination('admin-pending-pagination', 'pending', totalCount);
+  }
 }
 
 function renderAdminUsers() {
@@ -7246,13 +7560,24 @@ function renderAdminUsers() {
     );
   }
 
+  // Sort list
+  const { col, dir } = adminSortState.users;
+  list = sortAdminItems(list, col, dir, 'users');
+
+  const totalCount = list.length;
+  const pagination = adminPaginationState.users;
+  const pagedList = list.slice((pagination.page - 1) * pagination.pageSize, pagination.page * pagination.pageSize);
+
+  updateTableHeaderSortUI($('#admin-users-table'), 'users');
+
   tbody.innerHTML = '';
   if (list.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted" style="padding: 2rem;">No registered students found.</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted" style="padding: 2.5rem;">No registered students found.</td></tr>';
+    renderAdminPagination('admin-users-pagination', 'users', 0);
     return;
   }
 
-  list.forEach(u => {
+  pagedList.forEach(u => {
     const tr = document.createElement('tr');
     tr.dataset.userId = u.id;
     tr.dataset.userEmail = (u.email || '').toLowerCase();
@@ -7270,19 +7595,19 @@ function renderAdminUsers() {
           <div class="avatar avatar-sm" style="overflow:hidden;padding:0;">${renderUserAvatar(u.id, u.fullName)}</div>
           <div>
             <div class="flex items-center gap-1.5 admin-user-name-cell">
-              <strong>${u.fullName}</strong>
+              <strong>${escapeHtml(u.fullName)}</strong>
               ${isOnline ? '<span class="online-indicator-pill"><span class="active-pulse-dot" style="margin:0;width:6px;height:6px;"></span> Online</span>' : ''}
             </div>
-            <div class="text-xs text-muted">${u.email}</div>
+            <div class="text-xs text-muted">${escapeHtml(u.email)}</div>
           </div>
         </div>
       </td>
-      <td><strong>${u.studentId || 'N/A'}</strong></td>
+      <td><strong>${escapeHtml(u.studentId || 'N/A')}</strong></td>
       <td>
-        <div>${u.preferredRole || 'Student'}</div>
-        <small class="text-muted">${u.facultyReference || 'No Faculty'}</small>
+        <div>${escapeHtml(u.preferredRole || 'Student')}</div>
+        <small class="text-muted">${escapeHtml(u.facultyReference || 'No Faculty')}</small>
       </td>
-      <td><span class="badge ${badgeClass}">${u.verificationStatus || 'Unknown'}</span></td>
+      <td><span class="badge ${badgeClass}">${escapeHtml(u.verificationStatus || 'Unknown')}</span></td>
       <td>
         ${u.certificateUrl && u.certificateUrl !== 'none'
         ? `<button type="button" class="btn btn-outline btn-sm view-cert-btn">View COE</button>`
@@ -7321,6 +7646,8 @@ function renderAdminUsers() {
 
     tbody.appendChild(tr);
   });
+
+  renderAdminPagination('admin-users-pagination', 'users', totalCount);
 }
 
 function renderAdminApplications() {
@@ -7338,33 +7665,44 @@ function renderAdminApplications() {
     );
   }
 
+  // Sort list
+  const { col, dir } = adminSortState.applications;
+  list = sortAdminItems(list, col, dir, 'applications');
+
+  const totalCount = list.length;
+  const pagination = adminPaginationState.applications;
+  const pagedList = list.slice((pagination.page - 1) * pagination.pageSize, pagination.page * pagination.pageSize);
+
+  updateTableHeaderSortUI($('#admin-apps-table'), 'applications');
+
   tbody.innerHTML = '';
   if (list.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted" style="padding: 2rem;">No applications submitted yet.</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="7" class="text-center text-muted" style="padding: 2.5rem;">No applications submitted yet.</td></tr>';
+    renderAdminPagination('admin-apps-pagination', 'applications', 0);
     return;
   }
 
-  list.forEach(a => {
+  pagedList.forEach(a => {
     const tr = document.createElement('tr');
     const isCompleted = a.status === 'COMPLETED';
     const isApproved = a.status === 'APPROVED';
     const badgeClass = isCompleted ? 'badge-approved' : isApproved ? 'badge-normal' : a.status === 'TERMINATED' ? 'badge-rejected' : 'badge-pending';
 
     tr.innerHTML = `
-      <td><strong>${a.helpRequest?.title || 'Service Request'}</strong></td>
+      <td><strong>${escapeHtml(a.helpRequest?.title || 'Service Request')}</strong></td>
       <td>
         <div class="flex items-center gap-2">
           <div class="avatar avatar-sm" style="overflow:hidden;padding:0;">${renderUserAvatar(a.applicant?.id, a.applicant?.fullName)}</div>
           <div>
-            <strong>${a.applicant?.fullName || 'Applicant'}</strong>
-            <div class="text-xs text-muted">${a.applicant?.email || ''}</div>
+            <strong>${escapeHtml(a.applicant?.fullName || 'Applicant')}</strong>
+            <div class="text-xs text-muted">${escapeHtml(a.applicant?.email || '')}</div>
           </div>
         </div>
       </td>
-      <td>${a.applicant?.studentId || 'N/A'}</td>
+      <td>${escapeHtml(a.applicant?.studentId || 'N/A')}</td>
       <td><strong>${peso(a.priceOffer)}</strong></td>
-      <td><div class="truncate" style="max-width: 220px;">"${a.message}"</div></td>
-      <td><span class="badge ${badgeClass}">${a.status || 'Pending'}</span></td>
+      <td><div class="truncate" style="max-width: 220px;">"${escapeHtml(a.message)}"</div></td>
+      <td><span class="badge ${badgeClass}">${escapeHtml(a.status || 'Pending')}</span></td>
       <td>
         <button type="button" class="btn btn-outline btn-sm delete-app-btn btn-delete-service">Delete</button>
       </td>
@@ -7384,6 +7722,8 @@ function renderAdminApplications() {
 
     tbody.appendChild(tr);
   });
+
+  renderAdminPagination('admin-apps-pagination', 'applications', totalCount);
 }
 
 function renderAdminListings() {
@@ -7406,17 +7746,28 @@ function renderAdminListings() {
     });
   }
 
-  tbody.innerHTML = '';
+  // Sort list
+  const { col, dir } = adminSortState.listings;
+  list = sortAdminItems(list, col, dir, 'listings');
 
   const listingsBadge = $('#admin-listings-tab-badge');
   if (listingsBadge) listingsBadge.textContent = adminLiveListingsData.length;
 
+  const totalCount = list.length;
+  const pagination = adminPaginationState.listings;
+  const pagedList = list.slice((pagination.page - 1) * pagination.pageSize, pagination.page * pagination.pageSize);
+
+  updateTableHeaderSortUI($('#admin-listings-table'), 'listings');
+
+  tbody.innerHTML = '';
+
   if (list.length === 0) {
     tbody.innerHTML = '<tr><td colspan="7" class="text-center text-muted" style="padding: 2.5rem;">No active services or mentoring listings currently online.</td></tr>';
+    renderAdminPagination('admin-listings-pagination', 'listings', 0);
     return;
   }
 
-  list.forEach(item => {
+  pagedList.forEach(item => {
     const isOffer = isJobOffer(item);
     const isMentoring = item.category === 'MENTORING' || (item.title && item.title.toLowerCase().startsWith('mentoring:'));
     const tr = document.createElement('tr');
@@ -7431,20 +7782,20 @@ function renderAdminListings() {
 
     tr.innerHTML = `
       <td>
-        <div style="font-weight: 600; color: var(--text-heading, #1e293b);">${item.title}</div>
-        <small class="text-muted">${item.description ? item.description.slice(0, 65) + (item.description.length > 65 ? '...' : '') : 'Active campus listing'}</small>
+        <div style="font-weight: 600; color: var(--text-heading, #1e293b);">${escapeHtml(item.title)}</div>
+        <small class="text-muted">${item.description ? escapeHtml(item.description.slice(0, 65) + (item.description.length > 65 ? '...' : '')) : 'Active campus listing'}</small>
       </td>
       <td>${typeBadge}</td>
       <td>
         <div class="flex items-center gap-2">
           <div class="avatar avatar-sm cursor-pointer" onclick="openViewProfileDialog('${poster.id || ''}')" style="overflow:hidden;padding:0;">${renderUserAvatar(poster.id, poster.fullName)}</div>
           <div>
-            <strong class="cursor-pointer hover:underline" onclick="openViewProfileDialog('${poster.id || ''}')">${poster.fullName || 'Student'}</strong>
-            <div class="text-xs text-muted">${poster.studentId ? `ID: ${poster.studentId}` : (poster.email || '')}</div>
+            <strong class="cursor-pointer hover:underline" onclick="openViewProfileDialog('${poster.id || ''}')">${escapeHtml(poster.fullName || 'Student')}</strong>
+            <div class="text-xs text-muted">${poster.studentId ? `ID: ${escapeHtml(poster.studentId)}` : escapeHtml(poster.email || '')}</div>
           </div>
         </div>
       </td>
-      <td><span class="badge badge-skill">${item.category || (isMentoring ? 'Mentoring' : 'General')}</span></td>
+      <td><span class="badge badge-skill">${escapeHtml(item.category || (isMentoring ? 'Mentoring' : 'General'))}</span></td>
       <td><strong>${peso(item.budget)} ${isOffer ? '<small class="text-muted">base</small>' : ''}</strong></td>
       <td>
         <span class="badge" style="background: rgba(16, 185, 129, 0.1); color: #10b981; border: 1px solid rgba(16, 185, 129, 0.3); font-weight: 600; display: inline-flex; align-items: center; gap: 4px;">
@@ -7492,6 +7843,8 @@ function renderAdminListings() {
 
     tbody.appendChild(tr);
   });
+
+  renderAdminPagination('admin-listings-pagination', 'listings', totalCount);
 }
 
 
@@ -7743,7 +8096,7 @@ function renderAdminAuditLogs() {
   // Ensure user dropdown is populated with known users
   populateAdminAuditUserFilter(getGlobalAuditLogs());
 
-  const filtered = getFilteredAuditLogs();
+  let filtered = getFilteredAuditLogs();
 
   // Update Summary Metrics
   const totalCount = filtered.length;
@@ -7755,12 +8108,25 @@ function renderAdminAuditLogs() {
   if ($('#admin-audit-stat-users')) $('#admin-audit-stat-users').textContent = distinctUsers;
   if ($('#admin-audit-stat-market')) $('#admin-audit-stat-market').textContent = marketCount;
   if ($('#admin-audit-stat-auth')) $('#admin-audit-stat-auth').textContent = authCount;
-  if ($('#admin-audit-log-stats-text')) {
-    $('#admin-audit-log-stats-text').textContent = `Showing ${totalCount} of ${getGlobalAuditLogs().length} platform action records`;
-  }
   if ($('#admin-logs-tab-badge')) {
     $('#admin-logs-tab-badge').textContent = getGlobalAuditLogs().length;
   }
+
+  // Sort list
+  const { col, dir } = adminSortState['audit-logs'];
+  filtered = sortAdminItems(filtered, col, dir, 'audit-logs');
+
+  // Pagination (50 items limit)
+  const pagination = adminPaginationState['audit-logs'];
+  const pagedList = filtered.slice((pagination.page - 1) * pagination.pageSize, pagination.page * pagination.pageSize);
+
+  const startRecord = filtered.length === 0 ? 0 : (pagination.page - 1) * pagination.pageSize + 1;
+  const endRecord = Math.min(pagination.page * pagination.pageSize, filtered.length);
+  if ($('#admin-audit-log-stats-text')) {
+    $('#admin-audit-log-stats-text').textContent = `Showing ${startRecord}–${endRecord} of ${filtered.length} platform action records`;
+  }
+
+  updateTableHeaderSortUI($('#admin-audit-logs-table'), 'audit-logs');
 
   tbody.innerHTML = '';
   if (filtered.length === 0) {
@@ -7772,10 +8138,11 @@ function renderAdminAuditLogs() {
         </td>
       </tr>
     `;
+    renderAdminPagination('admin-audit-pagination', 'audit-logs', 0);
     return;
   }
 
-  filtered.forEach(item => {
+  pagedList.forEach(item => {
     const tr = document.createElement('tr');
     const actionKey = (item.action || 'general').replace(/\s+/g, '-');
     const isOnline = (item.userEmail && currentOnlineEmails.has(item.userEmail.toLowerCase())) ||
@@ -7830,7 +8197,6 @@ function renderAdminAuditLogs() {
       </td>
     `;
 
-    // Click user name to view profile or details modal
     tr.querySelector('.user-link')?.addEventListener('click', (e) => {
       e.preventDefault();
       const matchedUser = adminUsersData.find(u => u.id === item.userId || (u.email && item.userEmail && u.email.toLowerCase() === item.userEmail.toLowerCase()));
@@ -7850,6 +8216,8 @@ function renderAdminAuditLogs() {
 
     tbody.appendChild(tr);
   });
+
+  renderAdminPagination('admin-audit-pagination', 'audit-logs', totalCount);
 }
 
 function setupAdminTabs() {
@@ -7885,14 +8253,20 @@ function setupAdminTabs() {
         }
       }
 
+      setupAdminTableSortListeners();
       renderCurrentAdminTab();
     });
   });
+
+  setupAdminTableSortListeners();
 }
 
 function setupAdminSearch() {
   $('#admin-search-input')?.addEventListener('input', (e) => {
     adminSearchQuery = e.target.value.trim();
+    if (adminPaginationState[adminActiveTab]) {
+      adminPaginationState[adminActiveTab].page = 1;
+    }
     renderCurrentAdminTab();
   });
 }

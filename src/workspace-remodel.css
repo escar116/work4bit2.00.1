@@ -841,4 +841,178 @@
   box-shadow: none !important;
 }
 
+/* ==========================================================================
+   Admin File Explorer Table Sorting & Pagination
+   ========================================================================== */
+.data-table th.sortable-th {
+  cursor: pointer !important;
+  user-select: none !important;
+  transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease !important;
+  position: relative;
+  white-space: nowrap;
+}
+
+.data-table th.sortable-th:hover {
+  background: rgba(255, 255, 255, 0.06) !important;
+  color: var(--text-main, #ffffff) !important;
+  border-radius: 6px;
+}
+
+body.light-theme .data-table th.sortable-th:hover {
+  background: rgba(0, 0, 0, 0.04) !important;
+  color: #111827 !important;
+}
+
+.data-table th.sortable-th.sorted-active {
+  color: var(--primary-purple, #7c6cf8) !important;
+  background: rgba(124, 108, 248, 0.1) !important;
+  border-radius: 6px;
+}
+
+body.light-theme .data-table th.sortable-th.sorted-active {
+  color: #6366f1 !important;
+  background: rgba(99, 102, 241, 0.08) !important;
+}
+
+.th-sort-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-left: 0.35rem;
+  vertical-align: middle;
+  width: 14px;
+  height: 14px;
+  transition: transform 0.15s ease, opacity 0.15s ease;
+}
+
+.sorted-active .th-sort-icon svg {
+  stroke: var(--primary-purple, #7c6cf8) !important;
+}
+
+body.light-theme .sorted-active .th-sort-icon svg {
+  stroke: #6366f1 !important;
+}
+
+/* Pagination container */
+.admin-pagination-wrapper {
+  width: 100%;
+}
+
+.admin-pagination-container {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  padding: 0.85rem 0.25rem 0.25rem;
+  font-size: 0.82rem;
+  color: var(--text-muted);
+}
+
+.admin-pagination-info {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.admin-pagination-info strong {
+  color: var(--text-main, #ffffff);
+}
+
+body.light-theme .admin-pagination-info strong {
+  color: #111827;
+}
+
+.admin-pagination-limit-pill {
+  display: inline-block;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid var(--border-light);
+  padding: 0.12rem 0.5rem;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+body.light-theme .admin-pagination-limit-pill {
+  background: rgba(0, 0, 0, 0.04);
+}
+
+.admin-pagination-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.admin-page-numbers {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.admin-page-num {
+  min-width: 30px;
+  height: 30px;
+  padding: 0 0.45rem;
+  border-radius: 6px;
+  border: 1px solid var(--border-light);
+  background: rgba(255, 255, 255, 0.03);
+  color: var(--text-main, #ffffff);
+  font-size: 0.78rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+body.light-theme .admin-page-num {
+  background: #ffffff;
+  color: #374151;
+  border-color: #e5e7eb;
+}
+
+.admin-page-num:hover {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: var(--border-card);
+  color: #fff;
+}
+
+body.light-theme .admin-page-num:hover {
+  background: #f3f4f6;
+  color: #111827;
+}
+
+.admin-page-num.active {
+  background: var(--primary-purple, #7c6cf8) !important;
+  color: #ffffff !important;
+  border-color: var(--primary-purple, #7c6cf8) !important;
+  box-shadow: 0 2px 8px rgba(124, 108, 248, 0.35) !important;
+}
+
+.admin-page-ellipsis {
+  padding: 0 0.25rem;
+  color: var(--text-muted);
+  user-select: none;
+}
+
+.admin-page-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.3rem 0.65rem;
+  font-size: 0.78rem;
+  font-weight: 500;
+  border-radius: 6px;
+  transition: all 0.2s;
+}
+
+.admin-page-btn:disabled {
+  opacity: 0.35 !important;
+  cursor: not-allowed !important;
+  pointer-events: none !important;
+}
+
+
 
