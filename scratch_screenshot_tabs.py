@@ -23,9 +23,9 @@ with sync_playwright() as p:
 
     for section_id, filename in sections:
         print(f"Capturing section: {section_id}...")
-        url = f"http://localhost:4173?dev_preview={section_id}"
+        url = f"https://work4abit.vercel.app?dev_preview={section_id}"
         page.goto(url, wait_until="domcontentloaded")
-        time.sleep(1.5)
+        time.sleep(2.5)
         out_path = os.path.join(ARTIFACT_DIR, filename)
         page.screenshot(path=out_path)
         print(f"Saved: {filename}")
