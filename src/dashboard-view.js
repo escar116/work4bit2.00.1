@@ -53,7 +53,13 @@ export function renderDashboard(stats, reviewResult, scope = 'all', period = 6, 
   const hour = stats.updatedAt.getHours();
   const greeting = hour < 12 ? 'Good morning' : hour < 18 ? 'Good afternoon' : 'Good evening';
   return `<div class="db-board">
-    <div class="db-context"><div><strong class="db-greeting">${greeting}, ${esc(name)}!</strong><p class="db-note">Your work, learning, and progress</p></div><time datetime="${stats.updatedAt.toISOString()}">${esc(date)} · Updated ${esc(stats.updatedAt.toLocaleTimeString(undefined,{hour:'2-digit',minute:'2-digit'}))}</time></div>
+    <div class="db-context">
+      <div class="db-context-text">
+        <strong class="db-greeting"><span class="db-greeting-wave" aria-hidden="true">👋</span> ${greeting}, ${esc(name)}!</strong>
+        <p class="db-note">Your work, learning, and progress</p>
+      </div>
+      <time class="db-time-badge" datetime="${stats.updatedAt.toISOString()}"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right:6px; vertical-align:-2px;"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>${esc(date)} · Updated ${esc(stats.updatedAt.toLocaleTimeString(undefined,{hour:'2-digit',minute:'2-digit'}))}</time>
+    </div>
     <div class="db-toolbar"><div class="db-segment t-tabs" id="dashboard-scope-tabs" role="group" aria-label="Dashboard category"><span class="t-tabs-pill" aria-hidden="true"></span>${[['all','Overview'],['student','Student services'],['mentoring','Mentoring']].map(([key,label]) => `<button type="button" class="tab-btn scope-tab-btn ${scope === key ? 'active' : ''}" data-dashboard-scope="${key}" aria-pressed="${scope === key}">${label}</button>`).join('')}</div><span class="db-note">All-time totals · chart period selectable</span></div>
     <div id="dashboard-panels-wrap">${renderDashboardPanels(stats, reviewResult, scope, period)}</div>
   </div>`;
