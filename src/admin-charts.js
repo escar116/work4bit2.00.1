@@ -95,9 +95,9 @@ export function renderAdminStatisticalCharts(container, { requests = [], applica
           <div class="admin-donut-svg-container">
             <svg class="admin-donut-svg" viewBox="0 0 140 140" width="140" height="140" aria-label="Job distribution donut chart">
               <circle class="donut-bg-ring" cx="70" cy="70" r="${radius}" fill="transparent" stroke="rgba(226, 232, 240, 0.6)" stroke-width="16" />
-              <!-- Completed Segment (CpE Hot Pink) -->
+              <!-- Completed Segment (Classic Green) -->
               <circle class="donut-segment donut-seg-completed" cx="70" cy="70" r="${radius}" fill="transparent"
-                stroke="#ec4899" stroke-width="16"
+                stroke="#10b981" stroke-width="16"
                 stroke-dasharray="${strokeCompleted.toFixed(2)} ${(circumference - strokeCompleted).toFixed(2)}"
                 stroke-dashoffset="${offsetCompleted.toFixed(2)}"
                 stroke-linecap="round" />
@@ -106,9 +106,9 @@ export function renderAdminStatisticalCharts(container, { requests = [], applica
                 stroke="#2563eb" stroke-width="16"
                 stroke-dasharray="${strokeActive.toFixed(2)} ${(circumference - strokeActive).toFixed(2)}"
                 stroke-dashoffset="${offsetActive.toFixed(2)}" />
-              <!-- Terminated Segment (CpE Dark Berry Pink) -->
+              <!-- Terminated Segment (Classic Red) -->
               <circle class="donut-segment donut-seg-terminated" cx="70" cy="70" r="${radius}" fill="transparent"
-                stroke="#be185d" stroke-width="16"
+                stroke="#ef4444" stroke-width="16"
                 stroke-dasharray="${strokeTerminated.toFixed(2)} ${(circumference - strokeTerminated).toFixed(2)}"
                 stroke-dashoffset="${offsetTerminated.toFixed(2)}" />
             </svg>
@@ -128,28 +128,28 @@ export function renderAdminStatisticalCharts(container, { requests = [], applica
             </div>
 
             <div class="donut-legend-item">
-              <div class="legend-color-dot" style="background: #ec4899;"></div>
+              <div class="legend-color-dot" style="background: #10b981;"></div>
               <div class="legend-text">
                 <span class="legend-label">Completed Successfully</span>
-                <span class="legend-value" style="color: #ec4899;">${completedJobs} <small class="text-muted">(${pctCompleted.toFixed(1)}%)</small></span>
+                <span class="legend-value" style="color: #10b981;">${completedJobs} <small class="text-muted">(${pctCompleted.toFixed(1)}%)</small></span>
               </div>
             </div>
 
             <div class="donut-legend-item">
-              <div class="legend-color-dot" style="background: #be185d;"></div>
+              <div class="legend-color-dot" style="background: #ef4444;"></div>
               <div class="legend-text">
                 <span class="legend-label">Terminated</span>
-                <span class="legend-value" style="color: #be185d;">${terminatedJobs} <small class="text-muted">(${pctTerminated.toFixed(1)}%)</small></span>
+                <span class="legend-value" style="color: #ef4444;">${terminatedJobs} <small class="text-muted">(${pctTerminated.toFixed(1)}%)</small></span>
               </div>
             </div>
 
             <div class="donut-kpi-bar mt-2">
               <div class="flex justify-between text-xs text-muted mb-1">
                 <span>Completion Success Rate</span>
-                <strong style="color: #db2777;">${successRate}%</strong>
+                <strong style="color: #10b981;">${successRate}%</strong>
               </div>
               <div class="progress-bar-bg" style="background: #e2e8f0; height: 6px; border-radius: 999px; overflow: hidden;">
-                <div style="background: #db2777; width: ${successRate}%; height: 100%; border-radius: 999px; transition: width 0.4s ease;"></div>
+                <div style="background: #10b981; width: ${successRate}%; height: 100%; border-radius: 999px; transition: width 0.4s ease;"></div>
               </div>
             </div>
           </div>

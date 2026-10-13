@@ -37,18 +37,18 @@
 #section-dashboard .dashboard-top-header { margin-bottom:20px; }
 #section-dashboard .db-board { gap:20px; }
 #section-dashboard #dashboard-panels-wrap { display:grid; gap:20px; }
-/* Dashboard Greeting Hero Banner (CpE Dual Blue & Pink) */
+/* Dashboard Greeting Hero Banner (CpE Dual Blue & Pink - Obvious Rich Gradient) */
 #section-dashboard .db-context {
   display: flex;
   justify-content: space-between;
   align-items: center;
   gap: 20px;
   padding: 24px 28px;
-  border: 1px solid #dbeafe;
-  border-left: 5px solid #2563eb;
+  border: 1.5px solid #c7d2fe;
+  border-left: 5.5px solid #2563eb;
   border-radius: 14px;
-  background: linear-gradient(110deg, #eff6ff 0%, #fdf2f8 60%, #e0e7ff 100%);
-  box-shadow: 0 4px 18px rgba(37, 99, 235, 0.06);
+  background: linear-gradient(115deg, #b2d5fe 0%, #cfe3fe 30%, #eae5fd 55%, #fed0e5 80%, #fbbad8 100%);
+  box-shadow: 0 4px 22px rgba(37, 99, 235, 0.09), 0 2px 10px rgba(236, 72, 153, 0.08);
   margin-bottom: 8px;
   position: relative;
   overflow: hidden;
@@ -58,8 +58,8 @@
   align-items: center;
   gap: 10px;
   font-size: 1.65rem;
-  font-weight: 800;
-  color: #12152b;
+  font-weight: 850;
+  color: #0f172a;
   letter-spacing: -0.035em;
   line-height: 1.25;
 }
@@ -76,23 +76,23 @@
 }
 #section-dashboard .db-context .db-note {
   margin: 6px 0 0;
-  color: #55607a;
+  color: #334155;
   font-size: 0.92rem;
-  font-weight: 500;
+  font-weight: 600;
   line-height: 1.5;
 }
 #section-dashboard .db-context time,
 #section-dashboard .db-context .db-time-badge {
-  background: rgba(255, 255, 255, 0.9);
-  backdrop-filter: blur(8px);
-  border: 1px solid #dce0f2;
+  background: rgba(255, 255, 255, 0.94);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.9);
   border-radius: 999px;
-  padding: 8px 16px;
-  color: #4b5563;
+  padding: 8px 18px;
+  color: #1e293b;
   font-size: 0.82rem;
-  font-weight: 600;
+  font-weight: 650;
   white-space: nowrap;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.03);
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.05);
   display: inline-flex;
   align-items: center;
 }
@@ -115,20 +115,20 @@
   background: linear-gradient(180deg, rgba(37, 99, 235, 0.04) 0%, #ffffff 45%);
 }
 #section-dashboard .db-kpi:nth-child(3) {
-  border-top: 3.5px solid #0284c7;
-  background: linear-gradient(180deg, rgba(2, 132, 199, 0.04) 0%, #ffffff 45%);
+  border-top: 3.5px solid #10b981;
+  background: linear-gradient(180deg, rgba(16, 185, 129, 0.04) 0%, #ffffff 45%);
 }
 #section-dashboard .db-kpi:nth-child(4) {
-  border-top: 3.5px solid #db2777;
-  background: linear-gradient(180deg, rgba(219, 39, 119, 0.04) 0%, #ffffff 45%);
+  border-top: 3.5px solid #0284c7;
+  background: linear-gradient(180deg, rgba(2, 132, 199, 0.04) 0%, #ffffff 45%);
 }
 #section-dashboard .db-kpi h3 { grid-row:1; grid-column:1; margin:0; font-size:.85rem; }
 #section-dashboard .db-icon { grid-column:2; grid-row:1 / 3; margin:0; width:38px; height:38px; border-radius:50%; }
 #section-dashboard .db-kpi > strong { grid-row:2; grid-column:1; font-size:clamp(1.6rem,2.3vw,2.25rem); line-height:1.2; color: #ec4899; }
 #section-dashboard .db-kpi:nth-child(1) > strong { color: #ec4899; }
 #section-dashboard .db-kpi:nth-child(2) > strong { color: #2563eb; }
-#section-dashboard .db-kpi:nth-child(3) > strong { color: #0284c7; }
-#section-dashboard .db-kpi:nth-child(4) > strong { color: #db2777; }
+#section-dashboard .db-kpi:nth-child(3) > strong { color: #10b981; }
+#section-dashboard .db-kpi:nth-child(4) > strong { color: #0284c7; }
 #section-dashboard .db-kpi p { grid-column:1 / -1; font-size:.75rem; margin:0; }
 #section-dashboard :is(.db-panel,.db-kpi,.db-support article) { border-color:#e0e3f1; box-shadow:0 3px 12px #22283e03; border-radius:13px; }
 #section-dashboard .db-main-charts { grid-template-columns:minmax(0,1.8fr) minmax(290px,1fr); gap:20px; }
@@ -140,8 +140,13 @@
 #section-dashboard .db-attention { border-radius:10px; padding:14px 18px; border:1px solid #dbeafe; background:#eff6ff; }
 #section-dashboard .db-attention.has-pending { background:#fdf2f8; border-color:#fce7f3; }
 #section-dashboard .db-attention a { color: #2563eb; }
-#section-dashboard .db-support article:nth-child(odd) { border-top:3px solid #2563eb; padding:20px; }
-#section-dashboard .db-support article:nth-child(even) { border-top:3px solid #ec4899; padding:20px; }
+#section-dashboard .db-support article:nth-child(odd) { border-top:3.5px solid #2563eb; padding:20px; }
+#section-dashboard .db-support article:nth-child(2) { border-top:3.5px solid #ec4899; padding:20px; }
+#section-dashboard .db-support article:nth-child(4) { border-top:3.5px solid #f59e0b; padding:20px; }
+#section-dashboard .db-support article:nth-child(4) strong { color: #f59e0b; }
+#section-dashboard .db-reviews span span { color: #f59e0b !important; }
+#section-dashboard .db-reviews progress::-webkit-progress-value { background: #f59e0b !important; }
+#section-dashboard .db-reviews progress::-moz-progress-bar { background: #f59e0b !important; }
 #section-dashboard .db-support strong { font-size:1.65rem; }
 #section-dashboard .db-bottom { gap:20px; }
 #section-dashboard .db-money-row > div { height:12px; }
@@ -177,201 +182,99 @@
    Image 1 Header Banner Architecture: Cohesive Colored Banners Across All Tabs
    ========================================================================== */
 
-/* Shared base properties for banner headers */
+/* Shared base properties for banner headers across all tabs */
 #app-views .main-content :is(.page-header, .services-header-wrapper, .logs-header-wrapper) {
-  border-radius: 12px;
-  box-shadow: 0 3px 12px rgba(34, 40, 62, 0.03);
-}
-
-/* Tab 2: Service Offers (CpE Hot Pink & Magenta) */
-#section-services .services-header-wrapper {
   padding: 24px 28px;
-  border: 1px solid #fce7f3;
-  border-left: 4px solid #f500fe;
-  border-radius: 12px;
-  background: linear-gradient(110deg, #fdf2f8 0%, #fdf4ff 50%, #eff6ff 100%);
+  border: 1.5px solid #c7d2fe;
+  border-radius: 14px;
+  background: linear-gradient(115deg, #b2d5fe 0%, #cfe3fe 30%, #eae5fd 55%, #fed0e5 80%, #fbbad8 100%);
+  box-shadow: 0 4px 22px rgba(37, 99, 235, 0.09), 0 2px 10px rgba(236, 72, 153, 0.08);
   margin-bottom: 24px;
+  position: relative;
+  overflow: hidden;
 }
-#section-services .services-header-wrapper .page-title {
+#app-views .main-content :is(.page-header, .services-header-wrapper, .logs-header-wrapper) .page-title {
   font-size: 1.6rem;
-  font-weight: 800;
-  color: #12152b;
-  letter-spacing: -0.03em;
+  font-weight: 850;
+  color: #0f172a;
+  letter-spacing: -0.035em;
   margin: 0;
+  line-height: 1.25;
 }
-#section-services .services-header-wrapper #services-header-subtitle {
-  color: #55607a;
-  font-size: 0.9rem;
+#app-views .main-content :is(.page-header, .services-header-wrapper, .logs-header-wrapper) :is(p, #services-header-subtitle) {
+  color: #334155;
+  font-size: 0.92rem;
+  font-weight: 600;
   margin-top: 6px;
   line-height: 1.5;
 }
 
-/* Tab 3: Service Requests (CpE Royal & Cyber Blue) */
-#section-services[data-services-theme="requests"] .services-header-wrapper {
-  border-color: #dbeafe;
-  border-left: 4px solid #0e74f4;
-  background: linear-gradient(110deg, #eff6ff 0%, #f0f7ff 50%, #fdf2f8 100%);
+/* Tab 2: Service Offers (CpE Hot Pink Accent) */
+#section-services .services-header-wrapper {
+  border-left: 5.5px solid #ec4899;
 }
 
-/* Tab 4: Mentoring Hub (CpE Vibrant Rose Pink) */
-#section-mentoring .page-header {
-  padding: 24px 28px;
-  border: 1px solid #fce7f3;
-  border-left: 4px solid #db2777;
-  border-radius: 12px;
-  background: linear-gradient(110deg, #fdf2f8 0%, #fdf4ff 50%, #eff6ff 100%);
-  margin-bottom: 24px;
+/* Tab 3: Service Requests (CpE Royal Blue Accent) */
+#section-services[data-services-theme="requests"] .services-header-wrapper {
+  border-left: 5.5px solid #2563eb;
 }
-#section-mentoring .page-header .page-title {
-  font-size: 1.6rem;
-  font-weight: 800;
-  color: #12152b;
-  letter-spacing: -0.03em;
-  margin: 0;
+
+/* Tab 4: Mentoring Hub (CpE Vibrant Rose Pink Accent) */
+#section-mentoring .page-header {
+  border-left: 5.5px solid #db2777;
 }
 #section-mentoring .mentoring-mentor-callout {
-  border: 1px solid #dbeafe;
-  border-left: 4px solid #1e40af;
-  border-radius: 12px;
-  background: linear-gradient(110deg, #eff6ff 0%, #fdf2f8 100%);
+  border: 1.5px solid #c7d2fe;
+  border-left: 5.5px solid #1e40af;
+  border-radius: 14px;
+  background: linear-gradient(115deg, #b2d5fe 0%, #cfe3fe 30%, #eae5fd 55%, #fed0e5 80%, #fbbad8 100%);
+  box-shadow: 0 4px 22px rgba(37, 99, 235, 0.09), 0 2px 10px rgba(236, 72, 153, 0.08);
 }
 
-/* Tab 5: Applications Hub (CpE Cobalt Blue) */
+/* Tab 5: Applications Hub (CpE Cobalt Blue Accent) */
 #section-applications .page-header {
-  padding: 24px 28px;
-  border: 1px solid #dbeafe;
-  border-left: 4px solid #2563eb;
-  border-radius: 12px;
-  background: linear-gradient(110deg, #eff6ff 0%, #fdf2f8 50%, #e0e7ff 100%);
-  margin-bottom: 24px;
-}
-#section-applications .page-header .page-title {
-  font-size: 1.6rem;
-  font-weight: 800;
-  color: #12152b;
-  letter-spacing: -0.03em;
-  margin: 0;
-}
-#section-applications .page-header p {
-  color: #55607a;
-  font-size: 0.9rem;
-  margin-top: 6px;
-  line-height: 1.5;
+  border-left: 5.5px solid #2563eb;
 }
 
-/* Tab 6: Messages (CpE Deep Navy Blue) */
+/* Tab 6: Messages (CpE Deep Navy Blue Accent) */
 #section-messages .page-header {
-  padding: 22px 28px;
-  border: 1px solid #dbeafe;
-  border-left: 4px solid #1d4ed8;
-  border-radius: 12px;
-  background: linear-gradient(110deg, #eff6ff 0%, #fdf4ff 55%, #eff6ff 100%);
+  border-left: 5.5px solid #1d4ed8;
   margin-bottom: 22px;
 }
-#section-messages .page-header .page-title {
-  font-size: 1.6rem;
-  font-weight: 800;
-  color: #12152b;
-  letter-spacing: -0.03em;
-  margin: 0;
-}
-#section-messages .page-header p {
-  color: #55607a;
-  font-size: 0.9rem;
-  margin-top: 6px;
-  line-height: 1.5;
-}
 
-/* Tab 7: Transactions (CpE Hot Pink) */
+/* Tab 7: Transactions (CpE Hot Pink Accent) */
 #section-transactions .page-header {
-  padding: 24px 28px;
-  border: 1px solid #fce7f3;
-  border-left: 4px solid #ec4899;
-  border-radius: 12px;
-  background: linear-gradient(110deg, #fdf2f8 0%, #fdf4ff 50%, #eff6ff 100%);
-  margin-bottom: 24px;
-}
-#section-transactions .page-header .page-title {
-  font-size: 1.6rem;
-  font-weight: 800;
-  color: #12152b;
-  letter-spacing: -0.03em;
-  margin: 0;
-}
-#section-transactions .page-header p {
-  color: #55607a;
-  font-size: 0.9rem;
-  margin-top: 6px;
-  line-height: 1.5;
+  border-left: 5.5px solid #ec4899;
 }
 
-/* Tab 8: Activity Logs (CpE Sky Cyber Blue) */
+/* Tab 8: Activity Logs (CpE Sky Cyber Blue Accent) */
 #section-logs .logs-header-wrapper {
-  padding: 24px 28px;
-  border: 1px solid #e0f2fe;
-  border-left: 4px solid #0284c7;
-  border-radius: 12px;
-  background: linear-gradient(110deg, #f0f9ff 0%, #eff6ff 50%, #fdf2f8 100%);
-  margin-bottom: 24px;
-}
-#section-logs .logs-header-wrapper .page-title {
-  font-size: 1.6rem;
-  font-weight: 800;
-  color: #12152b;
-  letter-spacing: -0.03em;
-  margin: 0;
-}
-#section-logs .logs-header-wrapper p {
-  color: #55607a;
-  font-size: 0.9rem;
-  margin-top: 6px;
-  line-height: 1.5;
+  border-left: 5.5px solid #0284c7;
 }
 
-/* Tab 9: Profile & Portfolio (CpE Royal Blue & Pink) */
+/* Tab 9: Profile & Portfolio (CpE Royal Blue Accent) */
 #section-profile .page-header {
-  padding: 22px 28px;
-  border: 1px solid #dbeafe;
-  border-left: 4px solid #0e74f4;
-  border-radius: 12px;
-  background: linear-gradient(110deg, #eff6ff 0%, #fdf2f8 50%, #eff6ff 100%);
-  margin-bottom: 24px;
-}
-#section-profile .page-header .page-title {
-  font-size: 1.6rem;
-  font-weight: 800;
-  color: #12152b;
-  letter-spacing: -0.03em;
-  margin: 0;
-}
-#section-profile .page-header p {
-  color: #55607a;
-  font-size: 0.9rem;
-  margin-top: 6px;
-  line-height: 1.5;
+  border-left: 5.5px solid #2563eb;
 }
 
-/* Tab 10: Administrator Dashboard (CpE Electric Fuchsia Pink) */
+/* Tab 10: Administrator Dashboard (CpE Electric Fuchsia Pink Accent) */
 #section-admin .page-header {
-  padding: 24px 28px;
-  border: 1px solid #fce7f3;
-  border-left: 4px solid #f500fe;
-  border-radius: 12px;
-  background: linear-gradient(110deg, #fdf2f8 0%, #fdf4ff 50%, #eff6ff 100%);
-  margin-bottom: 24px;
+  border-left: 5.5px solid #ec4899;
 }
-#section-admin .page-header .page-title {
-  font-size: 1.6rem;
-  font-weight: 800;
-  color: #12152b;
-  letter-spacing: -0.03em;
-  margin: 0;
+#section-admin .page-header #admin-period-filter {
+  background: rgba(255, 255, 255, 0.94);
+  border: 1px solid rgba(255, 255, 255, 0.9);
+  color: #1e293b;
+  font-weight: 650;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
 }
-#section-admin .page-header p {
-  color: #55607a;
-  font-size: 0.9rem;
-  margin-top: 6px;
-  line-height: 1.5;
+#section-admin .page-header #admin-period-badge {
+  background: rgba(255, 255, 255, 0.94);
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 255, 255, 0.9);
+  color: #2563eb;
+  font-weight: 700;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
 }
 
 /* Horizontal Accent Bars for Stat Cards & Inner Elements across Hubs */
@@ -403,21 +306,21 @@
 }
 
 #section-transactions .trans-stat-card:nth-child(2) {
-  border-top: 3.5px solid #f43f5e;
-  background: linear-gradient(180deg, rgba(244, 63, 94, 0.04) 0%, #ffffff 50%);
+  border-top: 3.5px solid #f59e0b;
+  background: linear-gradient(180deg, rgba(245, 158, 11, 0.04) 0%, #ffffff 50%);
 }
 #section-transactions .trans-stat-card:nth-child(2) .stat-card-number,
 #section-transactions #trans-pending-earnings {
-  color: #f43f5e !important;
+  color: #f59e0b !important;
 }
 
 #section-transactions .trans-stat-card:nth-child(3) {
-  border-top: 3.5px solid #ec4899;
-  background: linear-gradient(180deg, rgba(236, 72, 153, 0.04) 0%, #ffffff 50%);
+  border-top: 3.5px solid #10b981;
+  background: linear-gradient(180deg, rgba(16, 185, 129, 0.04) 0%, #ffffff 50%);
 }
 #section-transactions .trans-stat-card:nth-child(3) .stat-card-number,
 #section-transactions #trans-completed-earnings {
-  color: #ec4899 !important;
+  color: #10b981 !important;
 }
 
 #section-transactions .stat-card-label { color:#657086; font-size:.82rem; font-weight:650; }
@@ -427,7 +330,7 @@
 #app-views .main-content table td { padding:18px 20px; border-bottom-color:#edf0f7; }
 #app-views .main-content table tbody tr:hover { background:#faf9ff; }
 
-/* Admin stat cards with horizontal accents and matching number text colors (CpE Blue & Pink) */
+/* Admin stat cards with horizontal accents and matching number text colors */
 #section-admin .dash-stat-card {
   padding: 20px 22px;
   border-radius: 13px;
@@ -442,7 +345,7 @@
   font-weight: 800;
 }
 
-/* 1. Registered Students (Royal Blue) */
+/* 1. Registered Students (CpE Royal Blue) */
 #section-admin .dash-stat-card:has(#admin-stat-registered),
 #section-admin .dash-stat-card.admin-stat-card-registered {
   border-top: 3.5px solid #0e74f4;
@@ -452,16 +355,19 @@
   color: #0e74f4 !important;
 }
 
-/* 2. Online Users (Cyber Blue) */
+/* 2. Online Users (Classic Green) */
 #section-admin .admin-stat-card-online {
-  border-top: 3.5px solid #0284c7;
-  background: linear-gradient(180deg, rgba(2, 132, 199, 0.04) 0%, #ffffff 50%);
+  border-top: 3.5px solid #10b981;
+  background: linear-gradient(180deg, rgba(16, 185, 129, 0.04) 0%, #ffffff 50%);
 }
 #section-admin #admin-stat-online-users {
-  color: #0284c7 !important;
+  color: #10b981 !important;
+}
+#section-admin .admin-stat-card-online .active-pulse-dot {
+  background: #10b981 !important;
 }
 
-/* 3. Monthly Active Users (Deep Cobalt Navy Blue) */
+/* 3. Monthly Active Users (CpE Deep Cobalt Navy Blue) */
 #section-admin .dash-stat-card:has(#admin-stat-active-users),
 #section-admin .dash-stat-card.admin-stat-card-active-users {
   border-top: 3.5px solid #1e40af;
@@ -471,17 +377,17 @@
   color: #1e40af !important;
 }
 
-/* 4. Pending Verification (Soft Rose Pink) */
+/* 4. Pending Verification (Classic Amber/Yellow) */
 #section-admin .dash-stat-card:has(#admin-stat-pending),
 #section-admin .dash-stat-card.admin-stat-card-pending {
-  border-top: 3.5px solid #f43f5e;
-  background: linear-gradient(180deg, rgba(244, 63, 94, 0.04) 0%, #ffffff 50%);
+  border-top: 3.5px solid #f59e0b;
+  background: linear-gradient(180deg, rgba(245, 158, 11, 0.04) 0%, #ffffff 50%);
 }
 #section-admin #admin-stat-pending {
-  color: #f43f5e !important;
+  color: #f59e0b !important;
 }
 
-/* 5. Active Jobs (Sky Blue) */
+/* 5. Active Jobs (CpE Sky Blue) */
 #section-admin .dash-stat-card:has(#admin-stat-active-jobs),
 #section-admin .dash-stat-card.admin-stat-card-active-jobs {
   border-top: 3.5px solid #0284c7;
@@ -491,27 +397,27 @@
   color: #0284c7 !important;
 }
 
-/* 6. Completed This Month (Electric Hot Pink) */
+/* 6. Completed This Month (Classic Green) */
 #section-admin .dash-stat-card:has(#admin-stat-completed-jobs),
 #section-admin .dash-stat-card.admin-stat-card-completed-jobs {
-  border-top: 3.5px solid #ec4899;
-  background: linear-gradient(180deg, rgba(236, 72, 153, 0.04) 0%, #ffffff 50%);
+  border-top: 3.5px solid #10b981;
+  background: linear-gradient(180deg, rgba(16, 185, 129, 0.04) 0%, #ffffff 50%);
 }
 #section-admin #admin-stat-completed-jobs {
-  color: #ec4899 !important;
+  color: #10b981 !important;
 }
 
-/* 7. Terminated This Month (Deep Berry Pink) */
+/* 7. Terminated This Month (Classic Red) */
 #section-admin .dash-stat-card:has(#admin-stat-terminated-jobs),
 #section-admin .dash-stat-card.admin-stat-card-terminated-jobs {
-  border-top: 3.5px solid #be185d;
-  background: linear-gradient(180deg, rgba(190, 24, 93, 0.04) 0%, #ffffff 50%);
+  border-top: 3.5px solid #ef4444;
+  background: linear-gradient(180deg, rgba(239, 68, 68, 0.04) 0%, #ffffff 50%);
 }
 #section-admin #admin-stat-terminated-jobs {
-  color: #be185d !important;
+  color: #ef4444 !important;
 }
 
-/* 8. Monthly Volume (Royal Navy Blue) */
+/* 8. Monthly Volume (CpE Royal Navy Blue) */
 #section-admin .dash-stat-card:has(#admin-stat-total-transactions),
 #section-admin .dash-stat-card.admin-stat-card-total-transactions {
   border-top: 3.5px solid #1d4ed8;
@@ -521,14 +427,14 @@
   color: #1d4ed8 !important;
 }
 
-/* 9. Monthly Success Rate (Deep Rose Pink) */
+/* 9. Monthly Success Rate (Classic Green) */
 #section-admin .dash-stat-card:has(#admin-stat-success-rate),
 #section-admin .dash-stat-card.admin-stat-card-success-rate {
-  border-top: 3.5px solid #db2777;
-  background: linear-gradient(180deg, rgba(219, 39, 119, 0.04) 0%, #ffffff 50%);
+  border-top: 3.5px solid #10b981;
+  background: linear-gradient(180deg, rgba(16, 185, 129, 0.04) 0%, #ffffff 50%);
 }
 #section-admin #admin-stat-success-rate {
-  color: #db2777 !important;
+  color: #10b981 !important;
 }
 
 /* Conversation geometry is retained, including compact message bubbles. */
@@ -543,6 +449,9 @@
 #section-profile .credentials-card { padding:26px; }
 #section-profile .profile-block-heading { font-size:1.05rem; letter-spacing:-.02em; color:#192036; }
 #section-profile .edit-profile-pill-btn { border-radius:9px; background:white; border:1px solid #dbeafe; color: #2563eb; }
+#section-profile #ratings-avg-score,
+#section-profile #ratings-avg-stars { color: #f59e0b !important; }
+#section-profile [id^="pb-"] { background: #f59e0b !important; }
 #section-logs :is(.dash-card,.job-card) { border:1px solid #e0e3f1; }
 
 /* Profile and Skeleton containment to prevent mobile overflow clipping */
