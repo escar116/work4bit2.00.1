@@ -95,20 +95,20 @@ export function renderAdminStatisticalCharts(container, { requests = [], applica
           <div class="admin-donut-svg-container">
             <svg class="admin-donut-svg" viewBox="0 0 140 140" width="140" height="140" aria-label="Job distribution donut chart">
               <circle class="donut-bg-ring" cx="70" cy="70" r="${radius}" fill="transparent" stroke="rgba(226, 232, 240, 0.6)" stroke-width="16" />
-              <!-- Completed Segment (Green) -->
+              <!-- Completed Segment (CpE Hot Pink) -->
               <circle class="donut-segment donut-seg-completed" cx="70" cy="70" r="${radius}" fill="transparent"
-                stroke="#10b981" stroke-width="16"
+                stroke="#ec4899" stroke-width="16"
                 stroke-dasharray="${strokeCompleted.toFixed(2)} ${(circumference - strokeCompleted).toFixed(2)}"
                 stroke-dashoffset="${offsetCompleted.toFixed(2)}"
                 stroke-linecap="round" />
-              <!-- Active Segment (Purple) -->
+              <!-- Active Segment (CpE Royal Blue) -->
               <circle class="donut-segment donut-seg-active" cx="70" cy="70" r="${radius}" fill="transparent"
-                stroke="#4f46e5" stroke-width="16"
+                stroke="#2563eb" stroke-width="16"
                 stroke-dasharray="${strokeActive.toFixed(2)} ${(circumference - strokeActive).toFixed(2)}"
                 stroke-dashoffset="${offsetActive.toFixed(2)}" />
-              <!-- Terminated Segment (Red) -->
+              <!-- Terminated Segment (CpE Dark Berry Pink) -->
               <circle class="donut-segment donut-seg-terminated" cx="70" cy="70" r="${radius}" fill="transparent"
-                stroke="#ef4444" stroke-width="16"
+                stroke="#be185d" stroke-width="16"
                 stroke-dasharray="${strokeTerminated.toFixed(2)} ${(circumference - strokeTerminated).toFixed(2)}"
                 stroke-dashoffset="${offsetTerminated.toFixed(2)}" />
             </svg>
@@ -120,7 +120,7 @@ export function renderAdminStatisticalCharts(container, { requests = [], applica
 
           <div class="admin-donut-legend">
             <div class="donut-legend-item">
-              <div class="legend-color-dot" style="background: #4f46e5;"></div>
+              <div class="legend-color-dot" style="background: #2563eb;"></div>
               <div class="legend-text">
                 <span class="legend-label">Active / In Progress</span>
                 <span class="legend-value">${activeJobs} <small class="text-muted">(${pctActive.toFixed(1)}%)</small></span>
@@ -128,28 +128,28 @@ export function renderAdminStatisticalCharts(container, { requests = [], applica
             </div>
 
             <div class="donut-legend-item">
-              <div class="legend-color-dot" style="background: #10b981;"></div>
+              <div class="legend-color-dot" style="background: #ec4899;"></div>
               <div class="legend-text">
                 <span class="legend-label">Completed Successfully</span>
-                <span class="legend-value text-green">${completedJobs} <small class="text-muted">(${pctCompleted.toFixed(1)}%)</small></span>
+                <span class="legend-value" style="color: #ec4899;">${completedJobs} <small class="text-muted">(${pctCompleted.toFixed(1)}%)</small></span>
               </div>
             </div>
 
             <div class="donut-legend-item">
-              <div class="legend-color-dot" style="background: #ef4444;"></div>
+              <div class="legend-color-dot" style="background: #be185d;"></div>
               <div class="legend-text">
                 <span class="legend-label">Terminated</span>
-                <span class="legend-value text-red">${terminatedJobs} <small class="text-muted">(${pctTerminated.toFixed(1)}%)</small></span>
+                <span class="legend-value" style="color: #be185d;">${terminatedJobs} <small class="text-muted">(${pctTerminated.toFixed(1)}%)</small></span>
               </div>
             </div>
 
             <div class="donut-kpi-bar mt-2">
               <div class="flex justify-between text-xs text-muted mb-1">
                 <span>Completion Success Rate</span>
-                <strong style="color: #10b981;">${successRate}%</strong>
+                <strong style="color: #db2777;">${successRate}%</strong>
               </div>
               <div class="progress-bar-bg" style="background: #e2e8f0; height: 6px; border-radius: 999px; overflow: hidden;">
-                <div style="background: #10b981; width: ${successRate}%; height: 100%; border-radius: 999px; transition: width 0.4s ease;"></div>
+                <div style="background: #db2777; width: ${successRate}%; height: 100%; border-radius: 999px; transition: width 0.4s ease;"></div>
               </div>
             </div>
           </div>
@@ -201,7 +201,7 @@ export function renderAdminStatisticalCharts(container, { requests = [], applica
           <div class="mini-kpi-divider"></div>
           <div class="mini-kpi-item">
             <span class="text-xs text-muted">Active Users</span>
-            <strong style="color: #4f46e5;">${activeUsersCount}</strong>
+            <strong style="color: #2563eb;">${activeUsersCount}</strong>
           </div>
         </div>
       </div>

@@ -1,6 +1,6 @@
 const money = value => new Intl.NumberFormat('en-PH', { style: 'currency', currency: 'PHP', maximumFractionDigits: 2 }).format(value);
 const esc = value => String(value).replace(/[&<>"']/g, character => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[character]);
-const colors = ['#6554e8', '#23a6a0', '#e6aa36', '#a1a9bd', '#df7393', '#739deb', '#8792a5'];
+const colors = ['#2563eb', '#ec4899', '#0284c7', '#db2777', '#1e40af', '#f43f5e', '#38bdf8'];
 const metric = (label, value, note, icon) => `<article class="db-kpi"><span class="db-icon" aria-hidden="true">${icon}</span><strong>${value}</strong><h3>${label}</h3><p>${note}</p></article>`;
 const heading = (title, note) => `<div><h3>${title}</h3><p class="db-note">${note}</p></div>`;
 
@@ -12,11 +12,11 @@ function trendChart(stats, period) {
   const y = count => 206 - count / ceiling * 170;
   const line = key => months.map((m, i) => `${x(i)},${y(m[key])}`).join(' ');
   return `<section class="db-panel db-trend"><div class="db-panel-head">${heading('Applications over time', 'Sent and received · monthly counts')}<div class="db-segment t-tabs db-period" id="dashboard-period-tabs" role="group" aria-label="Chart period"><span class="t-tabs-pill" aria-hidden="true"></span>${[3, 6].map(n => `<button type="button" class="tab-btn period-tab-btn ${period === n ? 'active' : ''}" data-dashboard-months="${n}" aria-pressed="${period === n}">${n} months</button>`).join('')}</div></div>
-    <div class="db-legend"><span><i style="background:#6554e8"></i>Sent</span><span><i style="background:#23a6a0"></i>Received</span></div>
+    <div class="db-legend"><span><i style="background:#2563eb"></i>Sent</span><span><i style="background:#ec4899"></i>Received</span></div>
     <svg class="db-line-chart" viewBox="0 0 710 244" role="img" aria-label="${esc(months.map(m => `${m.label}: ${m.sent} sent, ${m.received} received`).join('. '))}">
       ${Array.from({length:5}, (_, i) => { const value = ceiling * i / 4; return `<line x1="46" x2="674" y1="${y(value)}" y2="${y(value)}" class="db-grid-line"/><text x="32" y="${y(value) + 4}" text-anchor="end">${value}</text>`; }).join('')}
-      <polygon points="46,206 ${line('sent')} 674,206" fill="#6554e8" opacity="0.07"/>
-      ${[['sent','#6554e8'],['received','#23a6a0']].map(([key,color]) => `<polyline points="${line(key)}" fill="none" stroke="${color}" stroke-width="2.5" stroke-linejoin="round" ${key === 'received' ? 'stroke-dasharray="6 4"' : ''}/>${months.map((m,i) => `<circle cx="${x(i)}" cy="${y(m[key])}" r="4" fill="${color}" stroke="white" stroke-width="1.5"><title>${esc(m.label)} · ${key}: ${m[key]}</title></circle>`).join('')}`).join('')}
+      <polygon points="46,206 ${line('sent')} 674,206" fill="#2563eb" opacity="0.07"/>
+      ${[['sent','#2563eb'],['received','#ec4899']].map(([key,color]) => `<polyline points="${line(key)}" fill="none" stroke="${color}" stroke-width="2.5" stroke-linejoin="round" ${key === 'received' ? 'stroke-dasharray="6 4"' : ''}/>${months.map((m,i) => `<circle cx="${x(i)}" cy="${y(m[key])}" r="4" fill="${color}" stroke="white" stroke-width="1.5"><title>${esc(m.label)} · ${key}: ${m[key]}</title></circle>`).join('')}`).join('')}
       ${months.map((m,i) => `<text x="${x(i)}" y="233" text-anchor="middle">${esc(m.label)}</text>`).join('')}
     </svg><p class="db-note db-chart-foot">${months.every(m => !m.sent && !m.received) ? 'No applications in this period. ' : ''}${stats.unknownDates ? `${stats.unknownDates} undated records excluded. ` : ''}Counts applications; financial totals below use completed engagements.</p>
   </section>`;
@@ -31,7 +31,7 @@ function outcomeChart(stats) {
 
 function comparison(stats) {
   const max = Math.max(1, stats.student.earned, stats.student.spent, stats.mentoring.earned, stats.mentoring.spent);
-  return `<section class="db-panel"><div class="db-panel-head">${heading('Student services & mentoring', 'Completed amounts · all work types · all time')}</div><div class="db-legend"><span><i style="background:#6554e8"></i>Earned</span><span><i style="background:#23a6a0"></i>Spent</span></div><div class="db-comparison">${[['Student services',stats.student],['Mentoring',stats.mentoring]].map(([label,s]) => `<div><div class="db-comparison-label"><h4>${label}</h4><span>${s.completed} completed</span></div>${[['Earned',s.earned,'#6554e8'],['Spent',s.spent,'#23a6a0']].map(([type,value,color]) => `<div class="db-money-row"><span>${type}</span><div><i style="width:${value / max * 100}%;background:${color}"></i></div><strong>${money(value)}</strong></div>`).join('')}</div>`).join('')}</div>${stats.all.unknownAmounts ? `<p class="db-note">${stats.all.unknownAmounts} completed records with missing amounts are excluded.</p>` : ''}</section>`;
+  return `<section class="db-panel"><div class="db-panel-head">${heading('Student services & mentoring', 'Completed amounts · all work types · all time')}</div><div class="db-legend"><span><i style="background:#ec4899"></i>Earned</span><span><i style="background:#2563eb"></i>Spent</span></div><div class="db-comparison">${[['Student services',stats.student],['Mentoring',stats.mentoring]].map(([label,s]) => `<div><div class="db-comparison-label"><h4>${label}</h4><span>${s.completed} completed</span></div>${[['Earned',s.earned,'#ec4899'],['Spent',s.spent,'#2563eb']].map(([type,value,color]) => `<div class="db-money-row"><span>${type}</span><div><i style="width:${value / max * 100}%;background:${color}"></i></div><strong>${money(value)}</strong></div>`).join('')}</div>`).join('')}</div>${stats.all.unknownAmounts ? `<p class="db-note">${stats.all.unknownAmounts} completed records with missing amounts are excluded.</p>` : ''}</section>`;
 }
 
 export function renderDashboardPanels(stats, reviewResult, scope = 'all', period = 6) {

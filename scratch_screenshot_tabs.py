@@ -5,9 +5,6 @@ import os
 ARTIFACT_DIR = r"C:\Users\charles\.gemini\antigravity\brain\2dcbce95-d155-4f78-82c5-cabf4dd81ced"
 
 sections = [
-    ("dashboard", "tab_1_dashboard.png"),
-    ("service-offers", "tab_2_service_offers.png"),
-    ("service-requests", "tab_3_service_requests.png"),
     ("mentoring", "tab_4_mentoring.png"),
     ("applications", "tab_5_applications.png"),
     ("messages", "tab_6_messages.png"),
@@ -21,11 +18,18 @@ with sync_playwright() as p:
     browser = p.chromium.launch(channel="msedge", headless=True)
     page = browser.new_page(viewport={"width": 1366, "height": 850})
 
+    page.set_default_navigation_timeout(60000)
     for section_id, filename in sections:
         print(f"Capturing section: {section_id}...")
         url = f"https://work4abit.vercel.app?dev_preview={section_id}"
-        page.goto(url, wait_until="domcontentloaded")
-        time.sleep(2.5)
+        try:
+            page.goto(url, wait_until="commit", timeout=60000)
+            time.sleep(3)
+        except Exception as e:
+            print(f"Retry on {section_id}: {e}")
+            time.sleep(2)
+            page.goto(url, wait_until="commit", timeout=60000)
+            time.sleep(3)
         out_path = os.path.join(ARTIFACT_DIR, filename)
         page.screenshot(path=out_path)
         print(f"Saved: {filename}")
