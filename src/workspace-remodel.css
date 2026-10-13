@@ -209,14 +209,18 @@
   line-height: 1.5;
 }
 
-/* Tab 2: Service Offers (CpE Hot Pink Accent) */
+/* Tab 2: Service Offers (CpE Hot Pink Accent - Ref Image 1) */
+#app-views .main-content #section-services .services-header-wrapper,
+#app-views .main-content #section-services[data-services-theme="offers"] .services-header-wrapper,
+#section-services[data-services-theme="offers"] .services-header-wrapper,
 #section-services .services-header-wrapper {
-  border-left: 5.5px solid #ec4899;
+  border-left: 5.5px solid #ec4899 !important;
 }
 
-/* Tab 3: Service Requests (CpE Royal Blue Accent) */
+/* Tab 3: Service Requests (CpE Royal Blue Accent - Ref Image 1) */
+#app-views .main-content #section-services[data-services-theme="requests"] .services-header-wrapper,
 #section-services[data-services-theme="requests"] .services-header-wrapper {
-  border-left: 5.5px solid #2563eb;
+  border-left: 5.5px solid #2563eb !important;
 }
 
 /* Tab 4: Mentoring Hub (CpE Vibrant Rose Pink Accent) */
