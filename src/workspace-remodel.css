@@ -1255,19 +1255,48 @@
   padding-left: 18px !important;
 }
 
-#section-admin .data-table thead th:last-child,
-#section-admin .data-table tbody td:last-child {
-  border-top-right-radius: 11px;
-  padding-right: 20px !important;
-  text-align: right;
-  white-space: nowrap;
-  width: 175px;
-  min-width: 170px;
+/* Centered Empty States & Colspan Loaders across all admin tables */
+#section-admin .data-table tbody td[colspan],
+#section-admin .data-table tbody td.text-center,
+.data-table tbody td[colspan] {
+  text-align: center !important;
+  width: 100% !important;
+  min-width: 0 !important;
+  padding: 2.5rem 1rem !important;
 }
 
-#section-admin .data-table tbody td:last-child .flex {
-  justify-content: flex-end;
+#section-admin .data-table thead th:last-child,
+#section-admin .data-table tbody td:last-child:not([colspan]) {
+  border-top-right-radius: 11px;
+  padding-left: 14px !important;
+  padding-right: 14px !important;
+  text-align: center !important;
+  white-space: nowrap;
+}
+
+#section-admin :is(#admin-pending-table, #admin-users-table, #admin-apps-table, #admin-listings-table) thead th:last-child,
+#section-admin :is(#admin-pending-table, #admin-users-table, #admin-apps-table, #admin-listings-table) tbody td:last-child:not([colspan]) {
+  width: 200px;
+  min-width: 175px;
+}
+
+#section-admin .data-table tbody td:last-child:not([colspan]) .flex,
+#section-admin .data-table tbody td:last-child:not([colspan]) > div {
+  display: flex !important;
+  justify-content: center !important;
+  align-items: center !important;
   gap: 8px !important;
+}
+
+#section-admin .data-table tbody td:last-child:not([colspan]) button {
+  margin-left: auto;
+  margin-right: auto;
+}
+
+/* Tab 5 (Audit Logs) Action Type column centering */
+#admin-audit-logs-table thead th[data-sort="action"],
+#admin-audit-logs-table tbody td:nth-child(3) {
+  text-align: center !important;
 }
 
 #section-admin .data-table tbody td {

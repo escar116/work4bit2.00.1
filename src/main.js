@@ -44,6 +44,8 @@ import {
 } from './activity-logger.js';
 import { renderLogsSection, getActionIcon } from './logs-view.js';
 import { renderAdminStatisticalCharts } from './admin-charts.js';
+import { censorProfanity } from './profanity-filter.js';
+window.censorProfanity = censorProfanity;
 
 // -- Firebase Config  ------------------------------------------------------------
 const firebaseConfig = {
@@ -4343,8 +4345,8 @@ async function handleApprove(application, job, approveBtn = null, rejectBtn = nu
 
       if (!hasExistingMessages) {
         const initialText = isOffer
-          ? `Service Order Accepted\n\nAgreed Budget: ${peso(application.priceOffer)}\nOrder Scope & Details: ${application.message}`
-          : `Application Accepted\n\nProposed Rate: ${peso(application.priceOffer)}\nProposal: ${application.message}`;
+          ? `Service Order Accepted\n\nAgreed Budget: ${peso(application.priceOffer)}\nOrder Scope & Details: ${censorProfanity(application.message)}`
+          : `Application Accepted\n\nProposed Rate: ${peso(application.priceOffer)}\nProposal: ${censorProfanity(application.message)}`;
 
         await push(ref(db, `conversations/${convId}/messages`), {
           senderId: application.applicant.id,
@@ -5167,7 +5169,8 @@ function renderIncomingMessages(messages) {
     if (msg.clientMsgId) div.dataset.clientMsgId = msg.clientMsgId;
     const timeStr = formatMessageTime(msg.timestamp);
     const attachHtml = msg.attachment ? renderAttachmentHtml(msg.attachment) : '';
-    div.innerHTML = `<div class="message-bubble">${attachHtml}${content ? `<div class="message-text">${escapeHtml(content)}</div>` : ''}</div>${timeStr ? `<time class="message-time">${timeStr}</time>` : ''}`;
+    const displayContent = censorProfanity(content);
+    div.innerHTML = `<div class="message-bubble">${attachHtml}${displayContent ? `<div class="message-text">${escapeHtml(displayContent)}</div>` : ''}</div>${timeStr ? `<time class="message-time">${timeStr}</time>` : ''}`;
     msgArea.appendChild(div);
   });
 
@@ -5237,7 +5240,7 @@ function setupChat() {
 
   const send = async () => {
     if (isSendingMessage) return;
-    const content = input.value.trim();
+    const content = censorProfanity(input.value.trim());
     const attachmentToSend = currentChatAttachment;
     if (!content && !attachmentToSend) return;
     if (!activeConvId) return;
@@ -5831,7 +5834,7 @@ function setupReviewDialog() {
 
         await push(ref(db, `conversations/${reviewTarget.conv.id}/messages`), {
           senderId: userData.id,
-          content: completionText + (revData.comment ? `\n\n"${revData.comment}"` : ''),
+          content: completionText + (revData.comment ? `\n\n"${censorProfanity(revData.comment)}"` : ''),
           timestamp: serverTimestamp()
         });
       } catch (chatErr) {
@@ -8032,7 +8035,9 @@ function renderAdminApplications() {
       <td><div class="truncate" style="max-width: 220px;">"${escapeHtml(a.message)}"</div></td>
       <td><span class="badge ${badgeClass}">${escapeHtml(a.status || 'Pending')}</span></td>
       <td>
-        <button type="button" class="btn btn-outline btn-sm delete-app-btn btn-delete-service">Delete</button>
+        <div class="flex items-center justify-center gap-2">
+          <button type="button" class="btn btn-outline btn-sm delete-app-btn btn-delete-service">Delete</button>
+        </div>
       </td>
     `;
 
@@ -8131,7 +8136,7 @@ function renderAdminListings() {
         </span>
       </td>
       <td>
-        <div class="flex items-center gap-2" style="justify-content: flex-end;">
+        <div class="flex items-center gap-2" style="justify-content: center;">
           <button type="button" class="btn view-listing-details-btn" title="View Full Service Details">Details</button>
           <button type="button" class="btn delete-listing-btn btn-delete-service">Delete</button>
         </div>
