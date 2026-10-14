@@ -7087,16 +7087,14 @@ dialog.workspace-guide::backdrop {
    SERVICE OFFERS (PINKISH / FUCHSIA) VS REQUESTS (BLUEWISH) THEMES
    ========================================================================== */
 
-/* --- 1. Admin & Service Offers Theme (Fuchsia / Purple rgb(245,0,254) / rgb(167,46,255)) --- */
-.nav-btn[data-target="admin"].active,
-.nav-btn[data-target="service-offers"].active {
+/* --- 1. Admin Theme (Fuchsia / Purple rgb(245,0,254) / rgb(167,46,255)) --- */
+.nav-btn[data-target="admin"].active {
     background: linear-gradient(135deg, rgba(245, 0, 254, 0.24) 0%, rgba(167, 46, 255, 0.28) 100%) !important;
     border-left: 3.5px solid rgb(245, 0, 254) !important;
     box-shadow: 0 4px 18px rgba(245, 0, 254, 0.25) !important;
     color: #ffffff !important;
 }
-.nav-btn[data-target="admin"].active .nav-icon,
-.nav-btn[data-target="service-offers"].active .nav-icon {
+.nav-btn[data-target="admin"].active .nav-icon {
     stroke: rgb(245, 0, 254) !important;
 }
 
@@ -7157,14 +7155,16 @@ dialog.workspace-guide::backdrop {
     box-shadow: 0 0 0 3px rgba(245, 0, 254, 0.2) !important;
 }
 
-/* --- 2. Service Requests Theme (Electric Blue rgb(3,51,217) / rgb(14,116,244)) --- */
-.nav-btn[data-target="service-requests"].active {
+/* --- 2. Service Requests & Service Offers Theme (Electric Blue rgb(3,51,217) / rgb(14,116,244)) --- */
+.nav-btn[data-target="service-requests"].active,
+.nav-btn[data-target="service-offers"].active {
     background: linear-gradient(135deg, rgba(3, 51, 217, 0.28) 0%, rgba(14, 116, 244, 0.24) 100%) !important;
     border-left: 3.5px solid rgb(14, 116, 244) !important;
     box-shadow: 0 4px 18px rgba(3, 51, 217, 0.25) !important;
     color: #ffffff !important;
 }
-.nav-btn[data-target="service-requests"].active .nav-icon {
+.nav-btn[data-target="service-requests"].active .nav-icon,
+.nav-btn[data-target="service-offers"].active .nav-icon {
     stroke: rgb(56, 189, 248) !important;
 }
 
@@ -7379,6 +7379,15 @@ body:not(.light-theme):has(.dark-mode) .skel-bone {
         opacity: 1 !important;
         filter: none !important;
     }
+}
+
+/* Utility helper classes */
+.cursor-pointer {
+    cursor: pointer !important;
+}
+.hover\:underline:hover,
+.hover-underline:hover {
+    text-decoration: underline !important;
 }
 
 

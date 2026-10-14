@@ -84,7 +84,7 @@ const ADMIN_EMAILS = [
   'charlesjanparaggua@gmail.com',
   'anryurmanita@gmail.com',
   'taguinodanathasia@gmail.com',
-  'test4@email.com'
+  'test4@email.com', 'miczy783405@gmail.com', 'esmarinashley40@gmail.com'
   // Add new admin emails here separated by commas:
   // 'anotheradmin@email.com'
 ];
@@ -313,7 +313,7 @@ function getUserPhoto(userId) {
       userPhotosMap[userId] = cached;
       return cached;
     }
-  } catch (e) {}
+  } catch (e) { }
   if (userData && userData.id === userId && userData.photoURL) {
     userPhotosMap[userId] = userData.photoURL;
     return userData.photoURL;
@@ -325,10 +325,10 @@ function setUserPhoto(userId, photoUrl) {
   if (!userId) return;
   if (photoUrl) {
     userPhotosMap[userId] = photoUrl;
-    try { localStorage.setItem('cached_photo_' + userId, photoUrl); } catch (e) {}
+    try { localStorage.setItem('cached_photo_' + userId, photoUrl); } catch (e) { }
   } else {
     delete userPhotosMap[userId];
-    try { localStorage.removeItem('cached_photo_' + userId); } catch (e) {}
+    try { localStorage.removeItem('cached_photo_' + userId); } catch (e) { }
   }
 }
 
@@ -401,9 +401,9 @@ async function syncAuthorListingImages() {
     if (validKeys.length > 0) {
       await setDoc(doc(firestore, "user_profiles", uid), {
         listingImages: map
-      }, { merge: true }).catch(() => {});
+      }, { merge: true }).catch(() => { });
     }
-  } catch (e) {}
+  } catch (e) { }
 }
 
 function updateListingImageUI(imageUrl, filename = 'Attached Photo') {
@@ -441,7 +441,7 @@ async function recordUserPresence(uid) {
   // 1. Firebase Realtime Database with automatic onDisconnect cleanup
   try {
     const userPresenceRef = ref(db, `presence/${activeUid}`);
-    onDisconnect(userPresenceRef).remove().catch(() => {});
+    onDisconnect(userPresenceRef).remove().catch(() => { });
     await set(userPresenceRef, {
       uid: activeUid,
       email: email,
@@ -449,7 +449,7 @@ async function recordUserPresence(uid) {
       lastSeen: now,
       online: true
     });
-  } catch (e) {}
+  } catch (e) { }
 
   // 2. Firebase Firestore user_profiles sync
   try {
@@ -457,9 +457,9 @@ async function recordUserPresence(uid) {
       setDoc(doc(firestore, "user_profiles", activeUid), {
         lastSeen: now,
         isOnline: true
-      }, { merge: true }).catch(() => {});
+      }, { merge: true }).catch(() => { });
     }
-  } catch (e) {}
+  } catch (e) { }
 
   // 3. Local fallback for current browser session
   try {
@@ -467,7 +467,7 @@ async function recordUserPresence(uid) {
     const map = raw ? JSON.parse(raw) : {};
     map[activeUid] = now;
     localStorage.setItem('user_presence_map', JSON.stringify(map));
-  } catch (e) {}
+  } catch (e) { }
 }
 
 async function getOnlineUserIds(timeoutMs = 3 * 60 * 1000) {
@@ -496,7 +496,7 @@ async function getOnlineUserIds(timeoutMs = 3 * 60 * 1000) {
         }
       }
     }
-  } catch (e) {}
+  } catch (e) { }
 
   // 2. Fallback check on Firestore user_profiles
   try {
@@ -508,7 +508,7 @@ async function getOnlineUserIds(timeoutMs = 3 * 60 * 1000) {
         if (data.email) onlineEmails.add(data.email.toLowerCase());
       }
     });
-  } catch (e) {}
+  } catch (e) { }
 
   // 3. Ensure current authenticated user is included
   if (currentUser?.uid) {
@@ -547,8 +547,8 @@ function initLivePresenceTracking() {
   window.addEventListener('beforeunload', () => {
     const uid = currentUser?.uid || userData?.id;
     if (uid) {
-      try { remove(ref(db, `presence/${uid}`)); } catch (e) {}
-      try { setDoc(doc(firestore, "user_profiles", uid), { isOnline: false, lastSeen: Date.now() }, { merge: true }).catch(() => {}); } catch (e) {}
+      try { remove(ref(db, `presence/${uid}`)); } catch (e) { }
+      try { setDoc(doc(firestore, "user_profiles", uid), { isOnline: false, lastSeen: Date.now() }, { merge: true }).catch(() => { }); } catch (e) { }
     }
   });
 
@@ -629,7 +629,7 @@ function initLivePresenceTracking() {
         }
       });
     });
-  } catch (e) {}
+  } catch (e) { }
 
   // Real-time listener for Realtime Database presence updates (fallback)
   try {
@@ -683,7 +683,7 @@ function initLivePresenceTracking() {
         }
       });
     });
-  } catch (e) {}
+  } catch (e) { }
 }
 
 // -- Skeleton Loading Generators for Tabs ----------------------------------------------------
@@ -982,7 +982,7 @@ function getReadNotifIds() {
   try {
     const raw = localStorage.getItem('read_notifs_' + userData.id);
     if (raw) return new Set(JSON.parse(raw));
-  } catch (e) {}
+  } catch (e) { }
   return new Set();
 }
 
@@ -990,7 +990,7 @@ function saveReadNotifIds(set) {
   if (!userData) return;
   try {
     localStorage.setItem('read_notifs_' + userData.id, JSON.stringify(Array.from(set)));
-  } catch (e) {}
+  } catch (e) { }
 }
 
 function getUnreadMessagesCount() {
@@ -1051,7 +1051,7 @@ async function syncUnreadBadges() {
         dedupedFetched.push(c);
       }
       conversations = await sortConversationsByActivity(dedupedFetched);
-    } catch (e) {}
+    } catch (e) { }
   }
 
   const unreadMsgCount = getUnreadMessagesCount();
@@ -1202,7 +1202,7 @@ async function updateNotificationCenter() {
             readNotifIds.add(id);
             try {
               localStorage.setItem('read_notifs_' + userData.id, JSON.stringify(Array.from(readNotifIds)));
-            } catch (e) {}
+            } catch (e) { }
             const notif = currentNotifications.find(n => n.id === id);
             if (notif?.action) notif.action();
             $('#notification-dropdown')?.classList.add('hidden');
@@ -1234,11 +1234,11 @@ function setupNotificationCenter() {
     try {
       const raw = localStorage.getItem('read_notifs_' + userData.id);
       if (raw) readNotifIds = new Set(JSON.parse(raw));
-    } catch (e) {}
+    } catch (e) { }
     currentNotifications.forEach(n => readNotifIds.add(n.id));
     try {
       localStorage.setItem('read_notifs_' + userData.id, JSON.stringify(Array.from(readNotifIds)));
-    } catch (e) {}
+    } catch (e) { }
     updateNotificationCenter();
     showToast('All notifications marked as read.');
   };
@@ -1284,7 +1284,7 @@ document.addEventListener('visibilitychange', () => {
   if (document.visibilityState === 'visible' && userData) {
     if (activeSection === 'messages') {
       loadMessages(true);
-      
+
     } else if (activeSection === 'dashboard') {
       loadDashboard(true);
     } else if (activeSection === 'applications') {
@@ -1379,10 +1379,10 @@ function showAuth(section = 'landing') {
   if (section === 'login') section = 'landing';
   if (autoRefreshTimer) { clearInterval(autoRefreshTimer); autoRefreshTimer = null; }
   if (chatPollTimer) { clearInterval(chatPollTimer); chatPollTimer = null; }
-  if (messageSubscription) { 
+  if (messageSubscription) {
     if (typeof messageSubscription === 'function') messageSubscription();
     else off(messageSubscription);
-    messageSubscription = null; 
+    messageSubscription = null;
   }
   if (conversationsSubscription) { conversationsSubscription(); conversationsSubscription = null; }
   hide($('#app-views'));
@@ -1445,7 +1445,7 @@ function showApp() {
           userData.isMentor = pData.isMentor === true;
           try {
             localStorage.setItem(`cached_is_mentor_${userData.id}`, String(userData.isMentor));
-          } catch (e) {}
+          } catch (e) { }
           if (typeof updateMentoringCalloutBanner === 'function') {
             updateMentoringCalloutBanner();
           }
@@ -1484,12 +1484,12 @@ function clearUserSessionDOM() {
   const studentId = $('#profile-student-id'); if (studentId) studentId.textContent = '';
   const bio = document.getElementById('profile-bio-display'); if (bio) bio.textContent = '';
   const skills = document.getElementById('profile-skills-display'); if (skills) skills.innerHTML = '';
-  
+
   ['stat-app-pending', 'stat-app-completed', 'stat-app-terminated',
-   'stat-emp-pending', 'stat-emp-completed', 'stat-emp-terminated'].forEach(id => {
-    const el = document.getElementById(id);
-    if (el) el.textContent = '0';
-  });
+    'stat-emp-pending', 'stat-emp-completed', 'stat-emp-terminated'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.textContent = '0';
+    });
 
   renderReviewsProfile([]);
 
@@ -1548,11 +1548,11 @@ onAuthStateChanged(auth, async (user) => {
           if (missingInCloud.length > 0) {
             setDoc(doc(firestore, "user_profiles", user.uid), {
               recentActivityLogs: arrayUnion(...missingInCloud)
-            }, { merge: true }).catch(() => {});
+            }, { merge: true }).catch(() => { });
           }
-        }).catch(() => {});
+        }).catch(() => { });
       }
-    } catch (e) {}
+    } catch (e) { }
     try {
       const res = await getUser(dc, { id: user.uid }, SERVER_ONLY);
       if (res.data.user) {
@@ -1577,8 +1577,8 @@ onAuthStateChanged(auth, async (user) => {
     }
   } else {
     if (currentUser?.uid) {
-      try { remove(ref(db, `presence/${currentUser.uid}`)); } catch (e) {}
-      try { setDoc(doc(firestore, "user_profiles", currentUser.uid), { isOnline: false, lastSeen: Date.now() }, { merge: true }).catch(() => {}); } catch (e) {}
+      try { remove(ref(db, `presence/${currentUser.uid}`)); } catch (e) { }
+      try { setDoc(doc(firestore, "user_profiles", currentUser.uid), { isOnline: false, lastSeen: Date.now() }, { merge: true }).catch(() => { }); } catch (e) { }
     }
     currentUser = null;
     userData = null;
@@ -1671,7 +1671,7 @@ function clearLoginLockState(email) {
       localStorage.removeItem(`w4b_lockout_${email.trim().toLowerCase()}`);
       localStorage.removeItem(`w4b_lockout_${email.trim()}`);
     }
-  } catch {}
+  } catch { }
 }
 
 // Dev and testing unlock helper (allows instant unlock for test accounts)
@@ -1789,7 +1789,7 @@ function setupLanding() {
       clearLoginLockState(email);
       if (lockoutInterval) clearInterval(lockoutInterval);
       if (cred?.user?.uid) {
-        setDoc(doc(firestore, "user_profiles", cred.user.uid), { authProvider: 'password' }, { merge: true }).catch(() => {});
+        setDoc(doc(firestore, "user_profiles", cred.user.uid), { authProvider: 'password' }, { merge: true }).catch(() => { });
       }
     } catch (err) {
       if (err.code === 'auth/invalid-credential' || err.code === 'auth/wrong-password' || err.code === 'auth/user-not-found') {
@@ -1832,7 +1832,7 @@ function setupLanding() {
         errorEl.textContent = 'Account not found. Please click Sign Up to register.';
         show(errorEl);
       } else {
-        setDoc(doc(firestore, "user_profiles", result.user.uid), { authProvider: 'google' }, { merge: true }).catch(() => {});
+        setDoc(doc(firestore, "user_profiles", result.user.uid), { authProvider: 'google' }, { merge: true }).catch(() => { });
       }
     } catch (err) {
       errorEl.textContent = err.message || 'Google login failed.';
@@ -1856,11 +1856,11 @@ function setupRegister() {
   const form = $('#register-form');
   const googleBtn = $('#register-google-btn');
   const errorEl = $('#register-error');
-  
+
   const certInput = $('#register-certificate');
   const certPreview = $('#register-cert-preview');
   const certDropzone = $('#register-cert-dropzone');
-  
+
   const facultySelect = $('#register-faculty');
   const facultyOtherGroup = $('#register-faculty-other-group');
 
@@ -1900,7 +1900,7 @@ function setupRegister() {
       }
     }
   });
-  
+
   document.addEventListener('paste', (e) => {
     const regSec = document.querySelector('#section-register');
     if (regSec && !regSec.classList.contains('hidden')) {
@@ -2425,14 +2425,14 @@ const knownStandingOfferIds = new Set();
 try {
   const saved = JSON.parse(localStorage.getItem('standing_offer_ids') || '[]');
   if (Array.isArray(saved)) saved.forEach(id => knownStandingOfferIds.add(id));
-} catch (e) {}
+} catch (e) { }
 
 function markAsStandingOffer(id) {
   if (!id) return;
   knownStandingOfferIds.add(id);
   try {
     localStorage.setItem('standing_offer_ids', JSON.stringify(Array.from(knownStandingOfferIds)));
-  } catch (e) {}
+  } catch (e) { }
 }
 
 function isMentoringJob(job) {
@@ -2522,7 +2522,7 @@ function formatDeadlineFriendly(deadlineStr) {
         return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
       }
     }
-  } catch (e) {}
+  } catch (e) { }
   return deadlineStr;
 }
 
@@ -2605,9 +2605,9 @@ async function loadServices(isSilent = false) {
       listHelpRequests(dc, SERVER_ONLY),
       userData?.id ? listApplicationsByApplicant(dc, { userId: userData.id }, SERVER_ONLY) : { data: { applications: [] } },
       listAllApplicationsAdmin(dc, SERVER_ONLY).catch(() => ({ data: { applications: [] } })),
-      getDocs(collection(firestore, "reviews")).catch(() => ({ forEach: () => {} })),
-      getDocs(collection(firestore, "applications")).catch(() => ({ forEach: () => {} })),
-      getDocs(collection(firestore, "service_status")).catch(() => ({ forEach: () => {} }))
+      getDocs(collection(firestore, "reviews")).catch(() => ({ forEach: () => { } })),
+      getDocs(collection(firestore, "applications")).catch(() => ({ forEach: () => { } })),
+      getDocs(collection(firestore, "service_status")).catch(() => ({ forEach: () => { } }))
     ]);
     allRequests = reqRes.data.helpRequests || [];
 
@@ -2676,7 +2676,7 @@ async function loadServices(isSilent = false) {
       if (isPlaceholder) {
         try {
           await updateHelpRequestStatus(dc, { id: r.id, status: 'DELETED' });
-        } catch (e) {}
+        } catch (e) { }
       }
     }
 
@@ -2818,7 +2818,7 @@ function openServiceDetailsDialog(r, actionInfo) {
 
   const facultyEl = $('#sd-poster-faculty');
   if (facultyEl) {
-    facultyEl.textContent = r.requester?.facultyReference 
+    facultyEl.textContent = r.requester?.facultyReference
       ? `Faculty: ${r.requester.facultyReference}`
       : (r.requester?.studentId ? `Student ID: ${r.requester.studentId}` : 'Verified Campus Peer');
   }
@@ -2976,7 +2976,7 @@ function renderServices(requests) {
   if (filtered.length === 0) {
     const isOffer = currentServicesTab === 'offers';
     const hasActiveFilters = Boolean(requestFilters.q || requestFilters.category || (requestFilters.maxPrice && requestFilters.maxPrice !== Infinity));
-    
+
     grid.innerHTML = `
       <div class="marketplace-empty-card" style="grid-column: 1/-1;">
         <div class="empty-icon-circle">
@@ -2987,10 +2987,10 @@ function renderServices(requests) {
         </div>
         <h3 class="empty-title">No ${isOffer ? 'Service Offers' : 'Service Requests'} Found</h3>
         <p class="empty-subtitle">
-          ${hasActiveFilters 
-            ? 'No listings matched your active search or filters. Try resetting your filters to see more results.' 
-            : `There are currently no active ${isOffer ? 'service offers' : 'service requests'}. Be the first student to publish one!`
-          }
+          ${hasActiveFilters
+        ? 'No listings matched your active search or filters. Try resetting your filters to see more results.'
+        : `There are currently no active ${isOffer ? 'service offers' : 'service requests'}. Be the first student to publish one!`
+      }
         </p>
         <div class="empty-actions-row">
           ${hasActiveFilters ? `<button type="button" class="btn btn-outline btn-sm" id="btn-empty-reset-filters">Reset All Filters</button>` : ''}
@@ -3066,15 +3066,15 @@ function renderServices(requests) {
     const standingOrDeadline = isOffer
       ? ''
       : (r.deadline
-          ? (isExpired
-              ? `<span class="request-card-deadline" style="color: #ef4444; font-weight: 600;">Due ${formatDeadlineFriendly(r.deadline)} (Expired)</span>`
-              : `<span class="request-card-deadline">Due ${formatDeadlineFriendly(r.deadline)}</span>`)
-          : '');
+        ? (isExpired
+          ? `<span class="request-card-deadline" style="color: #ef4444; font-weight: 600;">Due ${formatDeadlineFriendly(r.deadline)} (Expired)</span>`
+          : `<span class="request-card-deadline">Due ${formatDeadlineFriendly(r.deadline)}</span>`)
+        : '');
 
     const rightBadge = isOffer
       ? (isClosedOffer
-          ? `<span class="badge" style="background: rgba(239, 68, 68, 0.15); color: #ef4444; border: 1px solid rgba(239, 68, 68, 0.3);">Temporarily Closed</span>`
-          : `<span class="badge badge-standing">Standing</span>`)
+        ? `<span class="badge" style="background: rgba(239, 68, 68, 0.15); color: #ef4444; border: 1px solid rgba(239, 68, 68, 0.3);">Temporarily Closed</span>`
+        : `<span class="badge badge-standing">Standing</span>`)
       : `<span class="badge badge-duration">${escapeHtml(getDisplayDuration(r))}</span>`;
 
     const triggerDelete = async () => {
@@ -3086,7 +3086,7 @@ function renderServices(requests) {
           knownStandingOfferIds.delete(r.id);
           try {
             localStorage.setItem('standing_offer_ids', JSON.stringify(Array.from(knownStandingOfferIds)));
-          } catch (err) {}
+          } catch (err) { }
         }
         showToast(`Deleted ${itemName}.`);
         logUserAction('delete', `Deleted ${itemName} "${r.title || ''}"`, currentUser?.uid || userData?.id);
@@ -3707,7 +3707,7 @@ function setupNewRequestDialog() {
           const updatePayload = {};
           if (newId) updatePayload[`listingImages.${newId}`] = finalImage || null;
           if (prevListing.id) updatePayload[`listingImages.${prevListing.id}`] = finalImage || null;
-          setDoc(profileDocRef, updatePayload, { merge: true }).catch(() => {});
+          setDoc(profileDocRef, updatePayload, { merge: true }).catch(() => { });
         }
 
         // Update in-memory models
@@ -3791,7 +3791,7 @@ function setupNewRequestDialog() {
         const profileDocRef = doc(firestore, "user_profiles", requesterId);
         const updatePayload = {};
         updatePayload[`listingImages.${newId}`] = finalImage || null;
-        setDoc(profileDocRef, updatePayload, { merge: true }).catch(() => {});
+        setDoc(profileDocRef, updatePayload, { merge: true }).catch(() => { });
       }
 
       if (devPreview) {
@@ -3929,7 +3929,7 @@ async function updateApplicationTabCounts() {
     if (appliedEl) appliedEl.textContent = appliedCount;
     const mentoringEl = $('#apps-mentoring-count');
     if (mentoringEl) mentoringEl.textContent = mentoringCount;
-  } catch (err) {}
+  } catch (err) { }
 }
 
 async function loadApplications(isSilent = false) {
@@ -4011,7 +4011,7 @@ async function loadPostedJobs(isSilent = false) {
         : `<span class="badge badge-request">Service Request</span>`;
       const pending = (job.applications_on_helpRequest || []).filter(a => a.status === 'PENDING');
       const countLabel = isOffer ? `${pending.length} order request(s)` : `${pending.length} candidate(s)`;
-      
+
       const jobEl = document.createElement('div');
       jobEl.className = 'job-card t-skel-reveal';
       jobEl.innerHTML = `
@@ -4037,7 +4037,7 @@ async function loadPostedJobs(isSilent = false) {
         <div class="candidates-list"></div>
       `;
       const candList = jobEl.querySelector('.candidates-list');
-      
+
       if (pending.length === 0) {
         candList.innerHTML = `<div class="text-sm text-muted italic" style="padding: 1rem 0;">No ${isOffer ? 'incoming orders' : 'applicants'} yet.</div>`;
       } else {
@@ -4078,7 +4078,7 @@ async function loadPostedJobs(isSilent = false) {
             knownStandingOfferIds.delete(job.id);
             try {
               localStorage.setItem('standing_offer_ids', JSON.stringify(Array.from(knownStandingOfferIds)));
-            } catch (err) {}
+            } catch (err) { }
           }
           showToast(`Deleted ${itemName}.`);
           if (jobEl) {
@@ -4207,9 +4207,9 @@ async function loadMyApplications(isSilent = false) {
       const card = document.createElement('div');
       card.className = 'application-card t-skel-reveal';
       const statusClass = app.status === 'APPROVED' ? 'badge-approved' : app.status === 'COMPLETED' ? 'badge-normal' : 'badge-pending';
-      const statusText = app.status === 'APPROVED' 
+      const statusText = app.status === 'APPROVED'
         ? (isOffer ? 'Order Accepted' : 'Application Accepted')
-        : app.status === 'COMPLETED' 
+        : app.status === 'COMPLETED'
           ? (isOffer ? 'Order Completed' : 'Job Completed')
           : (isOffer ? 'Order Pending' : 'Application Pending');
 
@@ -4432,7 +4432,7 @@ async function handleReject(application, rejectBtn = null, approveBtn = null) {
   }
 }
 
-window.approveApplication = async function(appId, jobId) {
+window.approveApplication = async function (appId, jobId) {
   if (!appId || approvingAppIds.has(appId)) return;
   approvingAppIds.add(appId);
   try {
@@ -4461,7 +4461,7 @@ window.approveApplication = async function(appId, jobId) {
   }
 };
 
-window.rejectApplication = async function(appId) {
+window.rejectApplication = async function (appId) {
   if (!appId || rejectingAppIds.has(appId)) return;
   rejectingAppIds.add(appId);
   try {
@@ -4593,7 +4593,7 @@ async function getNegotiatedPricesMap() {
     cachedNegotiatedPrices = map;
     try {
       localStorage.setItem('negotiated_prices_map', JSON.stringify(map));
-    } catch (err) {}
+    } catch (err) { }
   } catch (e) {
     console.warn('Could not sync negotiated prices from Firestore:', e);
   }
@@ -4776,7 +4776,7 @@ async function selectConversation(convId) {
   }
   syncUnreadBadges();
   renderConversationList();
-  
+
   // Add class for mobile messenger-style view
   $('#messages-container')?.classList.add('chat-open');
 
@@ -4819,7 +4819,7 @@ async function selectConversation(convId) {
   const isTerminated = conv.application?.status === 'TERMINATED';
   const isOffer = isJobOffer(conv.application?.helpRequest);
   const isMentoring = conv.application?.helpRequest?.category === 'MENTORING' ||
-                      conv.application?.helpRequest?.title?.toLowerCase().startsWith('mentoring:');
+    conv.application?.helpRequest?.title?.toLowerCase().startsWith('mentoring:');
 
   // Role Access Rule:
   // On Service Offer: The poster is the service provider. The applicant/buyer is the Customer. ONLY Customer can Complete.
@@ -4835,8 +4835,8 @@ async function selectConversation(convId) {
   const typeTag = isMentoring
     ? '<span class="badge" style="background: rgba(245, 158, 11, 0.12); color: #d97706; border: 1px solid rgba(245, 158, 11, 0.25); font-size: 10px; padding: 2px 7px;">Mentoring</span>'
     : isOffer
-    ? '<span class="badge badge-standing" style="font-size: 10px; padding: 2px 7px;">Service Offer</span>'
-    : '<span class="badge badge-request" style="font-size: 10px; padding: 2px 7px;">Service Request</span>';
+      ? '<span class="badge badge-standing" style="font-size: 10px; padding: 2px 7px;">Service Offer</span>'
+      : '<span class="badge badge-request" style="font-size: 10px; padding: 2px 7px;">Service Request</span>';
 
   const chatHeader = $('#chat-header-content');
   chatHeader.innerHTML = `
@@ -4851,13 +4851,13 @@ async function selectConversation(convId) {
       </div>
     </div>
     <div class="chat-header-actions">
-      ${isCompleted 
-        ? '<span class="badge badge-approved" style="padding: 4px 10px; font-size: 12px;">Completed</span>'
-        : isTerminated
-          ? '<span class="badge badge-rejected" style="padding: 4px 10px; font-size: 12px;">Terminated</span>'
-          : `<button type="button" class="btn btn-terminate" id="btn-terminate">Terminate</button>
+      ${isCompleted
+      ? '<span class="badge badge-approved" style="padding: 4px 10px; font-size: 12px;">Completed</span>'
+      : isTerminated
+        ? '<span class="badge badge-rejected" style="padding: 4px 10px; font-size: 12px;">Terminated</span>'
+        : `<button type="button" class="btn btn-terminate" id="btn-terminate">Terminate</button>
              ${canComplete ? '<button type="button" class="btn btn-complete" id="btn-complete">Complete</button>' : ''}`
-      }
+    }
     </div>
   `;
 
@@ -4937,7 +4937,7 @@ async function selectConversation(convId) {
           price = Number(matchedReq.budget) || 0;
           if (conv.application) conv.application.priceOffer = price;
         }
-      } catch (err) {}
+      } catch (err) { }
     }
 
     // 4. Fallback to welcome message in Realtime Database chat
@@ -4956,7 +4956,7 @@ async function selectConversation(convId) {
             }
           }
         }
-      } catch (err) {}
+      } catch (err) { }
     }
 
     const modalTitleEl = $('#review-modal-title');
@@ -4971,7 +4971,7 @@ async function selectConversation(convId) {
     if (jobEl) jobEl.textContent = jobTitle;
     const recEl = $('#review-payment-recipient');
     if (recEl) {
-      recEl.textContent = isClient 
+      recEl.textContent = isClient
         ? `Pay to Provider: ${otherUser.fullName}`
         : `Client: ${otherUser.fullName} (You: Provider)`;
     }
@@ -5027,7 +5027,7 @@ async function selectConversation(convId) {
       chatUnsubscribe = null;
     }
     if (messageSubscription) {
-      try { off(messageSubscription); } catch (e) {}
+      try { off(messageSubscription); } catch (e) { }
       messageSubscription = null;
     }
     activeSubscriptionConvId = convId;
@@ -5064,7 +5064,7 @@ async function selectConversation(convId) {
     try {
       const msgArea = $('#chat-messages');
       if (msgArea) msgArea.innerHTML = getSkeletonChatMessagesHtml();
-      
+
       const messagesRef = ref(db, `conversations/${convId}/messages`);
       messageSubscription = messagesRef;
       chatUnsubscribe = onChildAdded(messagesRef, (snapshot) => {
@@ -5307,11 +5307,11 @@ async function loadTransactions() {
     const [appRes, myPostRes, posterAppRes, negotiatedMap] = devPreview
       ? [{ data: { applications: [] } }, { data: { helpRequests: [] } }, { data: { applications: [] } }, {}]
       : await Promise.all([
-          listApplicationsByApplicant(dc, { userId: userData.id }, SERVER_ONLY).catch(() => ({ data: { applications: [] } })),
-          listMyHelpRequestsWithApplications(dc, { userId: userData.id }, SERVER_ONLY).catch(() => ({ data: { helpRequests: [] } })),
-          listApplicationsForMyRequests(dc, { userId: userData.id }, SERVER_ONLY).catch(() => ({ data: { applications: [] } })),
-          getNegotiatedPricesMap()
-        ]);
+        listApplicationsByApplicant(dc, { userId: userData.id }, SERVER_ONLY).catch(() => ({ data: { applications: [] } })),
+        listMyHelpRequestsWithApplications(dc, { userId: userData.id }, SERVER_ONLY).catch(() => ({ data: { helpRequests: [] } })),
+        listApplicationsForMyRequests(dc, { userId: userData.id }, SERVER_ONLY).catch(() => ({ data: { applications: [] } })),
+        getNegotiatedPricesMap()
+      ]);
     const apps = appRes.data.applications || [];
     const myPosts = myPostRes.data.helpRequests || [];
     const posterApplicationDates = new Map((posterAppRes.data.applications || []).map(a => [a.id, a.createdAt]));
@@ -5771,7 +5771,7 @@ function setupReviewDialog() {
           cachedNegotiatedPrices[appId] = finalPrice;
           try {
             localStorage.setItem('negotiated_prices_map', JSON.stringify(cachedNegotiatedPrices));
-          } catch (err) {}
+          } catch (err) { }
         }
       } catch (mirrorErr) {
         console.warn('Error mirroring completed application to Firestore:', mirrorErr);
@@ -5801,7 +5801,7 @@ function setupReviewDialog() {
       await addDoc(collection(firestore, "reviews"), revData);
       logUserAction('rate', `Rated ${reviewTarget.otherUser?.fullName || 'user'} ${selectedRating} star${selectedRating > 1 ? 's' : ''}`, currentUser?.uid || userData?.id);
 
-      const actionSuccessMsg = isOffer 
+      const actionSuccessMsg = isOffer
         ? (reviewTarget.isClient ? 'Payment confirmed and order completed!' : 'Order marked as completed!')
         : 'Payment confirmed and job completed!';
       showToast(actionSuccessMsg);
@@ -5813,8 +5813,8 @@ function setupReviewDialog() {
         const priceLabel = `Agreed Payment Settled: ${peso(finalPrice)}`;
         const completionText = isOffer
           ? (reviewTarget.isClient
-              ? `Deliverables Received & Payment Released!\n${priceLabel}\nRating given: ${ratingStars} (${selectedRating}/5)`
-              : `Order Fulfilled & Completed!\n${priceLabel}\nRating given: ${ratingStars} (${selectedRating}/5)`)
+            ? `Deliverables Received & Payment Released!\n${priceLabel}\nRating given: ${ratingStars} (${selectedRating}/5)`
+            : `Order Fulfilled & Completed!\n${priceLabel}\nRating given: ${ratingStars} (${selectedRating}/5)`)
           : `Job Completed & Payment Released!\n${priceLabel}\nRating given: ${ratingStars} (${selectedRating}/5)`;
 
         await push(ref(db, `conversations/${reviewTarget.conv.id}/messages`), {
@@ -5852,30 +5852,30 @@ function renderReviews(reviews, prefix) {
     $(`#${prefix}-avg`).textContent = '0.0';
     $(`#${prefix}-count`).textContent = 'Based on 0 reviews';
     $(`#${prefix}-list`).innerHTML = '<div class="empty-state text-center text-muted">No reviews yet.</div>';
-    [1,2,3,4,5].forEach(r => {
+    [1, 2, 3, 4, 5].forEach(r => {
       if ($(`#pb-${r}`)) $(`#pb-${r}`).style.width = '0%';
       if ($(`#pc-${r}`)) $(`#pc-${r}`).textContent = '0';
     });
     return;
   }
-  
+
   let sum = 0;
-  const counts = {1:0, 2:0, 3:0, 4:0, 5:0};
+  const counts = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
   reviews.forEach(r => {
     sum += Number(r.rating);
     counts[Number(r.rating)] = (counts[Number(r.rating)] || 0) + 1;
   });
-  
+
   const avg = sum / reviews.length;
   $(`#${prefix}-avg`).textContent = avg.toFixed(1);
   $(`#${prefix}-count`).textContent = `Based on ${reviews.length} review${reviews.length > 1 ? 's' : ''}`;
-  
-  [1,2,3,4,5].forEach(r => {
+
+  [1, 2, 3, 4, 5].forEach(r => {
     const pct = (counts[r] / reviews.length) * 100;
     if ($(`#pb-${r}`)) $(`#pb-${r}`).style.width = pct + '%';
     if ($(`#pc-${r}`)) $(`#pc-${r}`).textContent = counts[r];
   });
-  
+
   $(`#${prefix}-list`).innerHTML = reviews.map(r => `
     <div class="feedback-item">
       <div class="flex justify-between items-start">
@@ -5919,12 +5919,12 @@ async function loadProfile() {
   const cachedBio = userData.bio || localStorage.getItem(`cached_bio_${userData.id}`);
   let cachedSkills = userData.skills;
   if (!cachedSkills) {
-    try { cachedSkills = JSON.parse(localStorage.getItem(`cached_skills_${userData.id}`) || '[]'); } catch(e) { cachedSkills = []; }
+    try { cachedSkills = JSON.parse(localStorage.getItem(`cached_skills_${userData.id}`) || '[]'); } catch (e) { cachedSkills = []; }
   }
 
   let cachedPortfolio = userData.portfolio;
   if (!cachedPortfolio) {
-    try { cachedPortfolio = JSON.parse(localStorage.getItem(`cached_portfolio_${userData.id}`) || '[]'); } catch(e) { cachedPortfolio = []; }
+    try { cachedPortfolio = JSON.parse(localStorage.getItem(`cached_portfolio_${userData.id}`) || '[]'); } catch (e) { cachedPortfolio = []; }
   }
 
   if (bioDisplay) bioDisplay.textContent = cachedBio || 'No bio provided yet.';
@@ -5954,7 +5954,7 @@ async function loadProfile() {
               reviewerName: 'Maria Santos',
               rating: 5,
               comment: 'Super fast turn-around on the 3D enclosure casing! Perfect tolerances and clean finish.',
-              createdAt: new Date(Date.now() - 3600000*24*3).toISOString()
+              createdAt: new Date(Date.now() - 3600000 * 24 * 3).toISOString()
             })
           },
           {
@@ -5963,7 +5963,7 @@ async function loadProfile() {
               reviewerName: 'Engr. Noel Villanueva',
               rating: 5,
               comment: 'Great grasp of schematic design and C++ programming. Highly recommended mentor!',
-              createdAt: new Date(Date.now() - 3600000*24*7).toISOString()
+              createdAt: new Date(Date.now() - 3600000 * 24 * 7).toISOString()
             })
           }
         ]
@@ -6031,7 +6031,7 @@ async function loadProfile() {
       userData.portfolio = data.portfolio || [];
       if (data.preferredRole) userData.preferredRole = data.preferredRole;
       userData.isMentor = data.isMentor === true;
-      try { localStorage.setItem(`cached_is_mentor_${userData.id}`, String(userData.isMentor)); } catch(e) {}
+      try { localStorage.setItem(`cached_is_mentor_${userData.id}`, String(userData.isMentor)); } catch (e) { }
       if (typeof updateMentoringCalloutBanner === 'function') {
         updateMentoringCalloutBanner();
       }
@@ -6048,13 +6048,13 @@ async function loadProfile() {
     }
 
     if (userData.bio !== undefined) {
-      try { localStorage.setItem(`cached_bio_${userData.id}`, userData.bio); } catch(e) {}
+      try { localStorage.setItem(`cached_bio_${userData.id}`, userData.bio); } catch (e) { }
     }
     if (userData.skills !== undefined) {
-      try { localStorage.setItem(`cached_skills_${userData.id}`, JSON.stringify(userData.skills)); } catch(e) {}
+      try { localStorage.setItem(`cached_skills_${userData.id}`, JSON.stringify(userData.skills)); } catch (e) { }
     }
     if (userData.portfolio !== undefined) {
-      try { localStorage.setItem(`cached_portfolio_${userData.id}`, JSON.stringify(userData.portfolio)); } catch(e) {}
+      try { localStorage.setItem(`cached_portfolio_${userData.id}`, JSON.stringify(userData.portfolio)); } catch (e) { }
     }
 
     if (bioDisplay) bioDisplay.textContent = userData.bio || 'No bio provided yet.';
@@ -6090,7 +6090,7 @@ async function loadProfile() {
               }
             }
           }
-        } catch(e) {}
+        } catch (e) { }
       }));
     }
     renderReviewsProfile(reviews);
@@ -6164,7 +6164,7 @@ function renderPortfolio(items) {
       try {
         await setDoc(doc(firestore, "user_profiles", userData.id), { portfolio: current }, { merge: true });
         userData.portfolio = current;
-        try { localStorage.setItem(`cached_portfolio_${userData.id}`, JSON.stringify(current)); } catch(e) {}
+        try { localStorage.setItem(`cached_portfolio_${userData.id}`, JSON.stringify(current)); } catch (e) { }
         renderPortfolio(current);
         showToast('Portfolio project removed.');
       } catch (err) {
@@ -6270,7 +6270,7 @@ function setupPortfolio() {
       current.unshift(newProject);
       await setDoc(doc(firestore, "user_profiles", userData.id), { portfolio: current }, { merge: true });
       userData.portfolio = current;
-      try { localStorage.setItem(`cached_portfolio_${userData.id}`, JSON.stringify(current)); } catch(e) {}
+      try { localStorage.setItem(`cached_portfolio_${userData.id}`, JSON.stringify(current)); } catch (e) { }
       renderPortfolio(current);
       $('#dialog-add-portfolio')?.close();
       e.target.reset();
@@ -6291,27 +6291,27 @@ function renderReviewsProfile(reviews) {
     if (document.getElementById('ratings-avg-stars')) document.getElementById('ratings-avg-stars').textContent = '★★★★★';
     if (document.getElementById('ratings-total-count')) document.getElementById('ratings-total-count').textContent = '0';
     if (document.getElementById('profile-feedback-list')) document.getElementById('profile-feedback-list').innerHTML = '<div class="empty-state text-center text-muted" style="padding: 2rem 0;">No reviews yet.</div>';
-    [1,2,3,4,5].forEach(r => {
+    [1, 2, 3, 4, 5].forEach(r => {
       const pb = document.getElementById('pb-' + r);
       if (pb) pb.style.width = '0%';
     });
     return;
   }
-  
+
   let sum = 0;
-  const counts = {1:0, 2:0, 3:0, 4:0, 5:0};
+  const counts = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
   reviews.forEach(r => { sum += Number(r.rating); counts[Number(r.rating)] = (counts[Number(r.rating)] || 0) + 1; });
   const avg = sum / reviews.length;
-  
+
   if (document.getElementById('ratings-avg-score')) document.getElementById('ratings-avg-score').textContent = avg.toFixed(1);
   if (document.getElementById('ratings-avg-stars')) document.getElementById('ratings-avg-stars').textContent = '★'.repeat(Math.round(avg)) + '☆'.repeat(5 - Math.round(avg));
   if (document.getElementById('ratings-total-count')) document.getElementById('ratings-total-count').textContent = reviews.length.toLocaleString();
-  
-  [1,2,3,4,5].forEach(r => {
+
+  [1, 2, 3, 4, 5].forEach(r => {
     const pb = document.getElementById('pb-' + r);
     if (pb) pb.style.width = ((counts[r] / reviews.length) * 100) + '%';
   });
-  
+
   const html = reviews.map(r => {
     const stars = '★'.repeat(Number(r.rating)) + '☆'.repeat(5 - Number(r.rating));
     const name = r.reviewerName || (r.reviewer ? r.reviewer.fullName : 'Student');
@@ -6330,11 +6330,11 @@ function renderReviewsProfile(reviews) {
         <p class="text-sm" style="color: var(--text-heading); line-height: 1.5; margin: 0; word-break: break-word;">${escapeHtml(r.comment || '')}</p>
     </div>`;
   }).join('');
-  
+
   if (document.getElementById('profile-feedback-list')) document.getElementById('profile-feedback-list').innerHTML = html;
 }
-  
-window.openViewProfileDialog = async function(userId) {
+
+window.openViewProfileDialog = async function (userId) {
   const vpDialog = document.getElementById('dialog-view-profile');
   const vpBody = document.getElementById('vp-body');
   const vpSkeleton = document.getElementById('vp-skeleton');
@@ -6346,11 +6346,11 @@ window.openViewProfileDialog = async function(userId) {
   if (document.getElementById('vp-bio')) document.getElementById('vp-bio').textContent = '';
   if (document.getElementById('vp-skills')) document.getElementById('vp-skills').innerHTML = '';
   if (document.getElementById('vp-portfolio-grid')) document.getElementById('vp-portfolio-grid').innerHTML = '<span class="text-sm text-muted">Loading projects...</span>';
-  ['vp-app-pending','vp-app-completed','vp-app-terminated','vp-emp-pending','vp-emp-completed','vp-emp-terminated'].forEach(id => { const el = document.getElementById(id); if (el) el.textContent = '0'; });
-  
+  ['vp-app-pending', 'vp-app-completed', 'vp-app-terminated', 'vp-emp-pending', 'vp-emp-completed', 'vp-emp-terminated'].forEach(id => { const el = document.getElementById(id); if (el) el.textContent = '0'; });
+
   if (document.getElementById('vp-ratings-list')) document.getElementById('vp-ratings-list').innerHTML = '';
   if (document.getElementById('vp-ratings-avg')) document.getElementById('vp-ratings-avg').textContent = '0.0';
-    if (document.getElementById('vp-ratings-avg-stars')) document.getElementById('vp-ratings-avg-stars').textContent = '★★★★★';
+  if (document.getElementById('vp-ratings-avg-stars')) document.getElementById('vp-ratings-avg-stars').textContent = '★★★★★';
   if (document.getElementById('vp-ratings-count')) document.getElementById('vp-ratings-count').textContent = '';
   vpDialog.showModal();
   if (vpBody) vpBody.classList.add('hidden');
@@ -6363,18 +6363,27 @@ window.openViewProfileDialog = async function(userId) {
   }, 1000);
 
   try {
-    const res = await getUserProfile(dc, { id: userId }, SERVER_ONLY);
-    const user = res.data.user;
+    let user = null;
+    try {
+      const res = await getUserProfile(dc, { id: userId }, SERVER_ONLY);
+      user = res?.data?.user;
+    } catch (err) {
+      console.warn("getUserProfile query error, checking fallbacks:", err);
+    }
+    if (!user) {
+      user = (typeof adminUsersData !== 'undefined' ? adminUsersData : []).find(u => u.id === userId) ||
+        (typeof allUsersCache !== 'undefined' ? allUsersCache : []).find(u => u.id === userId);
+    }
     if (!user) return;
-    
+
     try {
       const allRes = await listAllUsers(dc);
       const fullUser = allRes.data.users.find(u => u.id === userId);
       if (fullUser) {
         user.facultyReference = fullUser.facultyReference;
       }
-    } catch(e) {}
-    
+    } catch (e) { }
+
     const initialPhoto = getUserPhoto(userId);
     const vpAvatar = document.getElementById('vp-avatar');
     if (vpAvatar) {
@@ -6406,7 +6415,7 @@ window.openViewProfileDialog = async function(userId) {
         const data = profileDoc.data();
         const vpBio = document.getElementById('vp-bio');
         if (vpBio) vpBio.textContent = data.bio || 'No bio provided.';
-        
+
         const photo = data.photoURL || data.profilePicture;
         if (photo) {
           setUserPhoto(userId, photo);
@@ -6414,7 +6423,7 @@ window.openViewProfileDialog = async function(userId) {
             vpAvatar.innerHTML = `<img src="${photo}" alt="${escapeHtml(user.fullName)}" class="profile-avatar-img">`;
           }
         }
-        
+
         const vpSkills = document.getElementById('vp-skills');
         if (vpSkills) {
           if (data.skills && data.skills.length > 0) {
@@ -6448,49 +6457,49 @@ window.openViewProfileDialog = async function(userId) {
         document.getElementById('vp-skills').innerHTML = '<span class="text-sm text-muted">No skills listed.</span>';
         if (document.getElementById('vp-portfolio-grid')) document.getElementById('vp-portfolio-grid').innerHTML = '<span class="text-sm text-muted">No projects listed.</span>';
       }
-    } catch(e) {
+    } catch (e) {
       console.error(e);
     }
-    
+
     // Fetch reviews from Firestore
     const reviewsSnap = await getDocs(query(collection(firestore, "reviews"), where("targetUserId", "==", userId)));
     const reviews = reviewsSnap.docs.map(d => ({ id: d.id, ...d.data() }));
-    
+
     for (let r of reviews) {
       if (!r.reviewerName && r.reviewerId) {
         try {
           const res = await getUserProfile(dc, { id: r.reviewerId });
           if (res.data.user) r.reviewerName = res.data.user.fullName;
-        } catch(e) {}
+        } catch (e) { }
       }
     }
-    
+
     if (reviews.length === 0) {
       document.getElementById('vp-ratings-avg').textContent = '0.0';
       document.getElementById('vp-ratings-avg-stars').textContent = '★★★★★';
       document.getElementById('vp-ratings-count').textContent = '0';
       document.getElementById('vp-ratings-list').innerHTML = '<div class="empty-state text-center text-muted" style="padding: 2rem 0;">No reviews yet.</div>';
-      [1,2,3,4,5].forEach(r => { const pb = document.getElementById('vp-pb-' + r); if (pb) pb.style.width = '0%'; });
+      [1, 2, 3, 4, 5].forEach(r => { const pb = document.getElementById('vp-pb-' + r); if (pb) pb.style.width = '0%'; });
     } else {
       let sum = 0;
-      const counts = {1:0, 2:0, 3:0, 4:0, 5:0};
+      const counts = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
       reviews.forEach(r => { sum += Number(r.rating); counts[Number(r.rating)] = (counts[Number(r.rating)] || 0) + 1; });
       const avg = sum / reviews.length;
-      
+
       document.getElementById('vp-ratings-avg').textContent = avg.toFixed(1);
       document.getElementById('vp-ratings-avg-stars').textContent = '★'.repeat(Math.round(avg)) + '☆'.repeat(5 - Math.round(avg));
       document.getElementById('vp-ratings-count').textContent = reviews.length.toLocaleString();
-      
-      [1,2,3,4,5].forEach(r => {
+
+      [1, 2, 3, 4, 5].forEach(r => {
         const pb = document.getElementById('vp-pb-' + r);
         if (pb) pb.style.width = ((counts[r] / reviews.length) * 100) + '%';
       });
-      
+
       document.getElementById('vp-ratings-list').innerHTML = reviews.map(r => {
         const stars = '★'.repeat(Number(r.rating)) + '☆'.repeat(5 - Number(r.rating));
         const name = r.reviewerName || (r.reviewer ? r.reviewer.fullName : 'Student');
         const initial = name.charAt(0).toUpperCase();
-            return `
+        return `
         <div class="feedback-item mb-4 pb-4" style="border-bottom: 1px solid var(--border-card);">
             <div style="display: flex; align-items: center; margin-bottom: 8px;">
                 <div style="width: 36px; height: 36px; border-radius: 50%; background-color: var(--color-purple); color: white; display: flex; align-items: center; justify-content: center; font-weight: bold; margin-right: 12px; flex-shrink: 0; font-size: 0.95rem;">${initial}</div>
@@ -6503,127 +6512,127 @@ window.openViewProfileDialog = async function(userId) {
         </div>`;
       }).join('');
     }
-    
+
   } catch (err) {
     console.error('Profile Dialog Error:', err);
     showToast('Failed to load profile', 'error');
   }
 };
 
-  // -- Mentoring  ------------------------------------------------------------
-  let mentoringFilters = {
-    q: '',
-    skill: '',
-    rating: 'all',
-    sort: 'default'
-  };
+// -- Mentoring  ------------------------------------------------------------
+let mentoringFilters = {
+  q: '',
+  skill: '',
+  rating: 'all',
+  sort: 'default'
+};
 
-  function updateMentoringFilterBadge() {
-    let count = 0;
-    if (mentoringFilters.skill && mentoringFilters.skill.trim()) count++;
-    if (mentoringFilters.rating && mentoringFilters.rating !== 'all') count++;
-    if (mentoringFilters.sort && mentoringFilters.sort !== 'default') count++;
+function updateMentoringFilterBadge() {
+  let count = 0;
+  if (mentoringFilters.skill && mentoringFilters.skill.trim()) count++;
+  if (mentoringFilters.rating && mentoringFilters.rating !== 'all') count++;
+  if (mentoringFilters.sort && mentoringFilters.sort !== 'default') count++;
 
-    const badge = document.getElementById('mentoring-filter-active-count');
-    const toggleBtn = document.getElementById('btn-toggle-mentoring-filters');
-    if (badge) {
-      if (count > 0) {
-        badge.textContent = `(${count})`;
-        badge.classList.remove('hidden');
-        toggleBtn?.classList.add('has-active');
-      } else {
-        badge.classList.add('hidden');
-        toggleBtn?.classList.remove('has-active');
-      }
-    }
-  }
-
-  function applyMentoringFiltersAndRender() {
-    let filtered = [...allUsersData];
-    const q = (mentoringFilters.q || '').toLowerCase().trim();
-    const skill = (mentoringFilters.skill || '').toLowerCase().trim();
-    const ratingFilter = mentoringFilters.rating;
-    const sort = mentoringFilters.sort;
-
-    if (q) {
-      filtered = filtered.filter(u => 
-        (u.fullName || '').toLowerCase().includes(q) || 
-        (u.preferredRole || '').toLowerCase().includes(q) ||
-        (u.bio || '').toLowerCase().includes(q) ||
-        (u.skills || []).some(s => s.toLowerCase().includes(q))
-      );
-    }
-
-    if (skill) {
-      filtered = filtered.filter(u => 
-        (u.skills || []).some(s => s.toLowerCase().includes(skill)) ||
-        (u.preferredRole || '').toLowerCase().includes(skill)
-      );
-    }
-
-    if (ratingFilter && ratingFilter !== 'all') {
-      if (ratingFilter === '5') {
-        filtered = filtered.filter(u => u.rating === '5.0' || parseFloat(u.rating) >= 4.9);
-      } else if (ratingFilter === '4') {
-        filtered = filtered.filter(u => !isNaN(parseFloat(u.rating)) && parseFloat(u.rating) >= 4.0);
-      } else if (ratingFilter === 'new') {
-        filtered = filtered.filter(u => u.rating === 'New' || isNaN(parseFloat(u.rating)));
-      }
-    }
-
-    if (sort === 'rating-high') {
-      filtered.sort((a, b) => {
-        const rA = isNaN(parseFloat(a.rating)) ? -1 : parseFloat(a.rating);
-        const rB = isNaN(parseFloat(b.rating)) ? -1 : parseFloat(b.rating);
-        return rB - rA;
-      });
-    } else if (sort === 'name-asc') {
-      filtered.sort((a, b) => (a.fullName || '').localeCompare(b.fullName || ''));
-    } else if (sort === 'name-desc') {
-      filtered.sort((a, b) => (b.fullName || '').localeCompare(a.fullName || ''));
-    }
-
-    const countEl = document.getElementById('mentoring-count');
-    if (countEl) {
-      countEl.textContent = `Showing ${filtered.length} mentor${filtered.length === 1 ? '' : 's'}`;
-    }
-
-    renderMentoringGrid(filtered);
-  }
-
-  function updateMentoringCalloutBanner() {
-    const calloutTitle = document.getElementById('mentoring-callout-title');
-    const calloutSub = document.getElementById('mentoring-callout-subtitle');
-    const calloutCtaLabel = document.getElementById('mentoring-cta-label');
-    if (!calloutTitle) return;
-
-    if (userData?.isMentor === true) {
-      calloutTitle.textContent = "You are active as a Peer Mentor!";
-      if (calloutSub) calloutSub.innerHTML = 'You are currently visible in the Mentoring Hub. Update your specialties or availability in your <button type="button" class="mentoring-callout-link" id="btn-callout-goto-profile">Profile</button>.';
-      if (calloutCtaLabel) calloutCtaLabel.textContent = "Manage in Profile";
+  const badge = document.getElementById('mentoring-filter-active-count');
+  const toggleBtn = document.getElementById('btn-toggle-mentoring-filters');
+  if (badge) {
+    if (count > 0) {
+      badge.textContent = `(${count})`;
+      badge.classList.remove('hidden');
+      toggleBtn?.classList.add('has-active');
     } else {
-      calloutTitle.textContent = "Want to be a mentor?";
-      if (calloutSub) calloutSub.innerHTML = 'Apply to become one in your <button type="button" class="mentoring-callout-link" id="btn-callout-goto-profile">Profile</button> by enabling peer mentoring to guide campus peers.';
-      if (calloutCtaLabel) calloutCtaLabel.textContent = "Apply in Profile";
+      badge.classList.add('hidden');
+      toggleBtn?.classList.remove('has-active');
     }
-    const dynamicLink = document.getElementById('btn-callout-goto-profile');
-    if (dynamicLink) {
-      dynamicLink.onclick = (e) => {
-        e.preventDefault();
-        triggerProfilePeerMentorEdit();
-      };
+  }
+}
+
+function applyMentoringFiltersAndRender() {
+  let filtered = [...allUsersData];
+  const q = (mentoringFilters.q || '').toLowerCase().trim();
+  const skill = (mentoringFilters.skill || '').toLowerCase().trim();
+  const ratingFilter = mentoringFilters.rating;
+  const sort = mentoringFilters.sort;
+
+  if (q) {
+    filtered = filtered.filter(u =>
+      (u.fullName || '').toLowerCase().includes(q) ||
+      (u.preferredRole || '').toLowerCase().includes(q) ||
+      (u.bio || '').toLowerCase().includes(q) ||
+      (u.skills || []).some(s => s.toLowerCase().includes(q))
+    );
+  }
+
+  if (skill) {
+    filtered = filtered.filter(u =>
+      (u.skills || []).some(s => s.toLowerCase().includes(skill)) ||
+      (u.preferredRole || '').toLowerCase().includes(skill)
+    );
+  }
+
+  if (ratingFilter && ratingFilter !== 'all') {
+    if (ratingFilter === '5') {
+      filtered = filtered.filter(u => u.rating === '5.0' || parseFloat(u.rating) >= 4.9);
+    } else if (ratingFilter === '4') {
+      filtered = filtered.filter(u => !isNaN(parseFloat(u.rating)) && parseFloat(u.rating) >= 4.0);
+    } else if (ratingFilter === 'new') {
+      filtered = filtered.filter(u => u.rating === 'New' || isNaN(parseFloat(u.rating)));
     }
   }
 
-  async function loadMentoring() {
-    updateMentoringCalloutBanner();
-    const grid = document.getElementById('mentoring-users-grid');
-    if (devPreview && allUsersData.length > 0) {
-      applyMentoringFiltersAndRender();
-      return;
-    }
-    if (grid.children.length === 0 || grid.querySelector('.skeleton-loader') || grid.querySelector('.loader')) {
-      const skeletonCard = `
+  if (sort === 'rating-high') {
+    filtered.sort((a, b) => {
+      const rA = isNaN(parseFloat(a.rating)) ? -1 : parseFloat(a.rating);
+      const rB = isNaN(parseFloat(b.rating)) ? -1 : parseFloat(b.rating);
+      return rB - rA;
+    });
+  } else if (sort === 'name-asc') {
+    filtered.sort((a, b) => (a.fullName || '').localeCompare(b.fullName || ''));
+  } else if (sort === 'name-desc') {
+    filtered.sort((a, b) => (b.fullName || '').localeCompare(a.fullName || ''));
+  }
+
+  const countEl = document.getElementById('mentoring-count');
+  if (countEl) {
+    countEl.textContent = `Showing ${filtered.length} mentor${filtered.length === 1 ? '' : 's'}`;
+  }
+
+  renderMentoringGrid(filtered);
+}
+
+function updateMentoringCalloutBanner() {
+  const calloutTitle = document.getElementById('mentoring-callout-title');
+  const calloutSub = document.getElementById('mentoring-callout-subtitle');
+  const calloutCtaLabel = document.getElementById('mentoring-cta-label');
+  if (!calloutTitle) return;
+
+  if (userData?.isMentor === true) {
+    calloutTitle.textContent = "You are active as a Peer Mentor!";
+    if (calloutSub) calloutSub.innerHTML = 'You are currently visible in the Mentoring Hub. Update your specialties or availability in your <button type="button" class="mentoring-callout-link" id="btn-callout-goto-profile">Profile</button>.';
+    if (calloutCtaLabel) calloutCtaLabel.textContent = "Manage in Profile";
+  } else {
+    calloutTitle.textContent = "Want to be a mentor?";
+    if (calloutSub) calloutSub.innerHTML = 'Apply to become one in your <button type="button" class="mentoring-callout-link" id="btn-callout-goto-profile">Profile</button> by enabling peer mentoring to guide campus peers.';
+    if (calloutCtaLabel) calloutCtaLabel.textContent = "Apply in Profile";
+  }
+  const dynamicLink = document.getElementById('btn-callout-goto-profile');
+  if (dynamicLink) {
+    dynamicLink.onclick = (e) => {
+      e.preventDefault();
+      triggerProfilePeerMentorEdit();
+    };
+  }
+}
+
+async function loadMentoring() {
+  updateMentoringCalloutBanner();
+  const grid = document.getElementById('mentoring-users-grid');
+  if (devPreview && allUsersData.length > 0) {
+    applyMentoringFiltersAndRender();
+    return;
+  }
+  if (grid.children.length === 0 || grid.querySelector('.skeleton-loader') || grid.querySelector('.loader')) {
+    const skeletonCard = `
         <div class="job-card" style="box-shadow: none; border: 1px solid var(--border-light);">
           <div class="flex items-center gap-3 mb-4">
             <div class="skeleton-loader skeleton-avatar" style="width: 44px; height: 44px;"></div>
@@ -6646,102 +6655,102 @@ window.openViewProfileDialog = async function(userId) {
           </div>
         </div>
       `;
-      grid.innerHTML = skeletonCard.repeat(6);
-    }
-    
-    try {
-      const [res, allAppsRes, profilesSnap, revSnap, appsSnap] = await Promise.all([
-        listAllUsers(dc),
-        listAllApplicationsAdmin(dc, SERVER_ONLY).catch(() => ({ data: { applications: [] } })),
-        getDocs(collection(firestore, "user_profiles")).catch(() => ({ forEach: () => {} })),
-        getDocs(collection(firestore, "reviews")).catch(() => ({ forEach: () => {} })),
-        getDocs(collection(firestore, "applications")).catch(() => ({ forEach: () => {} }))
-      ]);
-      let users = res.data.users || [];
-      users = users.filter(u => u.id !== userData?.id);
-      
-      const profilesMap = {};
-      profilesSnap.forEach(d => { profilesMap[d.id] = d.data(); });
-
-      // Immediate reactive update of current user's mentor status from Firestore
-      if (userData?.id && profilesMap[userData.id]) {
-        if (profilesMap[userData.id].isMentor !== undefined) {
-          userData.isMentor = profilesMap[userData.id].isMentor === true;
-          try {
-            localStorage.setItem(`cached_is_mentor_${userData.id}`, String(userData.isMentor));
-          } catch (e) {}
-        }
-      }
-      updateMentoringCalloutBanner();
-      
-      const revMap = {};
-      revSnap.forEach(d => {
-        const data = d.data();
-        if(!revMap[data.targetUserId]) revMap[data.targetUserId] = { sum: 0, count: 0 };
-        revMap[data.targetUserId].sum += Number(data.rating) || 5;
-        revMap[data.targetUserId].count++;
-      });
-
-      const mentorTxCounts = {};
-      const completedMentorAppIds = new Set();
-      (allAppsRes.data?.applications || []).forEach(a => {
-        if (a.status === 'COMPLETED') {
-          completedMentorAppIds.add(a.id);
-          if (a.applicant?.id) mentorTxCounts[a.applicant.id] = (mentorTxCounts[a.applicant.id] || 0) + 1;
-        }
-      });
-      appsSnap.forEach(d => {
-        const data = d.data();
-        const id = d.id || data.id;
-        if (data.status === 'COMPLETED' && !completedMentorAppIds.has(id)) {
-          completedMentorAppIds.add(id);
-          if (data.applicantId) mentorTxCounts[data.applicantId] = (mentorTxCounts[data.applicantId] || 0) + 1;
-          if (data.posterId) mentorTxCounts[data.posterId] = (mentorTxCounts[data.posterId] || 0) + 1;
-        }
-      });
-
-      // Filter: only users who explicitly configured isMentor === true appear in Mentoring!
-      users = users.filter(u => profilesMap[u.id]?.isMentor === true);
-
-      users.forEach(u => {
-        if (profilesMap[u.id]?.photoURL) {
-          setUserPhoto(u.id, profilesMap[u.id].photoURL);
-        }
-        u.bio = profilesMap[u.id]?.bio || '';
-        u.skills = profilesMap[u.id]?.skills || [];
-        u.rating = revMap[u.id] ? (revMap[u.id].sum / revMap[u.id].count).toFixed(1) : '5.0';
-        u.completedSessions = mentorTxCounts[u.id] || 0;
-      });
-
-      allUsersData = users;
-      applyMentoringFiltersAndRender();
-    } catch(e) {
-      console.error(e);
-      grid.innerHTML = '<div class="empty-state">Error loading users.</div>';
-    }
+    grid.innerHTML = skeletonCard.repeat(6);
   }
 
-  function renderMentoringGrid(users) {
-    const grid = document.getElementById('mentoring-users-grid');
-    grid.innerHTML = '';
-    if (users.length === 0) {
-      grid.innerHTML = '<div class="empty-state">No users available for mentoring.</div>';
-      return;
-    }
-    
-    users.forEach(u => {
-      const card = document.createElement('div');
-      card.className = 'job-card t-skel-reveal';
-      
-      const skills = u.skills || [];
-      let skillsHtml = '';
-      if (skills.length > 0) {
-        skillsHtml = '<div class="mt-2 mb-3 flex flex-wrap gap-1" style="gap: 4px;">' + skills.slice(0, 5).map(s => `<span class="badge badge-skill" style="border: 1px solid #cbd5e1; background: #f8fafc; color: var(--text-body); font-size: 0.72rem; padding: 2px 7px; font-weight: 500; border-radius: 6px;">${escapeHtml(s)}</span>`).join('') + (skills.length > 5 ? '<span class="text-xs text-muted" style="align-self: center; margin-left: 2px; font-weight: 600;">+' + (skills.length - 5) + '</span>' : '') + '</div>';
-      } else {
-        skillsHtml = '<div class="mt-2 mb-3 text-xs text-muted">No skills listed</div>';
-      }
+  try {
+    const [res, allAppsRes, profilesSnap, revSnap, appsSnap] = await Promise.all([
+      listAllUsers(dc),
+      listAllApplicationsAdmin(dc, SERVER_ONLY).catch(() => ({ data: { applications: [] } })),
+      getDocs(collection(firestore, "user_profiles")).catch(() => ({ forEach: () => { } })),
+      getDocs(collection(firestore, "reviews")).catch(() => ({ forEach: () => { } })),
+      getDocs(collection(firestore, "applications")).catch(() => ({ forEach: () => { } }))
+    ]);
+    let users = res.data.users || [];
+    users = users.filter(u => u.id !== userData?.id);
 
-      card.innerHTML = `
+    const profilesMap = {};
+    profilesSnap.forEach(d => { profilesMap[d.id] = d.data(); });
+
+    // Immediate reactive update of current user's mentor status from Firestore
+    if (userData?.id && profilesMap[userData.id]) {
+      if (profilesMap[userData.id].isMentor !== undefined) {
+        userData.isMentor = profilesMap[userData.id].isMentor === true;
+        try {
+          localStorage.setItem(`cached_is_mentor_${userData.id}`, String(userData.isMentor));
+        } catch (e) { }
+      }
+    }
+    updateMentoringCalloutBanner();
+
+    const revMap = {};
+    revSnap.forEach(d => {
+      const data = d.data();
+      if (!revMap[data.targetUserId]) revMap[data.targetUserId] = { sum: 0, count: 0 };
+      revMap[data.targetUserId].sum += Number(data.rating) || 5;
+      revMap[data.targetUserId].count++;
+    });
+
+    const mentorTxCounts = {};
+    const completedMentorAppIds = new Set();
+    (allAppsRes.data?.applications || []).forEach(a => {
+      if (a.status === 'COMPLETED') {
+        completedMentorAppIds.add(a.id);
+        if (a.applicant?.id) mentorTxCounts[a.applicant.id] = (mentorTxCounts[a.applicant.id] || 0) + 1;
+      }
+    });
+    appsSnap.forEach(d => {
+      const data = d.data();
+      const id = d.id || data.id;
+      if (data.status === 'COMPLETED' && !completedMentorAppIds.has(id)) {
+        completedMentorAppIds.add(id);
+        if (data.applicantId) mentorTxCounts[data.applicantId] = (mentorTxCounts[data.applicantId] || 0) + 1;
+        if (data.posterId) mentorTxCounts[data.posterId] = (mentorTxCounts[data.posterId] || 0) + 1;
+      }
+    });
+
+    // Filter: only users who explicitly configured isMentor === true appear in Mentoring!
+    users = users.filter(u => profilesMap[u.id]?.isMentor === true);
+
+    users.forEach(u => {
+      if (profilesMap[u.id]?.photoURL) {
+        setUserPhoto(u.id, profilesMap[u.id].photoURL);
+      }
+      u.bio = profilesMap[u.id]?.bio || '';
+      u.skills = profilesMap[u.id]?.skills || [];
+      u.rating = revMap[u.id] ? (revMap[u.id].sum / revMap[u.id].count).toFixed(1) : '5.0';
+      u.completedSessions = mentorTxCounts[u.id] || 0;
+    });
+
+    allUsersData = users;
+    applyMentoringFiltersAndRender();
+  } catch (e) {
+    console.error(e);
+    grid.innerHTML = '<div class="empty-state">Error loading users.</div>';
+  }
+}
+
+function renderMentoringGrid(users) {
+  const grid = document.getElementById('mentoring-users-grid');
+  grid.innerHTML = '';
+  if (users.length === 0) {
+    grid.innerHTML = '<div class="empty-state">No users available for mentoring.</div>';
+    return;
+  }
+
+  users.forEach(u => {
+    const card = document.createElement('div');
+    card.className = 'job-card t-skel-reveal';
+
+    const skills = u.skills || [];
+    let skillsHtml = '';
+    if (skills.length > 0) {
+      skillsHtml = '<div class="mt-2 mb-3 flex flex-wrap gap-1" style="gap: 4px;">' + skills.slice(0, 5).map(s => `<span class="badge badge-skill" style="border: 1px solid #cbd5e1; background: #f8fafc; color: var(--text-body); font-size: 0.72rem; padding: 2px 7px; font-weight: 500; border-radius: 6px;">${escapeHtml(s)}</span>`).join('') + (skills.length > 5 ? '<span class="text-xs text-muted" style="align-self: center; margin-left: 2px; font-weight: 600;">+' + (skills.length - 5) + '</span>' : '') + '</div>';
+    } else {
+      skillsHtml = '<div class="mt-2 mb-3 text-xs text-muted">No skills listed</div>';
+    }
+
+    card.innerHTML = `
         <div class="flex items-center gap-2 mb-3">
           <div class="avatar cursor-pointer" onclick="openViewProfileDialog('${u.id}')" style="overflow:hidden;padding:0;">${renderUserAvatar(u.id, u.fullName)}</div>
           <div class="flex-1">
@@ -6766,291 +6775,291 @@ window.openViewProfileDialog = async function(userId) {
           <button type="button" class="btn btn-purple btn-sm apply-mentor-btn">Apply</button>
         </div>
       `;
-      
-      card.querySelector('.view-profile-btn').addEventListener('click', () => openViewProfileDialog(u.id));
-      card.querySelector('.apply-mentor-btn').addEventListener('click', () => {
-        activeMentoringTarget = u;
-        document.getElementById('mentoring-target-name').textContent = u.fullName;
-        document.getElementById('mentoring-apply-form').reset();
-        document.getElementById('dialog-mentoring-apply').showModal();
-      });
-      
-      grid.appendChild(card);
+
+    card.querySelector('.view-profile-btn').addEventListener('click', () => openViewProfileDialog(u.id));
+    card.querySelector('.apply-mentor-btn').addEventListener('click', () => {
+      activeMentoringTarget = u;
+      document.getElementById('mentoring-target-name').textContent = u.fullName;
+      document.getElementById('mentoring-apply-form').reset();
+      document.getElementById('dialog-mentoring-apply').showModal();
     });
-  }
 
-  function setupMentoringDialog() {
-    const searchInput = document.getElementById('mentoring-search-input');
-    const clearSearchBtn = document.getElementById('btn-mentoring-search-clear');
-    const toggleBtn = document.getElementById('btn-toggle-mentoring-filters');
-    const drawer = document.getElementById('mentoring-filter-drawer');
-    const resetBtn = document.getElementById('btn-reset-mentoring-filters');
-    const skillInput = document.getElementById('filter-mentor-skill');
-    const ratingSelect = document.getElementById('filter-mentor-rating');
-    const sortSelect = document.getElementById('filter-mentor-sort');
+    grid.appendChild(card);
+  });
+}
 
-    toggleBtn?.addEventListener('click', (e) => {
+function setupMentoringDialog() {
+  const searchInput = document.getElementById('mentoring-search-input');
+  const clearSearchBtn = document.getElementById('btn-mentoring-search-clear');
+  const toggleBtn = document.getElementById('btn-toggle-mentoring-filters');
+  const drawer = document.getElementById('mentoring-filter-drawer');
+  const resetBtn = document.getElementById('btn-reset-mentoring-filters');
+  const skillInput = document.getElementById('filter-mentor-skill');
+  const ratingSelect = document.getElementById('filter-mentor-rating');
+  const sortSelect = document.getElementById('filter-mentor-sort');
+
+  toggleBtn?.addEventListener('click', (e) => {
+    e.preventDefault();
+    if (drawer) {
+      const isHidden = drawer.classList.contains('hidden');
+      drawer.classList.toggle('hidden', !isHidden);
+      toggleBtn.classList.toggle('active', isHidden);
+      toggleBtn.setAttribute('aria-expanded', isHidden ? 'true' : 'false');
+    }
+  });
+
+  searchInput?.addEventListener('input', (e) => {
+    mentoringFilters.q = e.target.value;
+    if (clearSearchBtn) clearSearchBtn.classList.toggle('hidden', !e.target.value);
+    applyMentoringFiltersAndRender();
+  });
+
+  clearSearchBtn?.addEventListener('click', (e) => {
+    e.preventDefault();
+    mentoringFilters.q = '';
+    if (searchInput) {
+      searchInput.value = '';
+      searchInput.focus();
+    }
+    clearSearchBtn.classList.add('hidden');
+    applyMentoringFiltersAndRender();
+  });
+
+  skillInput?.addEventListener('input', (e) => {
+    mentoringFilters.skill = e.target.value;
+    updateMentoringFilterBadge();
+    applyMentoringFiltersAndRender();
+  });
+
+  ratingSelect?.addEventListener('change', (e) => {
+    mentoringFilters.rating = e.target.value;
+    updateMentoringFilterBadge();
+    applyMentoringFiltersAndRender();
+  });
+
+  sortSelect?.addEventListener('change', (e) => {
+    mentoringFilters.sort = e.target.value;
+    updateMentoringFilterBadge();
+    applyMentoringFiltersAndRender();
+  });
+
+  resetBtn?.addEventListener('click', (e) => {
+    e.preventDefault();
+    mentoringFilters = { q: '', skill: '', rating: 'all', sort: 'default' };
+    if (searchInput) searchInput.value = '';
+    if (clearSearchBtn) clearSearchBtn.classList.add('hidden');
+    if (skillInput) skillInput.value = '';
+    if (ratingSelect) ratingSelect.value = 'all';
+    if (sortSelect) sortSelect.value = 'default';
+    updateMentoringFilterBadge();
+    applyMentoringFiltersAndRender();
+  });
+
+  const form = document.getElementById('mentoring-apply-form');
+  if (form) {
+    form.addEventListener('submit', async (e) => {
       e.preventDefault();
-      if (drawer) {
-        const isHidden = drawer.classList.contains('hidden');
-        drawer.classList.toggle('hidden', !isHidden);
-        toggleBtn.classList.toggle('active', isHidden);
-        toggleBtn.setAttribute('aria-expanded', isHidden ? 'true' : 'false');
-      }
-    });
+      if (!activeMentoringTarget) return;
+      const btn = document.getElementById('btn-submit-mentoring');
+      btn.disabled = true;
+      btn.textContent = 'Submitting...';
 
-    searchInput?.addEventListener('input', (e) => {
-      mentoringFilters.q = e.target.value;
-      if (clearSearchBtn) clearSearchBtn.classList.toggle('hidden', !e.target.value);
-      applyMentoringFiltersAndRender();
-    });
-
-    clearSearchBtn?.addEventListener('click', (e) => {
-      e.preventDefault();
-      mentoringFilters.q = '';
-      if (searchInput) {
-        searchInput.value = '';
-        searchInput.focus();
-      }
-      clearSearchBtn.classList.add('hidden');
-      applyMentoringFiltersAndRender();
-    });
-
-    skillInput?.addEventListener('input', (e) => {
-      mentoringFilters.skill = e.target.value;
-      updateMentoringFilterBadge();
-      applyMentoringFiltersAndRender();
-    });
-
-    ratingSelect?.addEventListener('change', (e) => {
-      mentoringFilters.rating = e.target.value;
-      updateMentoringFilterBadge();
-      applyMentoringFiltersAndRender();
-    });
-
-    sortSelect?.addEventListener('change', (e) => {
-      mentoringFilters.sort = e.target.value;
-      updateMentoringFilterBadge();
-      applyMentoringFiltersAndRender();
-    });
-
-    resetBtn?.addEventListener('click', (e) => {
-      e.preventDefault();
-      mentoringFilters = { q: '', skill: '', rating: 'all', sort: 'default' };
-      if (searchInput) searchInput.value = '';
-      if (clearSearchBtn) clearSearchBtn.classList.add('hidden');
-      if (skillInput) skillInput.value = '';
-      if (ratingSelect) ratingSelect.value = 'all';
-      if (sortSelect) sortSelect.value = 'default';
-      updateMentoringFilterBadge();
-      applyMentoringFiltersAndRender();
-    });
-
-    const form = document.getElementById('mentoring-apply-form');
-    if (form) {
-      form.addEventListener('submit', async (e) => {
-        e.preventDefault();
-        if (!activeMentoringTarget) return;
-        const btn = document.getElementById('btn-submit-mentoring');
-        btn.disabled = true;
-        btn.textContent = 'Submitting...';
-        
-        try {
-          const title = document.getElementById('mentoring-title').value.trim();
-          const desc = document.getElementById('mentoring-desc').value.trim();
-          const time = document.getElementById('mentoring-time').value.trim();
-          const amount = Number(document.getElementById('mentoring-amount').value);
-          if (amount > 100000) {
-            showToast('Proposed price cannot exceed ₱100,000.', 'error');
-            btn.disabled = false;
-            btn.textContent = 'Submit Proposal';
-            return;
-          }
-          
-          const reqRes = await createHelpRequest(dc, {
-            title: "Mentoring: " + title,
-            description: desc,
-            budget: amount,
-            requesterId: activeMentoringTarget.id,
-            category: 'MENTORING'
-          });
-          
-          const newReqId = reqRes.data.helpRequest_insert.id;
-          
-          await createApplication(dc, {
-            helpRequestId: newReqId,
-            applicantId: userData.id,
-            priceOffer: amount,
-            message: "Expected Time: " + time
-          });
-          
-          showToast('Mentoring proposal sent!');
-          logUserAction('apply', `Sent mentoring proposal to ${activeMentoringTarget.fullName}: "${title}" (₱${Number(amount).toLocaleString()})`, currentUser?.uid || userData?.id);
-          document.getElementById('dialog-mentoring-apply').close();
-        } catch (err) {
-          console.error(err);
-          showToast('Error sending proposal: ' + err.message, 'error');
-        } finally {
+      try {
+        const title = document.getElementById('mentoring-title').value.trim();
+        const desc = document.getElementById('mentoring-desc').value.trim();
+        const time = document.getElementById('mentoring-time').value.trim();
+        const amount = Number(document.getElementById('mentoring-amount').value);
+        if (amount > 100000) {
+          showToast('Proposed price cannot exceed ₱100,000.', 'error');
           btn.disabled = false;
           btn.textContent = 'Submit Proposal';
+          return;
         }
-      });
-    }
 
-    const btnCallout = document.getElementById('btn-mentoring-apply-mentor');
-    const btnLink = document.getElementById('btn-callout-goto-profile');
-    btnCallout?.addEventListener('click', (e) => {
-      e.preventDefault();
-      triggerProfilePeerMentorEdit();
-    });
-    btnLink?.addEventListener('click', (e) => {
-      e.preventDefault();
-      triggerProfilePeerMentorEdit();
-    });
-  }
+        const reqRes = await createHelpRequest(dc, {
+          title: "Mentoring: " + title,
+          description: desc,
+          budget: amount,
+          requesterId: activeMentoringTarget.id,
+          category: 'MENTORING'
+        });
 
-  function triggerProfilePeerMentorEdit() {
-    navigateTo('profile');
-    setTimeout(() => {
-      const editBtn = document.getElementById('btn-edit-profile');
-      if (editBtn) {
-        editBtn.click();
-        setTimeout(() => {
-          const isMentorEl = document.getElementById('edit-is-mentor');
-          if (isMentorEl) {
-            isMentorEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
-            const container = isMentorEl.closest('label') || isMentorEl.parentElement;
-            if (container) {
-              container.classList.add('highlight-pulse');
-              setTimeout(() => container.classList.remove('highlight-pulse'), 2200);
-            }
-          }
-        }, 350);
+        const newReqId = reqRes.data.helpRequest_insert.id;
+
+        await createApplication(dc, {
+          helpRequestId: newReqId,
+          applicantId: userData.id,
+          priceOffer: amount,
+          message: "Expected Time: " + time
+        });
+
+        showToast('Mentoring proposal sent!');
+        logUserAction('apply', `Sent mentoring proposal to ${activeMentoringTarget.fullName}: "${title}" (₱${Number(amount).toLocaleString()})`, currentUser?.uid || userData?.id);
+        document.getElementById('dialog-mentoring-apply').close();
+      } catch (err) {
+        console.error(err);
+        showToast('Error sending proposal: ' + err.message, 'error');
+      } finally {
+        btn.disabled = false;
+        btn.textContent = 'Submit Proposal';
       }
-    }, 200);
+    });
   }
 
-  function setupEditProfile() {
-    let pendingAvatarDataUrl = null;
+  const btnCallout = document.getElementById('btn-mentoring-apply-mentor');
+  const btnLink = document.getElementById('btn-callout-goto-profile');
+  btnCallout?.addEventListener('click', (e) => {
+    e.preventDefault();
+    triggerProfilePeerMentorEdit();
+  });
+  btnLink?.addEventListener('click', (e) => {
+    e.preventDefault();
+    triggerProfilePeerMentorEdit();
+  });
+}
 
-    const btnEditProfile = document.getElementById('btn-edit-profile');
-    if (btnEditProfile) {
-      btnEditProfile.addEventListener('click', () => {
-        pendingAvatarDataUrl = null;
-        const currentPhoto = userData?.photoURL || (userData?.id ? localStorage.getItem(`cached_photo_${userData.id}`) : null);
-        const editPreview = document.getElementById('edit-avatar-preview');
-        if (editPreview) {
-          if (currentPhoto) {
-            editPreview.innerHTML = `<img src="${currentPhoto}" alt="Avatar Preview" class="profile-avatar-img">`;
-          } else {
-            editPreview.textContent = initials(userData?.fullName || '');
-          }
-        }
-        const editFileInput = document.getElementById('edit-avatar-file-input');
-        if (editFileInput) editFileInput.value = '';
-
-        const prefRoleEl = document.getElementById('edit-preferred-role');
-        if (prefRoleEl) prefRoleEl.value = userData?.preferredRole || 'Offer My Skills';
-
+function triggerProfilePeerMentorEdit() {
+  navigateTo('profile');
+  setTimeout(() => {
+    const editBtn = document.getElementById('btn-edit-profile');
+    if (editBtn) {
+      editBtn.click();
+      setTimeout(() => {
         const isMentorEl = document.getElementById('edit-is-mentor');
-        if (isMentorEl) isMentorEl.checked = userData?.isMentor === true;
-
-        const bioEl = document.getElementById('edit-bio');
-        if (bioEl) bioEl.value = userData?.bio || '';
-        
-        const userSkills = userData?.skills || [];
-        document.querySelectorAll('#edit-skills-grid input[type="checkbox"]').forEach(cb => {
-          cb.checked = userSkills.includes(cb.value);
-        });
-        
-        const searchEl = document.getElementById('edit-skills-search');
-        if (searchEl) searchEl.value = '';
-        
-        document.querySelectorAll('#edit-skills-grid .skill-pill').forEach(pill => {
-          pill.style.display = 'inline-flex';
-        });
-        
-        const dialog = document.getElementById('dialog-edit-profile');
-        if (dialog) dialog.showModal();
-      });
-    }
-
-    // Modal Profile Photo Change & Remove
-    const btnUploadPhoto = document.getElementById('btn-upload-profile-photo');
-    const editFileInput = document.getElementById('edit-avatar-file-input');
-    if (btnUploadPhoto && editFileInput) {
-      btnUploadPhoto.addEventListener('click', () => {
-        editFileInput.click();
-      });
-      editFileInput.addEventListener('change', async (e) => {
-        const file = e.target.files?.[0];
-        if (!file) return;
-        const dataUrl = await compressAvatarImage(file);
-        if (dataUrl) {
-          pendingAvatarDataUrl = dataUrl;
-          const editPreview = document.getElementById('edit-avatar-preview');
-          if (editPreview) {
-            editPreview.innerHTML = `<img src="${dataUrl}" alt="Avatar Preview" class="profile-avatar-img">`;
+        if (isMentorEl) {
+          isMentorEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          const container = isMentorEl.closest('label') || isMentorEl.parentElement;
+          if (container) {
+            container.classList.add('highlight-pulse');
+            setTimeout(() => container.classList.remove('highlight-pulse'), 2200);
           }
         }
-      });
+      }, 350);
     }
+  }, 200);
+}
 
-    const btnRemovePhoto = document.getElementById('btn-remove-profile-photo');
-    if (btnRemovePhoto) {
-      btnRemovePhoto.addEventListener('click', () => {
-        pendingAvatarDataUrl = '';
-        const editPreview = document.getElementById('edit-avatar-preview');
-        if (editPreview) {
+function setupEditProfile() {
+  let pendingAvatarDataUrl = null;
+
+  const btnEditProfile = document.getElementById('btn-edit-profile');
+  if (btnEditProfile) {
+    btnEditProfile.addEventListener('click', () => {
+      pendingAvatarDataUrl = null;
+      const currentPhoto = userData?.photoURL || (userData?.id ? localStorage.getItem(`cached_photo_${userData.id}`) : null);
+      const editPreview = document.getElementById('edit-avatar-preview');
+      if (editPreview) {
+        if (currentPhoto) {
+          editPreview.innerHTML = `<img src="${currentPhoto}" alt="Avatar Preview" class="profile-avatar-img">`;
+        } else {
           editPreview.textContent = initials(userData?.fullName || '');
         }
-        if (editFileInput) editFileInput.value = '';
+      }
+      const editFileInput = document.getElementById('edit-avatar-file-input');
+      if (editFileInput) editFileInput.value = '';
+
+      const prefRoleEl = document.getElementById('edit-preferred-role');
+      if (prefRoleEl) prefRoleEl.value = userData?.preferredRole || 'Offer My Skills';
+
+      const isMentorEl = document.getElementById('edit-is-mentor');
+      if (isMentorEl) isMentorEl.checked = userData?.isMentor === true;
+
+      const bioEl = document.getElementById('edit-bio');
+      if (bioEl) bioEl.value = userData?.bio || '';
+
+      const userSkills = userData?.skills || [];
+      document.querySelectorAll('#edit-skills-grid input[type="checkbox"]').forEach(cb => {
+        cb.checked = userSkills.includes(cb.value);
       });
-    }
 
-    // Direct Profile Hero Camera Badge & Avatar Click
-    const btnChangeAvatar = document.getElementById('btn-change-avatar');
-    const profileAvatar = document.getElementById('profile-avatar');
-    const profileFileInput = document.getElementById('profile-avatar-file-input');
-    if (profileFileInput) {
-      const triggerAvatarSelect = () => profileFileInput.click();
-      if (btnChangeAvatar) btnChangeAvatar.addEventListener('click', triggerAvatarSelect);
-      if (profileAvatar) profileAvatar.addEventListener('click', triggerAvatarSelect);
+      const searchEl = document.getElementById('edit-skills-search');
+      if (searchEl) searchEl.value = '';
 
-      profileFileInput.addEventListener('change', async (e) => {
-        const file = e.target.files?.[0];
-        if (!file) return;
-        const dataUrl = await compressAvatarImage(file);
-        if (dataUrl && userData) {
-          userData.photoURL = dataUrl;
-          setUserPhoto(userData.id, dataUrl);
-          try { localStorage.setItem(`cached_photo_${userData.id}`, dataUrl); } catch(err) {}
-          updateAllUserAvatars(dataUrl, userData.fullName);
-          try {
-            await setDoc(doc(firestore, "user_profiles", userData.id), {
-              photoURL: dataUrl
-            }, { merge: true });
-            logUserAction('update profile photo', 'Updated profile picture', userData.id);
-            showToast('Profile picture updated successfully!');
-          } catch (err) {
-            console.error('Error saving profile photo:', err);
-            showToast('Failed to save profile picture.', 'error');
-          }
+      document.querySelectorAll('#edit-skills-grid .skill-pill').forEach(pill => {
+        pill.style.display = 'inline-flex';
+      });
+
+      const dialog = document.getElementById('dialog-edit-profile');
+      if (dialog) dialog.showModal();
+    });
+  }
+
+  // Modal Profile Photo Change & Remove
+  const btnUploadPhoto = document.getElementById('btn-upload-profile-photo');
+  const editFileInput = document.getElementById('edit-avatar-file-input');
+  if (btnUploadPhoto && editFileInput) {
+    btnUploadPhoto.addEventListener('click', () => {
+      editFileInput.click();
+    });
+    editFileInput.addEventListener('change', async (e) => {
+      const file = e.target.files?.[0];
+      if (!file) return;
+      const dataUrl = await compressAvatarImage(file);
+      if (dataUrl) {
+        pendingAvatarDataUrl = dataUrl;
+        const editPreview = document.getElementById('edit-avatar-preview');
+        if (editPreview) {
+          editPreview.innerHTML = `<img src="${dataUrl}" alt="Avatar Preview" class="profile-avatar-img">`;
         }
-        profileFileInput.value = '';
-      });
-    }
+      }
+    });
+  }
 
-    const searchInput = document.getElementById('edit-skills-search');
-    if (searchInput) {
-      searchInput.addEventListener('input', (e) => {
-        const q = e.target.value.toLowerCase();
-        document.querySelectorAll('#edit-skills-grid .skill-pill').forEach(pill => {
-          const text = pill.textContent.toLowerCase();
-          pill.style.display = text.includes(q) ? 'inline-flex' : 'none';
-        });
+  const btnRemovePhoto = document.getElementById('btn-remove-profile-photo');
+  if (btnRemovePhoto) {
+    btnRemovePhoto.addEventListener('click', () => {
+      pendingAvatarDataUrl = '';
+      const editPreview = document.getElementById('edit-avatar-preview');
+      if (editPreview) {
+        editPreview.textContent = initials(userData?.fullName || '');
+      }
+      if (editFileInput) editFileInput.value = '';
+    });
+  }
+
+  // Direct Profile Hero Camera Badge & Avatar Click
+  const btnChangeAvatar = document.getElementById('btn-change-avatar');
+  const profileAvatar = document.getElementById('profile-avatar');
+  const profileFileInput = document.getElementById('profile-avatar-file-input');
+  if (profileFileInput) {
+    const triggerAvatarSelect = () => profileFileInput.click();
+    if (btnChangeAvatar) btnChangeAvatar.addEventListener('click', triggerAvatarSelect);
+    if (profileAvatar) profileAvatar.addEventListener('click', triggerAvatarSelect);
+
+    profileFileInput.addEventListener('change', async (e) => {
+      const file = e.target.files?.[0];
+      if (!file) return;
+      const dataUrl = await compressAvatarImage(file);
+      if (dataUrl && userData) {
+        userData.photoURL = dataUrl;
+        setUserPhoto(userData.id, dataUrl);
+        try { localStorage.setItem(`cached_photo_${userData.id}`, dataUrl); } catch (err) { }
+        updateAllUserAvatars(dataUrl, userData.fullName);
+        try {
+          await setDoc(doc(firestore, "user_profiles", userData.id), {
+            photoURL: dataUrl
+          }, { merge: true });
+          logUserAction('update profile photo', 'Updated profile picture', userData.id);
+          showToast('Profile picture updated successfully!');
+        } catch (err) {
+          console.error('Error saving profile photo:', err);
+          showToast('Failed to save profile picture.', 'error');
+        }
+      }
+      profileFileInput.value = '';
+    });
+  }
+
+  const searchInput = document.getElementById('edit-skills-search');
+  if (searchInput) {
+    searchInput.addEventListener('input', (e) => {
+      const q = e.target.value.toLowerCase();
+      document.querySelectorAll('#edit-skills-grid .skill-pill').forEach(pill => {
+        const text = pill.textContent.toLowerCase();
+        pill.style.display = text.includes(q) ? 'inline-flex' : 'none';
       });
-    }
+    });
+  }
 
   const form = document.getElementById('edit-profile-form');
   if (form) {
@@ -7058,12 +7067,12 @@ window.openViewProfileDialog = async function(userId) {
       e.preventDefault();
       const bioEl = document.getElementById('edit-bio');
       const bio = bioEl ? bioEl.value.trim() : '';
-      
+
       const skills = Array.from(document.querySelectorAll('#edit-skills-grid input[type="checkbox"]:checked')).map(cb => cb.value);
-      
+
       const btn = form.querySelector('button[type="submit"]');
       if (btn) { btn.disabled = true; btn.textContent = 'Saving...'; }
-      
+
       try {
         if (userData) {
           const prefRoleEl = document.getElementById('edit-preferred-role');
@@ -7075,13 +7084,13 @@ window.openViewProfileDialog = async function(userId) {
           userData.skills = skills;
           userData.preferredRole = prefRole;
           userData.isMentor = isMentor;
-          try { localStorage.setItem(`cached_bio_${userData.id}`, bio); } catch(err) {}
-          try { localStorage.setItem(`cached_skills_${userData.id}`, JSON.stringify(skills)); } catch(err) {}
-          try { localStorage.setItem(`cached_is_mentor_${userData.id}`, String(isMentor)); } catch(err) {}
+          try { localStorage.setItem(`cached_bio_${userData.id}`, bio); } catch (err) { }
+          try { localStorage.setItem(`cached_skills_${userData.id}`, JSON.stringify(skills)); } catch (err) { }
+          try { localStorage.setItem(`cached_is_mentor_${userData.id}`, String(isMentor)); } catch (err) { }
           if (typeof updateMentoringCalloutBanner === 'function') {
             updateMentoringCalloutBanner();
           }
-          
+
           const updatePayload = {
             bio: bio,
             skills: skills,
@@ -7093,22 +7102,22 @@ window.openViewProfileDialog = async function(userId) {
             if (pendingAvatarDataUrl === '') {
               userData.photoURL = '';
               setUserPhoto(userData.id, '');
-              try { localStorage.removeItem(`cached_photo_${userData.id}`); } catch(err) {}
+              try { localStorage.removeItem(`cached_photo_${userData.id}`); } catch (err) { }
               updateAllUserAvatars('', userData.fullName);
               updatePayload.photoURL = '';
             } else {
               userData.photoURL = pendingAvatarDataUrl;
               setUserPhoto(userData.id, pendingAvatarDataUrl);
-              try { localStorage.setItem(`cached_photo_${userData.id}`, pendingAvatarDataUrl); } catch(err) {}
+              try { localStorage.setItem(`cached_photo_${userData.id}`, pendingAvatarDataUrl); } catch (err) { }
               updateAllUserAvatars(pendingAvatarDataUrl, userData.fullName);
               updatePayload.photoURL = pendingAvatarDataUrl;
             }
           }
-          
+
           await setDoc(doc(firestore, "user_profiles", userData.id), updatePayload, { merge: true });
           logUserAction('update profile', 'Updated profile details' + (pendingAvatarDataUrl !== null ? ' and profile picture' : ''), userData.id);
         }
-        
+
         const bioDisplay = document.getElementById('profile-bio-display');
         if (bioDisplay) bioDisplay.textContent = bio || 'No bio provided yet.';
 
@@ -7117,7 +7126,7 @@ window.openViewProfileDialog = async function(userId) {
 
         const prefBadge = document.getElementById('prof-pref-role-badge');
         if (prefBadge) prefBadge.textContent = prefRole;
-        
+
         const skillsDisplay = document.getElementById('profile-skills-display');
         if (skillsDisplay) {
           if (skills.length === 0) {
@@ -7126,7 +7135,7 @@ window.openViewProfileDialog = async function(userId) {
             skillsDisplay.innerHTML = skills.map(s => `<span class="skill-pill" style="display:inline-block; margin:2px; background:var(--accent-purple-light); color:var(--primary-purple); border:1px solid rgba(79, 70, 229, 0.2); font-weight:600; padding:4px 10px; border-radius:999px; font-size:12px;">${s}</span>`).join('');
           }
         }
-        
+
         showToast('Profile successfully updated!');
         const dialog = document.getElementById('dialog-edit-profile');
         if (dialog) dialog.close();
@@ -7148,8 +7157,8 @@ let adminAppsData = [];
 let adminRequestsData = [];
 let adminLiveListingsData = [];
 let adminSearchQuery = '';
-  let activeMentoringTarget = null;
-  let allUsersData = [];
+let activeMentoringTarget = null;
+let allUsersData = [];
 
 let adminPeriod = 'month'; // 'month' | 'all' | 'prev'
 
@@ -7363,12 +7372,12 @@ async function loadAdmin() {
       if (adminRequestsData.length === 0) {
         const nowMs = Date.now();
         adminRequestsData = [
-          { id: 'r1', title: '3D Printing of Enclosure Case (ABS/PLA)', category: '3D Design', budget: 450, status: 'OPEN', requesterId: 'u1', createdAt: new Date(nowMs - 3600000*24).toISOString() },
-          { id: 'r2', title: 'Circuit Schematic & PCB Review', category: 'PCB & Hardware Design', budget: 1200, status: 'OPEN', requesterId: 'u2', createdAt: new Date(nowMs - 3600000*48).toISOString() },
-          { id: 'r3', title: 'Arduino Firmware for Water IoT', category: 'Embedded Systems', budget: 2500, status: 'COMPLETED', requesterId: 'u3', createdAt: new Date(nowMs - 3600000*72).toISOString() },
-          { id: 'r4', title: 'Laser Cutting Acrylic Chassis', category: 'CAD & 3D Modeling', budget: 650, status: 'COMPLETED', requesterId: 'u4', createdAt: new Date(nowMs - 3600000*96).toISOString() },
-          { id: 'r5', title: 'Mentoring: SolidWorks CAD', category: 'Mentoring', budget: 800, status: 'OPEN', requesterId: 'u2', createdAt: new Date(nowMs - 3600000*120).toISOString() },
-          { id: 'r6', title: 'React Web App Frontend Bugfix', category: 'Software Development', budget: 1500, status: 'COMPLETED', requesterId: 'u1', createdAt: new Date(nowMs - 3600000*144).toISOString() }
+          { id: 'r1', title: '3D Printing of Enclosure Case (ABS/PLA)', category: '3D Design', budget: 450, status: 'OPEN', requesterId: 'u1', createdAt: new Date(nowMs - 3600000 * 24).toISOString() },
+          { id: 'r2', title: 'Circuit Schematic & PCB Review', category: 'PCB & Hardware Design', budget: 1200, status: 'OPEN', requesterId: 'u2', createdAt: new Date(nowMs - 3600000 * 48).toISOString() },
+          { id: 'r3', title: 'Arduino Firmware for Water IoT', category: 'Embedded Systems', budget: 2500, status: 'COMPLETED', requesterId: 'u3', createdAt: new Date(nowMs - 3600000 * 72).toISOString() },
+          { id: 'r4', title: 'Laser Cutting Acrylic Chassis', category: 'CAD & 3D Modeling', budget: 650, status: 'COMPLETED', requesterId: 'u4', createdAt: new Date(nowMs - 3600000 * 96).toISOString() },
+          { id: 'r5', title: 'Mentoring: SolidWorks CAD', category: 'Mentoring', budget: 800, status: 'OPEN', requesterId: 'u2', createdAt: new Date(nowMs - 3600000 * 120).toISOString() },
+          { id: 'r6', title: 'React Web App Frontend Bugfix', category: 'Software Development', budget: 1500, status: 'COMPLETED', requesterId: 'u1', createdAt: new Date(nowMs - 3600000 * 144).toISOString() }
         ];
         adminLiveListingsData = [
           { id: 'r1', title: '3D Printing of Enclosure Case (ABS/PLA)', category: '3D Design', budget: 450, status: 'OPEN', requester: { id: 'u1', fullName: 'Charles B.', email: 'charlesjanparaggua@gmail.com', studentId: '2023-10482' }, urgency: 'LOW' },
@@ -7380,10 +7389,10 @@ async function loadAdmin() {
       if (adminAppsData.length === 0) {
         const nowMs = Date.now();
         adminAppsData = [
-          { id: 'a1', helpRequestId: 'r3', applicantId: 'u1', priceOffer: 2500, status: 'COMPLETED', createdAt: new Date(nowMs - 3600000*72).toISOString() },
-          { id: 'a2', helpRequestId: 'r4', applicantId: 'u3', priceOffer: 650, status: 'COMPLETED', createdAt: new Date(nowMs - 3600000*96).toISOString() },
-          { id: 'a3', helpRequestId: 'r6', applicantId: 'u4', priceOffer: 1500, status: 'COMPLETED', createdAt: new Date(nowMs - 3600000*144).toISOString() },
-          { id: 'a4', helpRequestId: 'r1', applicantId: 'u2', priceOffer: 450, status: 'TERMINATED', createdAt: new Date(nowMs - 3600000*24).toISOString() }
+          { id: 'a1', helpRequestId: 'r3', applicantId: 'u1', priceOffer: 2500, status: 'COMPLETED', createdAt: new Date(nowMs - 3600000 * 72).toISOString() },
+          { id: 'a2', helpRequestId: 'r4', applicantId: 'u3', priceOffer: 650, status: 'COMPLETED', createdAt: new Date(nowMs - 3600000 * 96).toISOString() },
+          { id: 'a3', helpRequestId: 'r6', applicantId: 'u4', priceOffer: 1500, status: 'COMPLETED', createdAt: new Date(nowMs - 3600000 * 144).toISOString() },
+          { id: 'a4', helpRequestId: 'r1', applicantId: 'u2', priceOffer: 450, status: 'TERMINATED', createdAt: new Date(nowMs - 3600000 * 24).toISOString() }
         ];
       }
     }
@@ -7775,9 +7784,9 @@ function renderAdminPending() {
       tr.innerHTML = `
         <td>
           <div class="flex items-center gap-2">
-            <div class="avatar avatar-sm cursor-pointer view-applicant-btn" style="overflow:hidden;padding:0;">${renderUserAvatar(u.id, u.fullName)}</div>
+            <div class="avatar avatar-sm cursor-pointer" onclick="openViewProfileDialog('${u.id}')" title="View Profile" style="overflow:hidden;padding:0;">${renderUserAvatar(u.id, u.fullName)}</div>
             <div>
-              <strong class="cursor-pointer hover:underline view-applicant-btn">${escapeHtml(u.fullName)}</strong>
+              <strong class="cursor-pointer hover:underline" onclick="openViewProfileDialog('${u.id}')" title="View Profile">${escapeHtml(u.fullName)}</strong>
               <div class="text-xs text-muted">${escapeHtml(u.email)}</div>
             </div>
           </div>
@@ -7790,23 +7799,26 @@ function renderAdminPending() {
         <td><span class="badge badge-pending">Pending</span></td>
         <td>
           ${u.certificateUrl && u.certificateUrl !== 'none'
-            ? `<button type="button" class="btn btn-outline btn-sm view-cert-btn">View COE</button>`
-            : `<span class="text-muted text-sm italic">No COE provided</span>`}
+          ? `<button type="button" class="btn btn-outline btn-sm view-cert-btn">View COE</button>`
+          : `<span class="text-muted text-sm italic">No COE provided</span>`}
         </td>
         <td>
           <div class="flex items-center gap-1.5">
-            <button type="button" class="btn btn-outline btn-sm view-profile-btn">Full Info</button>
+            <button type="button" class="btn btn-outline btn-sm view-profile-dialog-btn" title="View Student Profile">Profile</button>
+            <button type="button" class="btn btn-outline btn-sm view-profile-btn" title="Registration Details">Full Info</button>
             <button type="button" class="btn btn-purple btn-sm approve-btn">Approve</button>
             <button type="button" class="btn btn-outline btn-sm reject-btn" style="border-color: #ef4444; color: #ef4444;">Reject</button>
           </div>
         </td>
       `;
 
-      tr.querySelectorAll('.view-applicant-btn, .view-profile-btn').forEach(el => {
-        el.addEventListener('click', (e) => {
-          e.preventDefault();
-          openApplicantDetails(u);
-        });
+      tr.querySelector('.view-profile-dialog-btn')?.addEventListener('click', (e) => {
+        e.preventDefault();
+        openViewProfileDialog(u.id);
+      });
+      tr.querySelector('.view-profile-btn')?.addEventListener('click', (e) => {
+        e.preventDefault();
+        openApplicantDetails(u);
       });
 
       tr.querySelector('.view-cert-btn')?.addEventListener('click', (e) => {
@@ -7891,10 +7903,10 @@ function renderAdminUsers() {
     tr.innerHTML = `
       <td>
         <div class="flex items-center gap-2">
-          <div class="avatar avatar-sm" style="overflow:hidden;padding:0;">${renderUserAvatar(u.id, u.fullName)}</div>
+          <div class="avatar avatar-sm cursor-pointer" onclick="openViewProfileDialog('${u.id}')" title="View Profile" style="overflow:hidden;padding:0;">${renderUserAvatar(u.id, u.fullName)}</div>
           <div>
             <div class="flex items-center gap-1.5 admin-user-name-cell">
-              <strong>${escapeHtml(u.fullName)}</strong>
+              <strong class="cursor-pointer hover:underline" onclick="openViewProfileDialog('${u.id}')" title="View Profile">${escapeHtml(u.fullName)}</strong>
               ${isOnline ? '<span class="online-indicator-pill"><span class="active-pulse-dot" style="margin:0;width:6px;height:6px;"></span> Online</span>' : ''}
             </div>
             <div class="text-xs text-muted">${escapeHtml(u.email)}</div>
@@ -7914,13 +7926,18 @@ function renderAdminUsers() {
       </td>
       <td>
         <div class="flex items-center gap-1">
-          <button type="button" class="btn btn-outline btn-sm view-info-btn">Details</button>
+          <button type="button" class="btn btn-outline btn-sm view-profile-btn" title="View Student Profile">Profile</button>
+          <button type="button" class="btn btn-outline btn-sm view-info-btn" title="View Registration Details">Details</button>
           ${!isVerified ? `<button type="button" class="btn btn-purple btn-sm quick-verify-btn">Verify</button>` : ''}
           <button type="button" class="btn btn-outline btn-sm delete-user-btn" style="border-color: #ef4444; color: #ef4444;">Delete</button>
         </div>
       </td>
     `;
 
+    tr.querySelector('.view-profile-btn')?.addEventListener('click', (e) => {
+      e.preventDefault();
+      openViewProfileDialog(u.id);
+    });
     tr.querySelector('.view-info-btn')?.addEventListener('click', () => openApplicantDetails(u));
     tr.querySelector('.view-cert-btn')?.addEventListener('click', () => {
       $('#cert-preview-img').src = u.certificateUrl;
@@ -7991,9 +8008,9 @@ function renderAdminApplications() {
       <td><strong>${escapeHtml(a.helpRequest?.title || 'Service Request')}</strong></td>
       <td>
         <div class="flex items-center gap-2">
-          <div class="avatar avatar-sm" style="overflow:hidden;padding:0;">${renderUserAvatar(a.applicant?.id, a.applicant?.fullName)}</div>
+          <div class="avatar avatar-sm cursor-pointer" onclick="openViewProfileDialog('${a.applicant?.id}')" title="View Profile" style="overflow:hidden;padding:0;">${renderUserAvatar(a.applicant?.id, a.applicant?.fullName)}</div>
           <div>
-            <strong>${escapeHtml(a.applicant?.fullName || 'Applicant')}</strong>
+            <strong class="cursor-pointer hover:underline" onclick="openViewProfileDialog('${a.applicant?.id}')" title="View Profile">${escapeHtml(a.applicant?.fullName || 'Applicant')}</strong>
             <div class="text-xs text-muted">${escapeHtml(a.applicant?.email || '')}</div>
           </div>
         </div>
@@ -8006,7 +8023,7 @@ function renderAdminApplications() {
         <button type="button" class="btn btn-outline btn-sm delete-app-btn btn-delete-service">Delete</button>
       </td>
     `;
-    
+
     tr.querySelector('.delete-app-btn')?.addEventListener('click', async () => {
       if (confirm(`Are you sure you want to permanently delete application for "${a.helpRequest?.title}"?`)) {
         try {
@@ -8116,9 +8133,9 @@ function renderAdminListings() {
         await updateHelpRequestStatus(dc, { id: item.id, status: 'DELETED' });
         if (isOffer) {
           knownStandingOfferIds.delete(item.id);
-          try { localStorage.setItem('standing_offer_ids', JSON.stringify(Array.from(knownStandingOfferIds))); } catch (err) {}
+          try { localStorage.setItem('standing_offer_ids', JSON.stringify(Array.from(knownStandingOfferIds))); } catch (err) { }
         }
-        
+
         // Optimistic instant feedback: visually fade and remove row
         tr.style.transition = 'opacity 0.2s ease, transform 0.2s ease';
         tr.style.opacity = '0';
@@ -8157,9 +8174,9 @@ function openApplicantDetails(user) {
 
   body.innerHTML = `
     <div class="flex items-center gap-3 mb-4">
-      <div class="avatar avatar-md" style="overflow:hidden;padding:0;">${renderUserAvatar(user.id, user.fullName)}</div>
+      <div class="avatar avatar-md cursor-pointer" onclick="openViewProfileDialog('${user.id}')" title="View Full Profile" style="overflow:hidden;padding:0;">${renderUserAvatar(user.id, user.fullName)}</div>
       <div>
-        <h3 class="font-bold text-lg">${user.fullName}</h3>
+        <h3 class="font-bold text-lg cursor-pointer hover:underline" onclick="openViewProfileDialog('${user.id}')" title="View Full Profile">${user.fullName}</h3>
         <p class="text-muted text-sm">${user.email}</p>
         <span class="badge ${badgeClass} mt-1">${user.verificationStatus || 'Pending'}</span>
       </div>
@@ -8196,6 +8213,15 @@ function openApplicantDetails(user) {
     $('#cert-preview-img').src = user.certificateUrl;
     $('#dialog-certificate').showModal();
   });
+
+  const viewProfileBtn = $('#btn-applicant-view-profile');
+  if (viewProfileBtn) {
+    viewProfileBtn.onclick = (e) => {
+      e.preventDefault();
+      $('#dialog-applicant-details')?.close();
+      openViewProfileDialog(user.id);
+    };
+  }
 
   $('#dialog-applicant-details')?.showModal();
 }
@@ -8355,7 +8381,7 @@ function setupAdminAuditControls() {
       if (allCloudLogs.length > 0) {
         mergeCloudAuditLogs(allCloudLogs);
       }
-    } catch (err) {}
+    } catch (err) { }
     renderAdminAuditLogs();
     showToast('Platform audit logs refreshed.');
   });
@@ -8573,26 +8599,26 @@ function setupAdminSearch() {
 
 function setupMobileSidebar() {
   const btn = document.getElementById('mobile-menu-btn');
-  if(btn) {
+  if (btn) {
     btn.addEventListener('click', (e) => {
       e.preventDefault();
       const sidebar = document.getElementById('sidebar');
-      if(sidebar) sidebar.classList.add('sidebar-open');
+      if (sidebar) sidebar.classList.add('sidebar-open');
       const overlay = document.getElementById('sidebar-overlay');
-      if(overlay) { overlay.style.display = 'block'; overlay.classList.remove('hidden'); }
+      if (overlay) { overlay.style.display = 'block'; overlay.classList.remove('hidden'); }
     });
   }
   const closeMobileSidebar = (e) => {
-    if(e) e.preventDefault();
+    if (e) e.preventDefault();
     const sidebar = document.getElementById('sidebar');
-    if(sidebar) sidebar.classList.remove('sidebar-open');
+    if (sidebar) sidebar.classList.remove('sidebar-open');
     const overlay = document.getElementById('sidebar-overlay');
-    if(overlay) { overlay.style.display = 'none'; overlay.classList.add('hidden'); }
+    if (overlay) { overlay.style.display = 'none'; overlay.classList.add('hidden'); }
   };
   const overlay = document.getElementById('sidebar-overlay');
-  if(overlay) overlay.addEventListener('click', closeMobileSidebar);
+  if (overlay) overlay.addEventListener('click', closeMobileSidebar);
   const closeBtn = document.getElementById('sidebar-close-btn');
-  if(closeBtn) closeBtn.addEventListener('click', closeMobileSidebar);
+  if (closeBtn) closeBtn.addEventListener('click', closeMobileSidebar);
 }
 
 // -- Logout  ------------------------------------------------------------
@@ -8611,22 +8637,22 @@ function setupLogout() {
     hide($('#register-faculty-other-group'));
     if (autoRefreshTimer) { clearInterval(autoRefreshTimer); autoRefreshTimer = null; }
     if (chatPollTimer) { clearInterval(chatPollTimer); chatPollTimer = null; }
-    if (messageSubscription) { 
+    if (messageSubscription) {
       if (typeof messageSubscription === 'function') messageSubscription();
       else off(messageSubscription);
-      messageSubscription = null; 
+      messageSubscription = null;
     }
     if (conversationsSubscription) { conversationsSubscription(); conversationsSubscription = null; }
     if (currentUser?.uid) {
       try {
         await Promise.race([
           Promise.all([
-            remove(ref(db, `presence/${currentUser.uid}`)).catch(() => {}),
-            setDoc(doc(firestore, "user_profiles", currentUser.uid), { isOnline: false }, { merge: true }).catch(() => {})
+            remove(ref(db, `presence/${currentUser.uid}`)).catch(() => { }),
+            setDoc(doc(firestore, "user_profiles", currentUser.uid), { isOnline: false }, { merge: true }).catch(() => { })
           ]),
           new Promise(res => setTimeout(res, 800))
         ]);
-      } catch (e) {}
+      } catch (e) { }
     }
     clearUserSessionDOM();
     history.pushState(null, '', '/');
@@ -8635,7 +8661,7 @@ function setupLogout() {
         signOut(auth),
         new Promise(res => setTimeout(res, 1200))
       ]);
-    } catch (e) {}
+    } catch (e) { }
     showAuth('landing');
   });
 }
@@ -8740,7 +8766,7 @@ document.addEventListener('DOMContentLoaded', () => {
   setupInlineRatingForm();
   setupReviewDialog();
   setupEditProfile();
-    setupMentoringDialog();
+  setupMentoringDialog();
   setupMobileSidebar();
   setupLogout();
   setupAdminTabs();
@@ -8800,11 +8826,11 @@ document.addEventListener('DOMContentLoaded', () => {
       ]
     };
     allRequests = [
-      { id: 'req_1', title: '3D Printing of Enclosure Case (ABS/PLA)', description: 'High-quality ABS and PLA 3D printing for electronics enclosures, robotics chassis, and prototype casings.', imageUrl: '/images/service_sample_3d.jpg', category: '3D Design', budget: 450, type: 'OFFER', tags: ['STANDING_OFFER'], requester: { id: 'dev_student_1', fullName: 'Charles B.' }, createdAt: new Date(Date.now() - 3600000*24).toISOString() },
-      { id: 'req_2', title: 'Circuit Schematic & PCB Layout Review', description: 'Comprehensive design review for EAGLE, KiCad, and Altium schematics and multilayer PCB layouts.', imageUrl: '/images/service_3d_printing.jpg', category: 'PCB & Hardware Design', budget: 1200, type: 'OFFER', tags: ['STANDING_OFFER'], requester: { fullName: 'Engr. Noel V.' }, createdAt: new Date(Date.now() - 3600000*48).toISOString() },
-      { id: 'req_3', title: 'Need Arduino Firmware for Water Monitoring IoT', description: 'Looking for a skilled developer to write C++ firmware for ESP32/Arduino with turbidity and pH sensors.', category: 'Embedded Systems', budget: 2500, type: 'REQUEST', requester: { fullName: 'Maria Santos' }, createdAt: new Date(Date.now() - 3600000*12).toISOString() },
-      { id: 'req_4', title: 'Laser Cutting Acrylic Chassis Plates', description: 'Precision CO2 laser cutting for acrylic panels, robot bases, and front panel bezels.', imageUrl: '/images/service_laser_cutting.jpg', category: 'CAD & 3D Modeling', budget: 650, type: 'OFFER', tags: ['STANDING_OFFER'], requester: { fullName: 'Tech Lab Guild' }, createdAt: new Date(Date.now() - 3600000*72).toISOString() },
-      { id: 'req_5', title: 'Need Mobile App UI for Student Attendance System', description: 'Seeking a UI/UX designer to create mobile mockups and responsive prototype flows for automated RFID student check-in.', imageUrl: '/images/service_ink_printing.jpg', category: 'UI/UX Design', budget: 1800, type: 'REQUEST', requester: { fullName: 'Carlo Mendoza' }, createdAt: new Date(Date.now() - 3600000*6).toISOString() }
+      { id: 'req_1', title: '3D Printing of Enclosure Case (ABS/PLA)', description: 'High-quality ABS and PLA 3D printing for electronics enclosures, robotics chassis, and prototype casings.', imageUrl: '/images/service_sample_3d.jpg', category: '3D Design', budget: 450, type: 'OFFER', tags: ['STANDING_OFFER'], requester: { id: 'dev_student_1', fullName: 'Charles B.' }, createdAt: new Date(Date.now() - 3600000 * 24).toISOString() },
+      { id: 'req_2', title: 'Circuit Schematic & PCB Layout Review', description: 'Comprehensive design review for EAGLE, KiCad, and Altium schematics and multilayer PCB layouts.', imageUrl: '/images/service_3d_printing.jpg', category: 'PCB & Hardware Design', budget: 1200, type: 'OFFER', tags: ['STANDING_OFFER'], requester: { fullName: 'Engr. Noel V.' }, createdAt: new Date(Date.now() - 3600000 * 48).toISOString() },
+      { id: 'req_3', title: 'Need Arduino Firmware for Water Monitoring IoT', description: 'Looking for a skilled developer to write C++ firmware for ESP32/Arduino with turbidity and pH sensors.', category: 'Embedded Systems', budget: 2500, type: 'REQUEST', requester: { fullName: 'Maria Santos' }, createdAt: new Date(Date.now() - 3600000 * 12).toISOString() },
+      { id: 'req_4', title: 'Laser Cutting Acrylic Chassis Plates', description: 'Precision CO2 laser cutting for acrylic panels, robot bases, and front panel bezels.', imageUrl: '/images/service_laser_cutting.jpg', category: 'CAD & 3D Modeling', budget: 650, type: 'OFFER', tags: ['STANDING_OFFER'], requester: { fullName: 'Tech Lab Guild' }, createdAt: new Date(Date.now() - 3600000 * 72).toISOString() },
+      { id: 'req_5', title: 'Need Mobile App UI for Student Attendance System', description: 'Seeking a UI/UX designer to create mobile mockups and responsive prototype flows for automated RFID student check-in.', imageUrl: '/images/service_ink_printing.jpg', category: 'UI/UX Design', budget: 1800, type: 'REQUEST', requester: { fullName: 'Carlo Mendoza' }, createdAt: new Date(Date.now() - 3600000 * 6).toISOString() }
     ];
     allUsersData = [
       { id: 'user_m1', fullName: 'Engr. Noel Villanueva', preferredRole: 'Offer My Skills', bio: 'Senior embedded hardware engineer & PCB routing specialist.', skills: ['PCB & Hardware Design', 'Embedded Systems', 'C++', 'Electronics & Circuit Design'], rating: '5.0', completedSessions: 14 },
