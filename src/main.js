@@ -8054,48 +8054,6 @@ function renderAdminApplications() {
   renderAdminPagination('admin-apps-pagination', 'applications', totalCount);
 }
 
-function openListingDescriptionDialog(item, poster, isOffer, isMentoring) {
-  const dlg = $('#dialog-listing-description');
-  if (!dlg) {
-    openServiceDetailsDialog(item);
-    return;
-  }
-  const badgeEl = $('#desc-modal-badge');
-  if (badgeEl) {
-    badgeEl.textContent = isMentoring ? 'Mentoring' : (isOffer ? 'Service Offer' : 'Service Request');
-    badgeEl.className = `badge ${isMentoring ? 'badge-info' : (isOffer ? 'badge-standing' : 'badge-request')} mb-1`;
-  }
-  const titleEl = $('#desc-modal-title');
-  if (titleEl) titleEl.textContent = item.title || 'Untitled Listing';
-
-  const posterEl = $('#desc-modal-poster');
-  if (posterEl) posterEl.textContent = `Posted by: ${poster?.fullName || 'Student'}${poster?.studentId ? ` (ID: ${poster.studentId})` : ''}`;
-
-  const rateEl = $('#desc-modal-rate');
-  if (rateEl) rateEl.textContent = `${peso(item.budget)} ${isOffer ? '(Base)' : ''}`;
-
-  const textEl = $('#desc-modal-text');
-  if (textEl) textEl.textContent = item.description ? item.description.trim() : 'No description provided for this listing.';
-
-  const fullDetailsBtn = $('#desc-modal-full-details-btn');
-  if (fullDetailsBtn) {
-    fullDetailsBtn.onclick = () => {
-      dlg.close();
-      openServiceDetailsDialog(item, {
-        actionType: 'delete',
-        btnText: 'Take Down Listing',
-        btnClass: 'btn-danger',
-        triggerDelete: () => {
-          const deleteBtn = $(`#admin-all-listings-tbody [data-id="${item.id}"]`)?.closest('tr')?.querySelector('.delete-listing-btn');
-          deleteBtn?.click();
-        }
-      });
-    };
-  }
-
-  dlg.showModal();
-}
-
 function renderAdminListings() {
   const tbody = $('#admin-all-listings-tbody');
   if (!tbody) return;
@@ -8153,10 +8111,6 @@ function renderAdminListings() {
     tr.innerHTML = `
       <td>
         <div style="font-weight: 600; color: var(--text-heading, #1e293b); line-height: 1.35;">${escapeHtml(item.title)}</div>
-        <button type="button" class="btn-listing-desc-popup" data-id="${item.id}" title="Click to view full description">
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line></svg>
-          <span>View Description</span>
-        </button>
       </td>
       <td>${typeBadge}</td>
       <td>
@@ -8177,19 +8131,12 @@ function renderAdminListings() {
         </span>
       </td>
       <td>
-        <div class="flex items-center gap-1.5">
-          <button type="button" class="btn btn-outline btn-sm view-listing-details-btn" title="View Full Service Details">Details</button>
-          <button type="button" class="btn btn-outline btn-sm delete-listing-btn btn-delete-service">Delete</button>
+        <div class="flex items-center gap-2" style="justify-content: flex-end;">
+          <button type="button" class="btn view-listing-details-btn" title="View Full Service Details">Details</button>
+          <button type="button" class="btn delete-listing-btn btn-delete-service">Delete</button>
         </div>
       </td>
     `;
-
-    // View Description popup trigger
-    tr.querySelector('.btn-listing-desc-popup')?.addEventListener('click', (e) => {
-      e.preventDefault();
-      e.stopPropagation();
-      openListingDescriptionDialog(item, poster, isOffer, isMentoring);
-    });
 
     // View Details full modal trigger
     tr.querySelector('.view-listing-details-btn')?.addEventListener('click', (e) => {

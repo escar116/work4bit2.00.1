@@ -1258,13 +1258,16 @@
 #section-admin .data-table thead th:last-child,
 #section-admin .data-table tbody td:last-child {
   border-top-right-radius: 11px;
-  padding-right: 18px !important;
+  padding-right: 20px !important;
   text-align: right;
   white-space: nowrap;
+  width: 175px;
+  min-width: 170px;
 }
 
 #section-admin .data-table tbody td:last-child .flex {
   justify-content: flex-end;
+  gap: 8px !important;
 }
 
 #section-admin .data-table tbody td {
@@ -1272,29 +1275,63 @@
   vertical-align: middle;
 }
 
-/* Compact description pop-up trigger button in admin listings */
-.btn-listing-desc-popup {
-  background: rgba(96, 63, 242, 0.08);
-  border: 1px solid rgba(96, 63, 242, 0.22);
-  color: var(--color-purple, #603ff2);
-  border-radius: 6px;
-  padding: 2.5px 8px;
-  font-size: 0.72rem;
-  font-weight: 600;
-  cursor: pointer;
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  margin-top: 4px;
-  line-height: 1.4;
-  transition: all 0.15s ease;
+/* Matching Action Buttons in Admin Live Listings Table */
+#app-views #section-admin #admin-listings-table :is(.view-listing-details-btn, .delete-listing-btn) {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  font-size: 0.76rem !important;
+  font-weight: 600 !important;
+  line-height: 1 !important;
+  padding: 4px 12px !important;
+  height: 28px !important;
+  min-width: 66px !important;
+  border-radius: 6px !important;
+  cursor: pointer !important;
+  transition: all 0.15s ease !important;
+  box-sizing: border-box !important;
+  text-align: center !important;
+  margin: 0 !important;
 }
 
-.btn-listing-desc-popup:hover {
-  background: rgba(96, 63, 242, 0.16);
-  border-color: #603ff2;
-  color: #4f2fe0;
-  transform: translateY(-1px);
+/* Details button: sleek purple outline accent */
+#app-views #section-admin #admin-listings-table .view-listing-details-btn {
+  background: rgba(96, 63, 242, 0.07) !important;
+  color: #603ff2 !important;
+  border: 1px solid rgba(96, 63, 242, 0.3) !important;
+}
+
+#app-views #section-admin #admin-listings-table .view-listing-details-btn:hover {
+  background: #603ff2 !important;
+  color: #ffffff !important;
+  border-color: #603ff2 !important;
+  box-shadow: 0 2px 8px rgba(96, 63, 242, 0.25) !important;
+  transform: translateY(-1px) !important;
+}
+
+#app-views #section-admin #admin-listings-table .view-listing-details-btn:active {
+  transform: translateY(0) !important;
+  box-shadow: none !important;
+}
+
+/* Delete button: sleek danger red accent with exact same dimensions */
+#app-views #section-admin #admin-listings-table .delete-listing-btn {
+  background: rgba(239, 68, 68, 0.07) !important;
+  color: #ef4444 !important;
+  border: 1px solid rgba(239, 68, 68, 0.35) !important;
+}
+
+#app-views #section-admin #admin-listings-table .delete-listing-btn:hover {
+  background: #ef4444 !important;
+  color: #ffffff !important;
+  border-color: #ef4444 !important;
+  box-shadow: 0 2px 8px rgba(239, 68, 68, 0.25) !important;
+  transform: translateY(-1px) !important;
+}
+
+#app-views #section-admin #admin-listings-table .delete-listing-btn:active {
+  transform: translateY(0) !important;
+  box-shadow: none !important;
 }
 
 .data-table th.sortable-th {
