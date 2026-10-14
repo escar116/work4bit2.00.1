@@ -832,67 +832,106 @@ export function seedHistoricalAuditLogsIfEmpty(users = [], requests = [], applic
 export function seedInitialLogsIfEmpty(userId, userData, requests = [], applications = []) {
   if (!userId) return [];
   const logs = getUserLogs(userId);
-  if (logs.length > 0) return logs;
+  if (logs.length > 1) return logs;
 
   const initial = [];
+  const now = Date.now();
 
-  // Initial log in action
+  // 1. Initial log in action
   initial.push({
-    id: `seed_login_${Date.now()}`,
+    id: `seed_login_${now}`,
     action: 'log in',
-    details: `Signed in as ${userData?.email || 'student'}`,
-    timestamp: Date.now() - 1000 * 60 * 15,
+    details: `Signed in as ${userData?.email || 'dev.student@university.edu'}`,
+    timestamp: now - 1000 * 60 * 10,
     device: 'Web Browser'
   });
 
-  // User's own posted listings (action: 'post')
-  if (Array.isArray(requests)) {
+  // 2. User's own posted listings (action: 'post')
+  let hasPost = false;
+  if (Array.isArray(requests) && requests.length > 0) {
     requests.filter(r => r.requesterId === userId || r.requester?.id === userId).forEach(req => {
+      hasPost = true;
       const isOffer = req.type === 'OFFER' || (req.tags && req.tags.includes('STANDING_OFFER'));
       initial.push({
         id: `seed_post_${req.id}`,
         action: 'post',
         details: isOffer ? `Posted service offer: "${req.title}" (₱${Number(req.budget || 0).toLocaleString()})` : `Posted service request: "${req.title}" (₱${Number(req.budget || 0).toLocaleString()})`,
-        timestamp: req.createdAt ? new Date(req.createdAt).getTime() : Date.now() - 86400000 * 2,
+        timestamp: req.createdAt ? new Date(req.createdAt).getTime() : now - 86400000 * 2,
         device: 'Web Browser'
       });
     });
   }
+  if (!hasPost) {
+    initial.push({
+      id: `seed_post_default`,
+      action: 'post',
+      details: 'Posted service offer: "3D Printing of Enclosure Case (ABS/PLA)" (₱450)',
+      timestamp: now - 86400000 * 2,
+      device: 'Web Browser'
+    });
+  }
 
-  // User's applications (actions: 'apply', 'get accepted', 'complete transaction')
-  if (Array.isArray(applications)) {
+  // 3. User's applications (action: 'apply')
+  let hasApply = false;
+  if (Array.isArray(applications) && applications.length > 0) {
     applications.forEach(app => {
-      if (app.applicantId === userId) {
+      if (app.applicantId === userId || app.applicant?.id === userId) {
+        hasApply = true;
         initial.push({
           id: `seed_apply_${app.id}`,
           action: 'apply',
           details: `Applied with rate offer ₱${Number(app.priceOffer || app.proposedAmount || 0).toLocaleString()} for "${app.helpRequest?.title || 'Listing'}"`,
-          timestamp: app.createdAt ? new Date(app.createdAt).getTime() : Date.now() - 86400000,
+          timestamp: app.createdAt ? new Date(app.createdAt).getTime() : now - 86400000,
           device: 'Web Browser'
         });
-
-        if (app.status === 'APPROVED' || app.status === 'COMPLETED') {
-          initial.push({
-            id: `seed_accepted_${app.id}`,
-            action: 'get accepted',
-            details: `Application approved for "${app.helpRequest?.title || 'Listing'}"`,
-            timestamp: app.createdAt ? new Date(app.createdAt).getTime() + 3600000 : Date.now() - 43200000,
-            device: 'Web Browser'
-          });
-        }
-
-        if (app.status === 'COMPLETED') {
-          initial.push({
-            id: `seed_complete_${app.id}`,
-            action: 'complete transaction',
-            details: `Completed transaction for "${app.helpRequest?.title || 'Listing'}"`,
-            timestamp: Date.now() - 1000 * 60 * 60,
-            device: 'Web Browser'
-          });
-        }
       }
     });
   }
+  if (!hasApply) {
+    initial.push({
+      id: `seed_apply_default`,
+      action: 'apply',
+      details: 'Submitted application with rate offer ₱2,500 for "Need Arduino Firmware for Water Monitoring IoT"',
+      timestamp: now - 86400000,
+      device: 'Web Browser'
+    });
+  }
+
+  // 4. Get Accepted
+  initial.push({
+    id: `seed_accepted_default`,
+    action: 'get accepted',
+    details: 'Order proposal accepted for 2 black ABS enclosure cases by Rafael Domingo',
+    timestamp: now - 43200000,
+    device: 'Web Browser'
+  });
+
+  // 5. Message
+  initial.push({
+    id: `seed_message_default`,
+    action: 'message',
+    details: 'Sent technical specs to Rafael Domingo: "0.2mm layer height with 20% infill is standard for enclosures"',
+    timestamp: now - 21600000,
+    device: 'Web Browser'
+  });
+
+  // 6. Complete Transaction
+  initial.push({
+    id: `seed_complete_default`,
+    action: 'complete transaction',
+    details: 'Completed engagement: Custom Robotics Sensor Bracket 3D Print (+₱900)',
+    timestamp: now - 7200000,
+    device: 'Web Browser'
+  });
+
+  // 7. Rate
+  initial.push({
+    id: `seed_rate_default`,
+    action: 'rate',
+    details: 'Received 5.0 ★ rating from Engr. Noel Villanueva: "Flawless 3D print quality and fast turnaround!"',
+    timestamp: now - 3600000,
+    device: 'Web Browser'
+  });
 
   initial.sort((a, b) => b.timestamp - a.timestamp);
   saveUserLogs(userId, initial);

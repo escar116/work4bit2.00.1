@@ -65,7 +65,7 @@ const firestore = getFirestore(app);
 
 // Wire real-time cloud audit log synchronization across all users to Firestore
 setActivityLoggerCloudSync((userId, logEntry) => {
-  if (!currentUser?.uid || !userId || !logEntry) return;
+  if (!currentUser?.uid || !userId || !logEntry || devPreview) return;
   try {
     setDoc(doc(firestore, "user_profiles", userId), {
       recentActivityLogs: arrayUnion(logEntry),
@@ -433,7 +433,7 @@ let currentOnlineEmails = new Set();
 
 async function recordUserPresence(uid) {
   const activeUid = uid || currentUser?.uid;
-  if (!activeUid) return;
+  if (!activeUid || devPreview) return;
   const now = Date.now();
   const email = (currentUser?.email || userData?.email || '').toLowerCase();
   const name = userData?.fullName || currentUser?.displayName || 'Student';
@@ -471,6 +471,13 @@ async function recordUserPresence(uid) {
 }
 
 async function getOnlineUserIds(timeoutMs = 3 * 60 * 1000) {
+  if (devPreview) {
+    const onlineIds = new Set(['dev_student_1', 'u1', 'u2']);
+    const onlineEmails = new Set(['dev.student@university.edu', 'charlesjanparaggua@gmail.com', 'noel@university.edu']);
+    currentOnlineUserIds = onlineIds;
+    currentOnlineEmails = onlineEmails;
+    return { ids: onlineIds, emails: onlineEmails };
+  }
   const onlineIds = new Set();
   const onlineEmails = new Set();
   const now = Date.now();
@@ -2151,20 +2158,92 @@ async function loadDashboard(isSilent = false) {
       getDocs(query(collection(firestore, "reviews"), where("targetUserId", "==", userData.id))),
       getNegotiatedPricesMap()
     ]);
-    if ([appResult, postResult, posterAppResult].some(result => result.status === 'rejected')) {
+    if (!devPreview && [appResult, postResult, posterAppResult].some(result => result.status === 'rejected')) {
       throw new Error('One or more dashboard data sources could not be loaded.');
     }
 
-    const submitted = appResult.value.data?.applications || [];
-    const listings = postResult.value.data?.helpRequests || [];
+    let submitted = appResult.value?.data?.applications || [];
+    let listings = postResult.value?.data?.helpRequests || [];
     const negMap = (negotiatedMapRes.status === 'fulfilled' && negotiatedMapRes.value) ? negotiatedMapRes.value : cachedNegotiatedPrices;
+
+    if (devPreview && submitted.length === 0 && listings.length === 0) {
+      listings = [
+        {
+          id: 'req_1',
+          title: '3D Printing of Enclosure Case (ABS/PLA)',
+          category: '3D Design',
+          budget: 450,
+          status: 'OPEN',
+          urgency: 'OFFER',
+          type: 'OFFER',
+          tags: ['STANDING_OFFER'],
+          applications_on_helpRequest: [
+            {
+              id: 'app_m1',
+              status: 'APPROVED',
+              priceOffer: 450,
+              createdAt: new Date(Date.now() - 3600000 * 24).toISOString(),
+              applicant: { id: 'user_m4', fullName: 'Rafael Domingo' }
+            }
+          ]
+        },
+        {
+          id: 'req_past_1',
+          title: 'Custom Robotics Sensor Bracket 3D Print',
+          category: '3D Design',
+          budget: 900,
+          status: 'COMPLETED',
+          urgency: 'OFFER',
+          type: 'OFFER',
+          tags: ['STANDING_OFFER'],
+          applications_on_helpRequest: [
+            {
+              id: 'app_past_1',
+              status: 'COMPLETED',
+              priceOffer: 900,
+              createdAt: new Date(Date.now() - 3600000 * 24 * 7).toISOString(),
+              applicant: { id: 'user_m1', fullName: 'Engr. Noel Villanueva' }
+            }
+          ]
+        }
+      ];
+
+      submitted = [
+        {
+          id: 'app_prev_1',
+          status: 'PENDING',
+          priceOffer: 2500,
+          createdAt: new Date(Date.now() - 3600000 * 12).toISOString(),
+          helpRequest: {
+            id: 'req_3',
+            title: 'Need Arduino Firmware for Water Monitoring IoT',
+            category: 'Embedded Systems',
+            budget: 2500,
+            status: 'OPEN'
+          }
+        },
+        {
+          id: 'app_prev_comp',
+          status: 'COMPLETED',
+          priceOffer: 1200,
+          createdAt: new Date(Date.now() - 3600000 * 24 * 14).toISOString(),
+          helpRequest: {
+            id: 'req_past_sub',
+            title: 'PCB Routing & Gerber Verification',
+            category: 'PCB & Hardware Design',
+            budget: 1200,
+            status: 'COMPLETED'
+          }
+        }
+      ];
+    }
 
     submitted.forEach(a => {
       if (a?.id && negMap[a.id] != null) a.priceOffer = negMap[a.id];
     });
 
     // Aggregate received applications from poster query and helpRequests
-    const received = [...(posterAppResult.value.data?.applications || [])];
+    const received = [...(posterAppResult.value?.data?.applications || [])];
     const seenAppIds = new Set(received.map(a => a.id));
     received.forEach(a => {
       if (a?.id && negMap[a.id] != null) a.priceOffer = negMap[a.id];
@@ -2178,6 +2257,16 @@ async function loadDashboard(isSilent = false) {
         }
       });
     });
+
+    const activeReviewResult = (devPreview && (!reviewResult || reviewResult.status === 'rejected' || !reviewResult.value?.docs?.length)) ? {
+      status: 'fulfilled',
+      value: {
+        docs: [
+          { data: () => ({ rating: 5, comment: 'Flawless 3D print quality and fast turnaround!' }) },
+          { data: () => ({ rating: 5, comment: 'Great communication and solid ABS strength.' }) }
+        ]
+      }
+    } : reviewResult;
 
     const stats = summarizeDashboard(submitted, received, listings, isJobOffer);
     let scopeSlidingTabs = null;
@@ -2204,7 +2293,7 @@ async function loadDashboard(isSilent = false) {
 
             const wrap = container.querySelector('#dashboard-panels-wrap');
             if (wrap) {
-              wrap.innerHTML = renderDashboardPanels(stats, reviewResult, dashboardScope, dashboardPeriod);
+              wrap.innerHTML = renderDashboardPanels(stats, activeReviewResult, dashboardScope, dashboardPeriod);
               bindPeriodTabs();
             }
           });
@@ -2213,7 +2302,7 @@ async function loadDashboard(isSilent = false) {
     };
 
     const paintDashboard = () => {
-      container.innerHTML = renderDashboard(stats, reviewResult, dashboardScope, dashboardPeriod, userData?.fullName?.trim().split(/\s+/)[0] || 'Student');
+      container.innerHTML = renderDashboard(stats, activeReviewResult, dashboardScope, dashboardPeriod, userData?.fullName?.trim().split(/\s+/)[0] || 'Student');
       container.classList.add('t-skel-reveal');
 
       const scopeContainer = container.querySelector('#dashboard-scope-tabs');
@@ -2236,7 +2325,7 @@ async function loadDashboard(isSilent = false) {
 
             const wrap = container.querySelector('#dashboard-panels-wrap');
             if (wrap) {
-              wrap.innerHTML = renderDashboardPanels(stats, reviewResult, dashboardScope, dashboardPeriod);
+              wrap.innerHTML = renderDashboardPanels(stats, activeReviewResult, dashboardScope, dashboardPeriod);
               bindPeriodTabs();
             }
           });
@@ -2361,9 +2450,12 @@ function isMentoringJob(job) {
 
 function isJobOffer(job) {
   if (!job) return false;
+  if (job.type === 'REQUEST') return false;
   if (String(job.category || '').toUpperCase() === 'MENTORING' || /^mentoring\s*:/i.test(job.title || '')) return false;
   const urg = (job.urgency || '').toUpperCase();
   if (urg === 'OFFER' || urg === 'STANDING') return true;
+  if (job.type === 'OFFER' || job.type === 'STANDING_OFFER') return true;
+  if (Array.isArray(job.tags) && (job.tags.includes('STANDING_OFFER') || job.tags.includes('OFFER'))) return true;
   if (job.id && knownStandingOfferIds.has(job.id)) return true;
   if (allRequests && allRequests.length > 0) {
     const found = allRequests.find(r => r.id === job.id);
@@ -2749,7 +2841,10 @@ function openServiceDetailsDialog(r, actionInfo) {
   if (priceLabel) priceLabel.textContent = isOffer ? 'Starting Rate' : 'Budget';
 
   const priceValue = $('#sd-price-value');
-  if (priceValue) priceValue.textContent = peso(r.budget);
+  if (priceValue) {
+    priceValue.textContent = peso(r.budget);
+    priceValue.style.color = isOffer ? '#ec4899' : '#0e74f4';
+  }
 
   const catValue = $('#sd-category-value');
   if (catValue) catValue.textContent = r.category || 'General';
@@ -2782,6 +2877,17 @@ function openServiceDetailsDialog(r, actionInfo) {
     actionBtn.className = `btn ${actionInfo.btnClass}`;
     actionBtn.textContent = actionInfo.btnText;
     actionBtn.disabled = Boolean(actionInfo.btnDisabled);
+    if (isOffer) {
+      actionBtn.style.background = 'linear-gradient(135deg, rgb(245, 0, 254) 0%, rgb(167, 46, 255) 100%)';
+      actionBtn.style.boxShadow = '0 4px 14px rgba(245, 0, 254, 0.35)';
+      actionBtn.style.color = '#ffffff';
+      actionBtn.style.border = 'none';
+    } else {
+      actionBtn.style.background = 'linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%)';
+      actionBtn.style.boxShadow = '0 4px 14px rgba(37, 99, 235, 0.35)';
+      actionBtn.style.color = '#ffffff';
+      actionBtn.style.border = 'none';
+    }
 
     actionBtn.onclick = (e) => {
       e.preventDefault();
@@ -3034,7 +3140,14 @@ function renderServices(requests) {
         <div class="request-card-cover card-open-details cursor-pointer">
           <img src="${r.imageUrl}" alt="${escapeHtml(r.title || 'Service Cover')}" class="request-card-img" loading="lazy" />
         </div>
-      ` : ''}
+      ` : `
+        <div class="request-card-cover card-open-details cursor-pointer ${isOffer ? 'request-card-cover-offer' : 'request-card-cover-request'}">
+          <div class="cover-placeholder-content">
+            <span class="cover-placeholder-icon">${isOffer ? '🛠️' : '💡'}</span>
+            <span class="cover-placeholder-category">${escapeHtml(r.category || (isOffer ? 'Campus Service' : 'Project Request'))}</span>
+          </div>
+        </div>
+      `}
       <div class="request-card-header">
         <div class="avatar avatar-sm cursor-pointer flex-shrink-0" onclick="openViewProfileDialog('${r.requester?.id}')" style="overflow:hidden;padding:0;">${renderUserAvatar(r.requester?.id, r.requester?.fullName)}</div>
         <div class="request-card-user">
@@ -3099,6 +3212,12 @@ function renderServices(requests) {
       e.preventDefault();
       const newStatus = !isClosedOffer;
       if (newStatus) closedOffersSet.add(r.id); else closedOffersSet.delete(r.id);
+      if (devPreview) {
+        showToast(newStatus ? 'Service offer marked as Temporarily Closed.' : 'Service offer reopened and accepting campus orders!');
+        logUserAction('update service', `${newStatus ? 'Temporarily closed' : 'Reopened'} service offer "${r.title || ''}"`, currentUser?.uid || userData?.id);
+        loadServices();
+        return;
+      }
       try {
         await setDoc(doc(firestore, "service_status", r.id), { isClosed: newStatus, updatedAt: firestoreTimestamp() }, { merge: true });
         showToast(newStatus ? 'Service offer marked as Temporarily Closed.' : 'Service offer reopened and accepting campus orders!');
@@ -3790,12 +3909,15 @@ let appTab = 'posted';
 async function updateApplicationTabCounts() {
   if (!userData?.id && !devPreview) return;
   if (devPreview) {
+    const postedCount = allMyJobs?.length || 1;
+    const appliedCount = 1;
+    const mentoringCount = 0;
     const postedEl = $('#apps-posted-count');
-    if (postedEl) postedEl.textContent = $('#posted-jobs-list')?.querySelectorAll('.job-card').length || '0';
+    if (postedEl) postedEl.textContent = postedCount;
     const appliedEl = $('#apps-applied-count');
-    if (appliedEl) appliedEl.textContent = $('#my-applications-list')?.querySelectorAll('.application-card').length || '0';
+    if (appliedEl) appliedEl.textContent = appliedCount;
     const mentoringEl = $('#apps-mentoring-count');
-    if (mentoringEl) mentoringEl.textContent = $('#mentoring-requests-list')?.querySelectorAll('.job-card').length || '0';
+    if (mentoringEl) mentoringEl.textContent = mentoringCount;
     return;
   }
   try {
@@ -3824,10 +3946,11 @@ async function updateApplicationTabCounts() {
 }
 
 async function loadApplications(isSilent = false) {
-  updateApplicationTabCounts();
   if (appTab === 'posted') await loadPostedJobs(isSilent);
   else if (appTab === 'applied') await loadMyApplications(isSilent);
   else if (appTab === 'mentoring') await loadMentoringRequests(isSilent);
+  updateApplicationTabCounts();
+  requestAnimationFrame(() => appSlidingTabs?.sync(false));
 }
 
 async function loadPostedJobs(isSilent = false) {
@@ -4467,6 +4590,7 @@ try {
 
 async function getNegotiatedPricesMap() {
   const map = { ...cachedNegotiatedPrices };
+  if (devPreview) return map;
   try {
     const snap = await getDocs(collection(firestore, "applications"));
     snap.forEach(d => {
@@ -4490,6 +4614,10 @@ async function getNegotiatedPricesMap() {
 }
 
 async function sortConversationsByActivity(items) {
+  if (devPreview) {
+    items.sort((a, b) => (b.lastActivityAt || 0) - (a.lastActivityAt || 0));
+    return items;
+  }
   await Promise.all(items.map(async (conv) => {
     const createdAt = parseTransactionDateTime(conv.createdAt).timestamp || 0;
     try {
@@ -4526,7 +4654,7 @@ async function loadMessages(isSilent = false) {
   const convList = $('#conversations-list');
   if (!isSilent && convList.children.length === 0) convList.innerHTML = getSkeletonConversationsHtml(5);
   try {
-    const res = await listConversations(dc, { userId: userData.id }, SERVER_ONLY);
+    const res = !devPreview ? await listConversations(dc, { userId: userData.id }, SERVER_ONLY).catch(() => ({ data: { conversations: [] } })) : { data: { conversations: [] } };
     const rawFetched = (res.data.conversations || []).filter(c =>
       c.application?.status !== 'TERMINATED'
     );
@@ -4544,6 +4672,28 @@ async function loadMessages(isSilent = false) {
         seenAppIds.add(aId);
       }
       dedupedFetched.push(c);
+    }
+    if (devPreview && dedupedFetched.length === 0) {
+      dedupedFetched.push({
+        id: 'conv_dev_1',
+        createdAt: new Date(Date.now() - 3600000 * 4).toISOString(),
+        lastActivityAt: Date.now() - 600000,
+        poster: { id: 'dev_student_1', fullName: 'Charles B.', email: 'dev.student@university.edu' },
+        applicant: { id: 'user_m4', fullName: 'Rafael Domingo', email: 'rafael@university.edu' },
+        application: {
+          id: 'app_m1',
+          status: 'ACCEPTED',
+          priceOffer: 450,
+          helpRequest: {
+            id: 'req_1',
+            title: '3D Printing of Enclosure Case (ABS/PLA)',
+            category: '3D Design',
+            budget: 450,
+            status: 'OPEN',
+            urgency: 'OFFER'
+          }
+        }
+      });
     }
     conversations = await sortConversationsByActivity(dedupedFetched);
     renderConversationList();
@@ -4894,6 +5044,36 @@ async function selectConversation(convId) {
       messageSubscription = null;
     }
     activeSubscriptionConvId = convId;
+    if (devPreview && convId === 'conv_dev_1') {
+      const msgArea = $('#chat-messages');
+      if (msgArea) {
+        msgArea.innerHTML = '';
+        renderIncomingMessages([
+          {
+            id: 'msg_dev_1',
+            senderId: 'user_m4',
+            senderName: 'Rafael Domingo',
+            content: 'Hi Charles! I placed an order for 2 enclosure cases in black ABS. Can you print them with 0.2mm layer height?',
+            timestamp: Date.now() - 1800000
+          },
+          {
+            id: 'msg_dev_2',
+            senderId: 'dev_student_1',
+            senderName: 'Charles B.',
+            content: 'Hi Rafael! Yes, absolutely. 0.2mm layer height with 20% infill in black ABS is standard for these enclosures. I will start the print tonight.',
+            timestamp: Date.now() - 900000
+          },
+          {
+            id: 'msg_dev_3',
+            senderId: 'user_m4',
+            senderName: 'Rafael Domingo',
+            content: 'Awesome, thank you so much! Let me know once ready for campus pickup.',
+            timestamp: Date.now() - 300000
+          }
+        ]);
+      }
+      return;
+    }
     try {
       const msgArea = $('#chat-messages');
       if (msgArea) msgArea.innerHTML = getSkeletonChatMessagesHtml();
@@ -5137,12 +5317,14 @@ async function loadTransactions() {
   const tbody = $('#transactions-tbody');
   tbody.innerHTML = getSkeletonTableRowsHtml(4, 5);
   try {
-    const [appRes, myPostRes, posterAppRes, negotiatedMap] = await Promise.all([
-      listApplicationsByApplicant(dc, { userId: userData.id }, SERVER_ONLY),
-      listMyHelpRequestsWithApplications(dc, { userId: userData.id }, SERVER_ONLY),
-      listApplicationsForMyRequests(dc, { userId: userData.id }, SERVER_ONLY),
-      getNegotiatedPricesMap()
-    ]);
+    const [appRes, myPostRes, posterAppRes, negotiatedMap] = devPreview
+      ? [{ data: { applications: [] } }, { data: { helpRequests: [] } }, { data: { applications: [] } }, {}]
+      : await Promise.all([
+          listApplicationsByApplicant(dc, { userId: userData.id }, SERVER_ONLY).catch(() => ({ data: { applications: [] } })),
+          listMyHelpRequestsWithApplications(dc, { userId: userData.id }, SERVER_ONLY).catch(() => ({ data: { helpRequests: [] } })),
+          listApplicationsForMyRequests(dc, { userId: userData.id }, SERVER_ONLY).catch(() => ({ data: { applications: [] } })),
+          getNegotiatedPricesMap()
+        ]);
     const apps = appRes.data.applications || [];
     const myPosts = myPostRes.data.helpRequests || [];
     const posterApplicationDates = new Map((posterAppRes.data.applications || []).map(a => [a.id, a.createdAt]));
@@ -5248,6 +5430,41 @@ async function loadTransactions() {
         }
       });
     });
+
+    if (devPreview && txList.length === 0) {
+      txList.push(
+        {
+          id: 'tx_prev_1',
+          title: '3D Printing of Enclosure Case (ABS/PLA)',
+          counterpart: 'Client: Rafael Domingo',
+          amount: 450,
+          status: 'PENDING',
+          type: 'EARNING',
+          date: 'Oct 14, 2026, 10:15 AM',
+          timestamp: Date.now() - 3600000 * 2
+        },
+        {
+          id: 'tx_prev_2',
+          title: 'Custom Robotics Sensor Bracket 3D Print',
+          counterpart: 'Client: Engr. Noel Villanueva',
+          amount: 900,
+          status: 'COMPLETED',
+          type: 'EARNING',
+          date: 'Oct 12, 2026, 3:30 PM',
+          timestamp: Date.now() - 3600000 * 48
+        },
+        {
+          id: 'tx_prev_3',
+          title: 'PCB Routing & Gerber Verification',
+          counterpart: 'Paid to Provider: Anna Salcedo',
+          amount: 1200,
+          status: 'COMPLETED',
+          type: 'PAYMENT',
+          date: 'Oct 10, 2026, 11:20 AM',
+          timestamp: Date.now() - 3600000 * 96
+        }
+      );
+    }
 
     txList.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
     allTransactions = txList;
@@ -5739,11 +5956,73 @@ async function loadProfile() {
 
   try {
     // Parallelize userProfile (DC), profileDoc (Firestore), and reviews (Firestore)
-    const [resUser, profileDoc, reviewsSnap] = await Promise.all([
+    const [resUser, profileDoc, reviewsSnap] = devPreview ? [
+      null,
+      null,
+      {
+        docs: [
+          {
+            id: 'rev_dev_1',
+            data: () => ({
+              reviewerName: 'Maria Santos',
+              rating: 5,
+              comment: 'Super fast turn-around on the 3D enclosure casing! Perfect tolerances and clean finish.',
+              createdAt: new Date(Date.now() - 3600000*24*3).toISOString()
+            })
+          },
+          {
+            id: 'rev_dev_2',
+            data: () => ({
+              reviewerName: 'Engr. Noel Villanueva',
+              rating: 5,
+              comment: 'Great grasp of schematic design and C++ programming. Highly recommended mentor!',
+              createdAt: new Date(Date.now() - 3600000*24*7).toISOString()
+            })
+          }
+        ]
+      }
+    ] : await Promise.all([
       getUserProfile(dc, { id: userData.id }, SERVER_ONLY).catch(e => { console.warn('DC userProfile fetch:', e); return null; }),
       getDoc(doc(firestore, "user_profiles", userData.id)).catch(e => { console.warn(e); return null; }),
       getDocs(query(collection(firestore, "reviews"), where("targetUserId", "==", userData.id))).catch(e => { console.warn(e); return { docs: [] }; })
     ]);
+
+    if (devPreview) {
+      $('#stat-app-pending').textContent = '1';
+      $('#stat-app-completed').textContent = '1';
+      $('#stat-app-terminated').textContent = '0';
+      $('#stat-emp-pending').textContent = '1';
+      $('#stat-emp-completed').textContent = '2';
+      $('#stat-emp-terminated').textContent = '0';
+
+      if (!userData.bio) {
+        userData.bio = "BS Computer Engineering student specializing in additive manufacturing, rapid prototyping, and embedded C++ systems. Campus 3D printing service provider and hardware enthusiast.";
+        if (bioDisplay) bioDisplay.textContent = userData.bio;
+      }
+      if (!userData.skills || userData.skills.length === 0) {
+        userData.skills = ['3D Printing (FDM/SLA)', 'CAD & 3D Modeling', 'Embedded Systems', 'Arduino / ESP32', 'PCB Layout & Review', 'Python'];
+        if (skillsDisplay) {
+          skillsDisplay.innerHTML = userData.skills.map(s => `<span class="skill-pill" style="display:inline-block; margin:2px; background:var(--accent-purple-light); color:var(--primary-purple); border:1px solid rgba(79, 70, 229, 0.2); font-weight:600; padding:4px 10px; border-radius:999px; font-size:12px;">${s}</span>`).join('');
+        }
+      }
+      if (!userData.portfolio || userData.portfolio.length === 0) {
+        userData.portfolio = [
+          {
+            title: 'Robotics Chassis Snap-Fit Enclosure',
+            description: 'Precision 3D printed ABS casing with heat-set brass threaded inserts and custom front-panel OLED cutouts.',
+            link: 'https://github.com',
+            tags: ['3D Printing', 'CAD']
+          },
+          {
+            title: 'Dual-Channel Thermocouple Monitor PCB',
+            description: 'Two-layer KiCad board design with SPI thermocouple IC and ESP32 wireless telemetry for lab testing.',
+            link: 'https://github.com',
+            tags: ['PCB Design', 'Hardware']
+          }
+        ];
+        renderPortfolio(userData.portfolio);
+      }
+    }
 
     const userProfile = resUser?.data?.user;
     if (userProfile) {
@@ -7060,7 +7339,12 @@ async function loadAdmin() {
   setupAdminPeriodSelect();
 
   try {
-    const [usersRes, reqsRes, appsRes, livePostsRes] = await Promise.all([
+    const [usersRes, reqsRes, appsRes, livePostsRes] = devPreview ? [
+      { data: { users: [] } },
+      { data: { helpRequests: [] } },
+      { data: { applications: [] } },
+      { data: { helpRequests: [] } }
+    ] : await Promise.all([
       listAllUsers(dc, SERVER_ONLY).catch(() => ({ data: { users: [] } })),
       listAllHelpRequestsAdmin(dc, SERVER_ONLY).catch(() => ({ data: { helpRequests: [] } })),
       listAllApplicationsAdmin(dc, SERVER_ONLY).catch(() => ({ data: { applications: [] } })),
@@ -7078,34 +7362,43 @@ async function loadAdmin() {
       adminLiveListingsData = adminRequestsData.filter(r => (r.status === 'OPEN' || !r.status) && r.status !== 'DELETED');
     }
 
-    // Fallback ONLY if DataConnect returned zero records and devPreview is active
-    if (devPreview && adminUsersData.length === 0 && adminRequestsData.length === 0) {
-      adminUsersData = [
-        { id: 'u1', fullName: 'Charles B.', email: 'charlesjanparaggua@gmail.com', studentId: '2023-10482', verificationStatus: 'verified' },
-        { id: 'u2', fullName: 'Engr. Noel Villanueva', email: 'noel@university.edu', studentId: 'FAC-01', verificationStatus: 'verified' },
-        { id: 'u3', fullName: 'Anna Salcedo', email: 'anna@university.edu', studentId: '2022-90124', verificationStatus: 'verified' },
-        { id: 'u4', fullName: 'Maria Santos', email: 'maria@university.edu', studentId: '2024-34011', verificationStatus: 'verified' }
-      ];
-      adminRequestsData = [
-        { id: 'r1', title: '3D Printing of Enclosure Case (ABS/PLA)', category: '3D Design', budget: 450, status: 'OPEN', requesterId: 'u1' },
-        { id: 'r2', title: 'Circuit Schematic & PCB Review', category: 'PCB & Hardware Design', budget: 1200, status: 'OPEN', requesterId: 'u2' },
-        { id: 'r3', title: 'Arduino Firmware for Water IoT', category: 'Embedded Systems', budget: 2500, status: 'COMPLETED', requesterId: 'u3' },
-        { id: 'r4', title: 'Laser Cutting Acrylic Chassis', category: 'CAD & 3D Modeling', budget: 650, status: 'COMPLETED', requesterId: 'u4' },
-        { id: 'r5', title: 'Mentoring: SolidWorks CAD', category: 'Mentoring', budget: 800, status: 'OPEN', requesterId: 'u2' },
-        { id: 'r6', title: 'React Web App Frontend Bugfix', category: 'Software Development', budget: 1500, status: 'COMPLETED', requesterId: 'u1' }
-      ];
-      adminLiveListingsData = [
-        { id: 'r1', title: '3D Printing of Enclosure Case (ABS/PLA)', category: '3D Design', budget: 450, status: 'OPEN', requester: { id: 'u1', fullName: 'Charles B.', email: 'charlesjanparaggua@gmail.com', studentId: '2023-10482' }, urgency: 'LOW' },
-        { id: 'r2', title: 'Circuit Schematic & PCB Review', category: 'PCB & Hardware Design', budget: 1200, status: 'OPEN', requester: { id: 'u2', fullName: 'Engr. Noel Villanueva', email: 'noel@university.edu', studentId: 'FAC-01' }, urgency: 'NORMAL', deadline: '2026-10-25' },
-        { id: 'r5', title: 'Mentoring: SolidWorks CAD', category: 'Mentoring', budget: 800, status: 'OPEN', requester: { id: 'u2', fullName: 'Engr. Noel Villanueva', email: 'noel@university.edu', studentId: 'FAC-01' }, urgency: 'NORMAL' },
-        { id: 'r7', title: 'Mentoring: Python & Data Analysis', category: 'Mentoring', budget: 1500, status: 'OPEN', requester: { id: 'u3', fullName: 'Anna Salcedo', email: 'anna@university.edu', studentId: '2022-90124' }, urgency: 'NORMAL' }
-      ];
-      adminAppsData = [
-        { id: 'a1', helpRequestId: 'r3', applicantId: 'u1', priceOffer: 2500, status: 'COMPLETED' },
-        { id: 'a2', helpRequestId: 'r4', applicantId: 'u3', priceOffer: 650, status: 'COMPLETED' },
-        { id: 'a3', helpRequestId: 'r6', applicantId: 'u4', priceOffer: 1500, status: 'COMPLETED' },
-        { id: 'a4', helpRequestId: 'r1', applicantId: 'u2', priceOffer: 450, status: 'TERMINATED' }
-      ];
+    // Fallback if DataConnect returned zero records and devPreview is active
+    if (devPreview) {
+      if (adminUsersData.length === 0) {
+        adminUsersData = [
+          { id: 'u1', fullName: 'Charles B.', email: 'charlesjanparaggua@gmail.com', studentId: '2023-10482', verificationStatus: 'verified' },
+          { id: 'u2', fullName: 'Engr. Noel Villanueva', email: 'noel@university.edu', studentId: 'FAC-01', verificationStatus: 'verified' },
+          { id: 'u3', fullName: 'Anna Salcedo', email: 'anna@university.edu', studentId: '2022-90124', verificationStatus: 'verified' },
+          { id: 'u4', fullName: 'Maria Santos', email: 'maria@university.edu', studentId: '2024-34011', verificationStatus: 'verified' },
+          { id: 'u5', fullName: 'Kevin Tan', email: 'kevin.tan@university.edu', studentId: '2025-11092', verificationStatus: 'pending' }
+        ];
+      }
+      if (adminRequestsData.length === 0) {
+        const nowMs = Date.now();
+        adminRequestsData = [
+          { id: 'r1', title: '3D Printing of Enclosure Case (ABS/PLA)', category: '3D Design', budget: 450, status: 'OPEN', requesterId: 'u1', createdAt: new Date(nowMs - 3600000*24).toISOString() },
+          { id: 'r2', title: 'Circuit Schematic & PCB Review', category: 'PCB & Hardware Design', budget: 1200, status: 'OPEN', requesterId: 'u2', createdAt: new Date(nowMs - 3600000*48).toISOString() },
+          { id: 'r3', title: 'Arduino Firmware for Water IoT', category: 'Embedded Systems', budget: 2500, status: 'COMPLETED', requesterId: 'u3', createdAt: new Date(nowMs - 3600000*72).toISOString() },
+          { id: 'r4', title: 'Laser Cutting Acrylic Chassis', category: 'CAD & 3D Modeling', budget: 650, status: 'COMPLETED', requesterId: 'u4', createdAt: new Date(nowMs - 3600000*96).toISOString() },
+          { id: 'r5', title: 'Mentoring: SolidWorks CAD', category: 'Mentoring', budget: 800, status: 'OPEN', requesterId: 'u2', createdAt: new Date(nowMs - 3600000*120).toISOString() },
+          { id: 'r6', title: 'React Web App Frontend Bugfix', category: 'Software Development', budget: 1500, status: 'COMPLETED', requesterId: 'u1', createdAt: new Date(nowMs - 3600000*144).toISOString() }
+        ];
+        adminLiveListingsData = [
+          { id: 'r1', title: '3D Printing of Enclosure Case (ABS/PLA)', category: '3D Design', budget: 450, status: 'OPEN', requester: { id: 'u1', fullName: 'Charles B.', email: 'charlesjanparaggua@gmail.com', studentId: '2023-10482' }, urgency: 'LOW' },
+          { id: 'r2', title: 'Circuit Schematic & PCB Review', category: 'PCB & Hardware Design', budget: 1200, status: 'OPEN', requester: { id: 'u2', fullName: 'Engr. Noel Villanueva', email: 'noel@university.edu', studentId: 'FAC-01' }, urgency: 'NORMAL', deadline: '2026-10-25' },
+          { id: 'r5', title: 'Mentoring: SolidWorks CAD', category: 'Mentoring', budget: 800, status: 'OPEN', requester: { id: 'u2', fullName: 'Engr. Noel Villanueva', email: 'noel@university.edu', studentId: 'FAC-01' }, urgency: 'NORMAL' },
+          { id: 'r7', title: 'Mentoring: Python & Data Analysis', category: 'Mentoring', budget: 1500, status: 'OPEN', requester: { id: 'u3', fullName: 'Anna Salcedo', email: 'anna@university.edu', studentId: '2022-90124' }, urgency: 'NORMAL' }
+        ];
+      }
+      if (adminAppsData.length === 0) {
+        const nowMs = Date.now();
+        adminAppsData = [
+          { id: 'a1', helpRequestId: 'r3', applicantId: 'u1', priceOffer: 2500, status: 'COMPLETED', createdAt: new Date(nowMs - 3600000*72).toISOString() },
+          { id: 'a2', helpRequestId: 'r4', applicantId: 'u3', priceOffer: 650, status: 'COMPLETED', createdAt: new Date(nowMs - 3600000*96).toISOString() },
+          { id: 'a3', helpRequestId: 'r6', applicantId: 'u4', priceOffer: 1500, status: 'COMPLETED', createdAt: new Date(nowMs - 3600000*144).toISOString() },
+          { id: 'a4', helpRequestId: 'r1', applicantId: 'u2', priceOffer: 450, status: 'TERMINATED', createdAt: new Date(nowMs - 3600000*24).toISOString() }
+        ];
+      }
     }
 
     const listingsBadge = $('#admin-listings-tab-badge');
@@ -7122,35 +7415,41 @@ async function loadAdmin() {
     seedHistoricalAuditLogsIfEmpty(adminUsersData, adminRequestsData, adminAppsData);
 
     // Fetch and aggregate all cloud audit logs across all campus users from Firestore
-    try {
-      const profilesSnap = await getDocs(collection(firestore, "user_profiles"));
-      const allCloudLogs = [];
-      profilesSnap.forEach(docSnap => {
-        const p = docSnap.data();
-        if (p && Array.isArray(p.recentActivityLogs)) {
-          p.recentActivityLogs.forEach(entry => {
-            if (entry && entry.action) {
-              allCloudLogs.push({
-                ...entry,
-                userId: entry.userId || docSnap.id,
-                userName: entry.userName || p.fullName || p.displayName,
-                userEmail: entry.userEmail || p.email,
-                studentId: entry.studentId || p.studentId,
-                userRole: entry.userRole || p.preferredRole
-              });
-            }
-          });
+    if (!devPreview) {
+      try {
+        const profilesSnap = await getDocs(collection(firestore, "user_profiles"));
+        const allCloudLogs = [];
+        profilesSnap.forEach(docSnap => {
+          const p = docSnap.data();
+          if (p && Array.isArray(p.recentActivityLogs)) {
+            p.recentActivityLogs.forEach(entry => {
+              if (entry && entry.action) {
+                allCloudLogs.push({
+                  ...entry,
+                  userId: entry.userId || docSnap.id,
+                  userName: entry.userName || p.fullName || p.displayName,
+                  userEmail: entry.userEmail || p.email,
+                  studentId: entry.studentId || p.studentId,
+                  userRole: entry.userRole || p.preferredRole
+                });
+              }
+            });
+          }
+        });
+        if (allCloudLogs.length > 0) {
+          mergeCloudAuditLogs(allCloudLogs);
         }
-      });
-      if (allCloudLogs.length > 0) {
-        mergeCloudAuditLogs(allCloudLogs);
+      } catch (err) {
+        console.warn('Error fetching cloud audit logs in loadAdminData:', err);
       }
-    } catch (err) {
-      console.warn('Error fetching cloud audit logs in loadAdminData:', err);
     }
 
-    await recordUserPresence(currentUser?.uid || userData?.id);
-    const onlineData = await getOnlineUserIds();
+    if (!devPreview) {
+      await recordUserPresence(currentUser?.uid || userData?.id);
+    }
+    const onlineData = devPreview
+      ? { ids: new Set(['u1', 'u2']), emails: new Set(['charlesjanparaggua@gmail.com', 'noel@university.edu']) }
+      : await getOnlineUserIds();
     currentOnlineUserIds = onlineData.ids;
     currentOnlineEmails = onlineData.emails;
 
@@ -8497,19 +8796,34 @@ document.addEventListener('DOMContentLoaded', () => {
       email: 'dev.student@university.edu',
       facultyReference: 'Engr. Liza Fernandez',
       verificationStatus: 'verified',
-      role: 'Offer My Skills'
+      role: 'Offer My Skills',
+      bio: 'CpE student passionate about Embedded Systems, IoT, and custom 3D prototyping. Active peer mentor in hardware & firmware.',
+      skills: ['3D Design', 'SolidWorks', 'Embedded Systems', 'Arduino IDE', 'C++', 'UI/UX Design'],
+      portfolio: [
+        {
+          title: 'Custom Drone Chassis & Avionics Mount',
+          description: 'Custom lightweight ABS chassis designed in SolidWorks and 3D printed with integrated vibration damping for telemetry sensors.',
+          imageUrl: '/images/service_sample_3d.jpg'
+        },
+        {
+          title: 'Smart Campus IoT Environmental Node',
+          description: 'ESP32 solar-powered weather station logging telemetry over MQTT with web dashboard interface.',
+          imageUrl: '/images/service_3d_printing.jpg'
+        }
+      ]
     };
     allRequests = [
       { id: 'req_1', title: '3D Printing of Enclosure Case (ABS/PLA)', description: 'High-quality ABS and PLA 3D printing for electronics enclosures, robotics chassis, and prototype casings.', imageUrl: '/images/service_sample_3d.jpg', category: '3D Design', budget: 450, type: 'OFFER', tags: ['STANDING_OFFER'], requester: { id: 'dev_student_1', fullName: 'Charles B.' }, createdAt: new Date(Date.now() - 3600000*24).toISOString() },
-      { id: 'req_2', title: 'Circuit Schematic & PCB Layout Review', description: 'Comprehensive design review for EAGLE, KiCad, and Altium schematics and multilayer PCB layouts.', category: 'PCB & Hardware Design', budget: 1200, type: 'OFFER', tags: ['STANDING_OFFER'], requester: { fullName: 'Engr. Noel V.' }, createdAt: new Date(Date.now() - 3600000*48).toISOString() },
+      { id: 'req_2', title: 'Circuit Schematic & PCB Layout Review', description: 'Comprehensive design review for EAGLE, KiCad, and Altium schematics and multilayer PCB layouts.', imageUrl: '/images/service_3d_printing.jpg', category: 'PCB & Hardware Design', budget: 1200, type: 'OFFER', tags: ['STANDING_OFFER'], requester: { fullName: 'Engr. Noel V.' }, createdAt: new Date(Date.now() - 3600000*48).toISOString() },
       { id: 'req_3', title: 'Need Arduino Firmware for Water Monitoring IoT', description: 'Looking for a skilled developer to write C++ firmware for ESP32/Arduino with turbidity and pH sensors.', category: 'Embedded Systems', budget: 2500, type: 'REQUEST', requester: { fullName: 'Maria Santos' }, createdAt: new Date(Date.now() - 3600000*12).toISOString() },
-      { id: 'req_4', title: 'Laser Cutting Acrylic Chassis Plates', description: 'Precision CO2 laser cutting for acrylic panels, robot bases, and front panel bezels.', category: 'CAD & 3D Modeling', budget: 650, type: 'OFFER', tags: ['STANDING_OFFER'], requester: { fullName: 'Tech Lab Guild' }, createdAt: new Date(Date.now() - 3600000*72).toISOString() }
+      { id: 'req_4', title: 'Laser Cutting Acrylic Chassis Plates', description: 'Precision CO2 laser cutting for acrylic panels, robot bases, and front panel bezels.', imageUrl: '/images/service_laser_cutting.jpg', category: 'CAD & 3D Modeling', budget: 650, type: 'OFFER', tags: ['STANDING_OFFER'], requester: { fullName: 'Tech Lab Guild' }, createdAt: new Date(Date.now() - 3600000*72).toISOString() },
+      { id: 'req_5', title: 'Need Mobile App UI for Student Attendance System', description: 'Seeking a UI/UX designer to create mobile mockups and responsive prototype flows for automated RFID student check-in.', imageUrl: '/images/service_ink_printing.jpg', category: 'UI/UX Design', budget: 1800, type: 'REQUEST', requester: { fullName: 'Carlo Mendoza' }, createdAt: new Date(Date.now() - 3600000*6).toISOString() }
     ];
     allUsersData = [
-      { id: 'user_m1', fullName: 'Engr. Noel Villanueva', preferredRole: 'Offer My Skills', bio: 'Senior embedded hardware engineer & PCB routing specialist.', skills: ['PCB & Hardware Design', 'Embedded Systems', 'C++', 'Electronics & Circuit Design'], rating: '5.0' },
-      { id: 'user_m2', fullName: 'Anna Salcedo', preferredRole: 'Offer My Skills', bio: 'AI researcher and Python backend developer. Happy to mentor on ML models.', skills: ['Python', 'AI & Data', 'Machine Learning', 'Software Development'], rating: '4.9' },
-      { id: 'user_m3', fullName: 'Marites Bautista', preferredRole: 'Offer My Skills', bio: 'CAD designer and 3D modeling instructor with 4+ years rapid prototyping.', skills: ['CAD & 3D Modeling', '3D Design', 'SolidWorks'], rating: '4.8' },
-      { id: 'user_m4', fullName: 'Rafael Domingo', preferredRole: 'Offer My Skills', bio: 'Full-stack web developer and UI designer for interactive student platforms.', skills: ['JavaScript', 'React', 'Frontend Development', 'UI/UX Design'], rating: 'New' }
+      { id: 'user_m1', fullName: 'Engr. Noel Villanueva', preferredRole: 'Offer My Skills', bio: 'Senior embedded hardware engineer & PCB routing specialist.', skills: ['PCB & Hardware Design', 'Embedded Systems', 'C++', 'Electronics & Circuit Design'], rating: '5.0', completedSessions: 14 },
+      { id: 'user_m2', fullName: 'Anna Salcedo', preferredRole: 'Offer My Skills', bio: 'AI researcher and Python backend developer. Happy to mentor on ML models.', skills: ['Python', 'AI & Data', 'Machine Learning', 'Software Development'], rating: '4.9', completedSessions: 9 },
+      { id: 'user_m3', fullName: 'Marites Bautista', preferredRole: 'Offer My Skills', bio: 'CAD designer and 3D modeling instructor with 4+ years rapid prototyping.', skills: ['CAD & 3D Modeling', '3D Design', 'SolidWorks'], rating: '4.8', completedSessions: 18 },
+      { id: 'user_m4', fullName: 'Rafael Domingo', preferredRole: 'Offer My Skills', bio: 'Full-stack web developer and UI designer for interactive student platforms.', skills: ['JavaScript', 'React', 'Frontend Development', 'UI/UX Design'], rating: 'New', completedSessions: 5 }
     ];
     showApp();
     navigateTo(devPreview);

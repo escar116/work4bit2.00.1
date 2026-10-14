@@ -63,7 +63,7 @@
     /* transitions-dev: Tabs sliding tokens (16-tabs-sliding.md) */
     --tabs-dur: 250ms;
     --tabs-ease: cubic-bezier(0.22, 1, 0.36, 1);
-    --tabs-pill-bg: #6554e8;
+    --tabs-pill-bg: #2563eb;
     
     /* Shadows */
     --shadow-card: 0 1px 3px 0 rgba(0, 0, 0, 0.04), 0 1px 2px -1px rgba(0, 0, 0, 0.02);
@@ -2782,6 +2782,8 @@ dialog.modal {
     height: -moz-fit-content;
     height: fit-content;
     max-height: 90vh;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
     box-shadow: var(--shadow-dialog);
     z-index: 1000;
 }
@@ -7085,25 +7087,29 @@ dialog.workspace-guide::backdrop {
    SERVICE OFFERS (PINKISH / FUCHSIA) VS REQUESTS (BLUEWISH) THEMES
    ========================================================================== */
 
-/* --- 1. Admin Theme (Fuchsia / Purple rgb(245,0,254) / rgb(167,46,255)) --- */
-.nav-btn[data-target="admin"].active {
+/* --- 1. Admin & Service Offers Theme (Fuchsia / Purple rgb(245,0,254) / rgb(167,46,255)) --- */
+.nav-btn[data-target="admin"].active,
+.nav-btn[data-target="service-offers"].active {
     background: linear-gradient(135deg, rgba(245, 0, 254, 0.24) 0%, rgba(167, 46, 255, 0.28) 100%) !important;
     border-left: 3.5px solid rgb(245, 0, 254) !important;
     box-shadow: 0 4px 18px rgba(245, 0, 254, 0.25) !important;
     color: #ffffff !important;
 }
-.nav-btn[data-target="admin"].active .nav-icon {
+.nav-btn[data-target="admin"].active .nav-icon,
+.nav-btn[data-target="service-offers"].active .nav-icon {
     stroke: rgb(245, 0, 254) !important;
 }
 
-#btn-post-offer {
+#btn-post-offer,
+#dash-btn-post-offer {
     background: linear-gradient(135deg, rgb(245, 0, 254) 0%, rgb(167, 46, 255) 100%) !important;
     color: #ffffff !important;
     border: none !important;
     box-shadow: 0 4px 16px rgba(245, 0, 254, 0.35) !important;
     transition: transform 0.2s ease, box-shadow 0.2s ease !important;
 }
-#btn-post-offer:hover {
+#btn-post-offer:hover,
+#dash-btn-post-offer:hover {
     transform: translateY(-2px);
     box-shadow: 0 6px 22px rgba(245, 0, 254, 0.48) !important;
 }
@@ -7162,14 +7168,16 @@ dialog.workspace-guide::backdrop {
     stroke: rgb(56, 189, 248) !important;
 }
 
-#btn-post-request {
+#btn-post-request,
+#dash-btn-post-request {
     background: linear-gradient(135deg, rgb(3, 51, 217) 0%, rgb(14, 116, 244) 100%) !important;
     color: #ffffff !important;
     border: none !important;
     box-shadow: 0 4px 16px rgba(3, 51, 217, 0.35) !important;
     transition: transform 0.2s ease, box-shadow 0.2s ease !important;
 }
-#btn-post-request:hover {
+#btn-post-request:hover,
+#dash-btn-post-request:hover {
     transform: translateY(-2px);
     box-shadow: 0 6px 22px rgba(14, 116, 244, 0.48) !important;
 }
