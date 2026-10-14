@@ -1216,14 +1216,22 @@
    ========================================================================== */
 
 /* Keep table header pinned while scrolling through items */
-#section-admin .transactions-table-wrapper {
+#section-admin .transactions-table-wrapper,
+#section-admin .transactions-table-wrapper.dash-card {
   max-height: 72vh;
   overflow-y: auto;
   overflow-x: auto;
   position: relative;
+  padding: 0 !important;
   border-radius: 12px;
   border: 1px solid var(--border-light, #e2e8f0);
   background: #ffffff;
+}
+
+#section-admin .data-table {
+  border-collapse: separate !important;
+  border-spacing: 0 !important;
+  width: 100%;
 }
 
 #section-admin .data-table thead th {
@@ -1235,8 +1243,58 @@
   font-weight: 700 !important;
   font-size: 0.78rem !important;
   letter-spacing: 0.03em !important;
+  border-top: none !important;
   border-bottom: 2px solid #cbd5e1 !important;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.03) !important;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.04) !important;
+  padding: 12px 14px !important;
+}
+
+#section-admin .data-table thead th:first-child,
+#section-admin .data-table tbody td:first-child {
+  border-top-left-radius: 11px;
+  padding-left: 18px !important;
+}
+
+#section-admin .data-table thead th:last-child,
+#section-admin .data-table tbody td:last-child {
+  border-top-right-radius: 11px;
+  padding-right: 18px !important;
+  text-align: right;
+  white-space: nowrap;
+}
+
+#section-admin .data-table tbody td:last-child .flex {
+  justify-content: flex-end;
+}
+
+#section-admin .data-table tbody td {
+  padding: 11px 14px !important;
+  vertical-align: middle;
+}
+
+/* Compact description pop-up trigger button in admin listings */
+.btn-listing-desc-popup {
+  background: rgba(96, 63, 242, 0.08);
+  border: 1px solid rgba(96, 63, 242, 0.22);
+  color: var(--color-purple, #603ff2);
+  border-radius: 6px;
+  padding: 2.5px 8px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 4px;
+  line-height: 1.4;
+  transition: all 0.15s ease;
+}
+
+.btn-listing-desc-popup:hover {
+  background: rgba(96, 63, 242, 0.16);
+  border-color: #603ff2;
+  color: #4f2fe0;
+  transform: translateY(-1px);
 }
 
 .data-table th.sortable-th {
