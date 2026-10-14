@@ -84,7 +84,9 @@ const ADMIN_EMAILS = [
   'charlesjanparaggua@gmail.com',
   'anryurmanita@gmail.com',
   'taguinodanathasia@gmail.com',
-  'test4@email.com', 'miczy783405@gmail.com', 'esmarinashley40@gmail.com'
+  'test4@email.com',
+  'miczy783405@gmail.com',
+  'esmarinashley40@gmail.com'
   // Add new admin emails here separated by commas:
   // 'anotheradmin@email.com'
 ];
