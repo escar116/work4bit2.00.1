@@ -1428,19 +1428,26 @@
   box-shadow: 0 2px 8px rgba(37, 99, 235, 0.3) !important;
 }
 
-/* 4. Mentoring Hub Callout & Action Buttons (CpE Pink Accent) */
+/* 4. Mentoring Hub Callout & Action Buttons (Electric Fuchsia/Purple Gradient) */
 #section-mentoring .apply-mentor-btn,
-#btn-open-profile-mentoring {
-  background: linear-gradient(135deg, #ec4899 0%, #db2777 100%) !important;
+#btn-open-profile-mentoring,
+#btn-mentoring-apply-mentor,
+#section-mentoring .mentoring-callout-cta,
+#btn-submit-mentoring {
+  background: linear-gradient(135deg, rgb(245, 0, 254) 0%, rgb(167, 46, 255) 100%) !important;
   color: #ffffff !important;
   border: none !important;
-  box-shadow: 0 4px 14px rgba(236, 72, 153, 0.3) !important;
+  box-shadow: 0 2px 10px rgba(245, 0, 254, 0.3) !important;
   transition: transform 0.2s ease, box-shadow 0.2s ease !important;
 }
 #section-mentoring .apply-mentor-btn:hover,
-#btn-open-profile-mentoring:hover {
+#btn-open-profile-mentoring:hover,
+#btn-mentoring-apply-mentor:hover,
+#section-mentoring .mentoring-callout-cta:hover,
+#btn-submit-mentoring:hover {
   transform: translateY(-1px);
-  box-shadow: 0 6px 18px rgba(236, 72, 153, 0.45) !important;
+  background: linear-gradient(135deg, rgb(255, 60, 255) 0%, rgb(185, 80, 255) 100%) !important;
+  box-shadow: 0 4px 14px rgba(245, 0, 254, 0.45) !important;
 }
 
 /* 5. Applications Hub Approve / Accept Button (CpE Blue Accent) */

@@ -1751,16 +1751,10 @@ function setupLanding() {
       btn.textContent = `Locked (${formatted})`;
       if (errorEl) {
         if (curState.tier === '72h') {
-          errorEl.innerHTML = `⚠️ <strong>Account temporarily locked (${formatted}).</strong> Too many consecutive failed attempts.<br>You can <a href="#" id="lockout-reset-shortcut" style="color:var(--purple);font-weight:700;text-decoration:underline;">reset your password now</a> to unlock immediately. <span style="display:inline-block;margin-left:6px;font-size:0.75rem;"><button type="button" id="dev-unlock-btn" style="background:none;border:none;color:#94a3b8;text-decoration:underline;cursor:pointer;padding:0;">[Reset test lock]</button></span>`;
+          errorEl.innerHTML = `⚠️ <strong>Account temporarily locked (${formatted}).</strong> Too many consecutive failed attempts.<br>You can <a href="#" id="lockout-reset-shortcut" style="color:var(--purple);font-weight:700;text-decoration:underline;">reset your password now</a> to unlock immediately.`;
           $('#lockout-reset-shortcut')?.addEventListener('click', (ev) => {
             ev.preventDefault();
             showAuth('forgot-password');
-          });
-          $('#dev-unlock-btn')?.addEventListener('click', (ev) => {
-            ev.preventDefault();
-            clearLoginLockState(email);
-            updateLockoutUI(email);
-            errorEl.textContent = 'Lock removed for testing.';
           });
         } else {
           errorEl.innerHTML = `⚠️ Too many failed attempts. Please wait <strong>${formatted}</strong> before trying again.`;
@@ -2877,17 +2871,10 @@ function openServiceDetailsDialog(r, actionInfo) {
     actionBtn.className = `btn ${actionInfo.btnClass}`;
     actionBtn.textContent = actionInfo.btnText;
     actionBtn.disabled = Boolean(actionInfo.btnDisabled);
-    if (isOffer) {
-      actionBtn.style.background = 'linear-gradient(135deg, rgb(245, 0, 254) 0%, rgb(167, 46, 255) 100%)';
-      actionBtn.style.boxShadow = '0 4px 14px rgba(245, 0, 254, 0.35)';
-      actionBtn.style.color = '#ffffff';
-      actionBtn.style.border = 'none';
-    } else {
-      actionBtn.style.background = 'linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%)';
-      actionBtn.style.boxShadow = '0 4px 14px rgba(37, 99, 235, 0.35)';
-      actionBtn.style.color = '#ffffff';
-      actionBtn.style.border = 'none';
-    }
+    actionBtn.style.background = 'linear-gradient(135deg, rgb(245, 0, 254) 0%, rgb(167, 46, 255) 100%)';
+    actionBtn.style.boxShadow = '0 4px 14px rgba(245, 0, 254, 0.35)';
+    actionBtn.style.color = '#ffffff';
+    actionBtn.style.border = 'none';
 
     actionBtn.onclick = (e) => {
       e.preventDefault();
