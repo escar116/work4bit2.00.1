@@ -2728,11 +2728,43 @@ body.dark-theme .badge-skill {
 .badge-low { background: #f3f4f6; color: #6b7280; }
 .badge-pending { background: color-mix(in srgb, var(--status-pending) 15%, transparent); color: var(--status-pending); }
 .badge-approved { background: color-mix(in srgb, var(--status-completed) 15%, transparent); color: var(--status-completed); }
-.badge-offer { background: rgba(56, 189, 248, 0.15); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.3); }
-.badge-request { background: rgba(168, 85, 247, 0.15); color: #c084fc; border: 1px solid rgba(168, 85, 247, 0.3); }
-.badge-standing { background: rgba(34, 197, 94, 0.15); color: #4ade80; border: 1px solid rgba(34, 197, 94, 0.3); }
-.badge-mentoring { background: rgba(168, 85, 247, 0.15); color: #c084fc; border: 1px solid rgba(168, 85, 247, 0.3); }
-body.light-theme .badge-mentoring { background: rgba(147, 51, 234, 0.1); color: #7e22ce; border-color: rgba(147, 51, 234, 0.25); }
+/* Service Offer Badge - BLUE */
+.badge-offer,
+.badge-standing {
+    background: rgba(37, 99, 235, 0.12);
+    color: #2563eb;
+    border: 1px solid rgba(37, 99, 235, 0.28);
+}
+body:not(.light-theme) .badge-offer,
+body:not(.light-theme) .badge-standing {
+    background: rgba(59, 130, 246, 0.2);
+    color: #60a5fa;
+    border-color: rgba(59, 130, 246, 0.35);
+}
+
+/* Service Request Badge - PINK (CpE Pink) */
+.badge-request {
+    background: rgba(236, 72, 153, 0.12);
+    color: #db2777;
+    border: 1px solid rgba(236, 72, 153, 0.28);
+}
+body:not(.light-theme) .badge-request {
+    background: rgba(244, 63, 94, 0.2);
+    color: #f472b6;
+    border-color: rgba(244, 63, 94, 0.35);
+}
+
+/* Mentoring Badge - PURPLE */
+.badge-mentoring {
+    background: rgba(147, 51, 234, 0.12);
+    color: #7e22ce;
+    border: 1px solid rgba(147, 51, 234, 0.28);
+}
+body:not(.light-theme) .badge-mentoring {
+    background: rgba(168, 85, 247, 0.2);
+    color: #c084fc;
+    border-color: rgba(168, 85, 247, 0.35);
+}
 .badge-duration {
     background: rgba(99, 102, 241, 0.12);
     color: #4f46e5;
@@ -7432,6 +7464,412 @@ body:not(.light-theme):has(.dark-mode) .skel-bone {
 .hover-underline:hover {
     text-decoration: underline !important;
 }
+
+/* ==========================================================================
+   CUSTOM DATE & HOUR PICKER (DAMPED SCROLL SENSITIVITY)
+   Matches Image 1 layout with dampened wheel scrolling on time columns
+   ========================================================================== */
+.custom-dt-wrapper {
+    position: relative;
+    width: 100%;
+}
+
+.custom-dt-input {
+    width: 100%;
+    cursor: pointer;
+    padding-right: 2.75rem !important;
+    background: var(--bg-card) !important;
+    font-size: 0.9rem;
+    font-weight: 500;
+}
+
+.custom-dt-icon-btn {
+    position: absolute;
+    right: 0.75rem;
+    top: 50%;
+    transform: translateY(-50%);
+    background: none;
+    border: none;
+    padding: 0.25rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-muted);
+    cursor: pointer;
+    pointer-events: none;
+    transition: color 0.15s ease;
+}
+
+.custom-dt-wrapper:hover .custom-dt-icon-btn,
+.custom-dt-wrapper:focus-within .custom-dt-icon-btn {
+    color: var(--primary-blue, #2563eb);
+}
+
+.custom-dt-popover {
+    position: absolute;
+    top: calc(100% + 6px);
+    right: 0;
+    z-index: 2100;
+    background: #ffffff;
+    border: 1px solid rgba(0, 0, 0, 0.12);
+    border-radius: 12px;
+    box-shadow: 0 16px 40px rgba(0, 0, 0, 0.16);
+    user-select: none;
+    animation: dtPopoverIn 0.15s ease-out;
+    color: #111827;
+}
+
+body.dark-theme .custom-dt-popover {
+    background: #171d30;
+    border-color: rgba(255, 255, 255, 0.14);
+    box-shadow: 0 20px 48px rgba(0, 0, 0, 0.6);
+    color: #f8fafc;
+}
+
+@keyframes dtPopoverIn {
+    from {
+        opacity: 0;
+        transform: translateY(-4px) scale(0.98);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
+.custom-dt-body {
+    display: flex;
+    flex-direction: row;
+    padding: 0.85rem;
+    gap: 0.75rem;
+}
+
+/* Calendar panel on the left */
+.custom-dt-calendar-panel {
+    width: 250px;
+    display: flex;
+    flex-direction: column;
+}
+
+.custom-dt-cal-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 0.65rem;
+    padding: 0 0.25rem;
+}
+
+.custom-dt-month-label {
+    font-size: 0.92rem;
+    font-weight: 700;
+    color: #111827;
+    letter-spacing: -0.01em;
+}
+
+body.dark-theme .custom-dt-month-label {
+    color: #f8fafc;
+}
+
+.custom-dt-nav-arrows {
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+}
+
+.custom-dt-nav-btn {
+    background: transparent;
+    border: none;
+    color: #4b5563;
+    cursor: pointer;
+    width: 28px;
+    height: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 6px;
+    transition: background 0.15s ease, color 0.15s ease;
+}
+
+.custom-dt-nav-btn:hover {
+    background: rgba(0, 0, 0, 0.06);
+    color: #111827;
+}
+
+body.dark-theme .custom-dt-nav-btn {
+    color: #94a3b8;
+}
+
+body.dark-theme .custom-dt-nav-btn:hover {
+    background: rgba(255, 255, 255, 0.1);
+    color: #ffffff;
+}
+
+.custom-dt-weekdays {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    text-align: center;
+    margin-bottom: 0.4rem;
+}
+
+.custom-dt-weekdays span {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: #6b7280;
+    padding: 0.2rem 0;
+}
+
+body.dark-theme .custom-dt-weekdays span {
+    color: #94a3b8;
+}
+
+.custom-dt-days-grid {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 2px;
+}
+
+.custom-dt-day {
+    aspect-ratio: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: transparent;
+    border: 1px solid transparent;
+    border-radius: 4px;
+    font-size: 0.82rem;
+    font-weight: 500;
+    color: #1f2937;
+    cursor: pointer;
+    padding: 0;
+    transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+}
+
+body.dark-theme .custom-dt-day {
+    color: #e2e8f0;
+}
+
+.custom-dt-day:hover:not(.dt-disabled):not(.dt-selected) {
+    background: rgba(0, 0, 0, 0.06);
+}
+
+body.dark-theme .custom-dt-day:hover:not(.dt-disabled):not(.dt-selected) {
+    background: rgba(255, 255, 255, 0.1);
+}
+
+.custom-dt-day.dt-out-month {
+    color: #9ca3af;
+    opacity: 0.55;
+}
+
+body.dark-theme .custom-dt-day.dt-out-month {
+    color: #64748b;
+    opacity: 0.5;
+}
+
+.custom-dt-day.dt-today:not(.dt-selected) {
+    border-color: #111827;
+    font-weight: 700;
+}
+
+body.dark-theme .custom-dt-day.dt-today:not(.dt-selected) {
+    border-color: #94a3b8;
+}
+
+.custom-dt-day.dt-selected {
+    background: #0e74f4 !important;
+    color: #ffffff !important;
+    font-weight: 700;
+    border-color: #0e74f4 !important;
+}
+
+.custom-dt-day.dt-disabled {
+    opacity: 0.25;
+    cursor: not-allowed;
+    pointer-events: none;
+}
+
+.custom-dt-cal-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-top: 0.75rem;
+    padding-top: 0.5rem;
+    border-top: 1px solid rgba(0, 0, 0, 0.08);
+}
+
+body.dark-theme .custom-dt-cal-footer {
+    border-top-color: rgba(255, 255, 255, 0.1);
+}
+
+.custom-dt-text-btn {
+    background: transparent;
+    border: none;
+    font-size: 0.82rem;
+    font-weight: 600;
+    color: #0e74f4;
+    cursor: pointer;
+    padding: 0.2rem 0.4rem;
+    border-radius: 4px;
+    transition: opacity 0.15s ease, background 0.15s ease;
+}
+
+.custom-dt-text-btn:hover {
+    background: rgba(14, 116, 244, 0.1);
+}
+
+/* Vertical divider between calendar and time */
+.custom-dt-divider {
+    width: 1px;
+    background: rgba(0, 0, 0, 0.08);
+    margin: 0 0.25rem;
+    flex-shrink: 0;
+}
+
+body.dark-theme .custom-dt-divider {
+    background: rgba(255, 255, 255, 0.1);
+}
+
+/* Time picker panel on the right */
+.custom-dt-time-panel {
+    display: flex;
+    align-items: stretch;
+    gap: 0.5rem;
+    height: 250px;
+}
+
+.custom-dt-scroll-col-wrap {
+    position: relative;
+    width: 44px;
+    height: 100%;
+}
+
+.custom-dt-scroll-col {
+    height: 100%;
+    overflow-y: scroll;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding: 4px 0;
+    scroll-behavior: smooth;
+}
+
+.custom-dt-scroll-col::-webkit-scrollbar {
+    display: none;
+}
+
+.custom-dt-time-item {
+    height: 32px;
+    min-height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: transparent;
+    border: none;
+    border-radius: 4px;
+    font-size: 0.88rem;
+    font-weight: 500;
+    color: #1f2937;
+    cursor: pointer;
+    padding: 0;
+    transition: background 0.15s ease, color 0.15s ease;
+    flex-shrink: 0;
+}
+
+body.dark-theme .custom-dt-time-item {
+    color: #e2e8f0;
+}
+
+.custom-dt-time-item:hover:not(.active) {
+    background: rgba(0, 0, 0, 0.06);
+}
+
+body.dark-theme .custom-dt-time-item:hover:not(.active) {
+    background: rgba(255, 255, 255, 0.1);
+}
+
+.custom-dt-time-item.active {
+    background: #0e74f4 !important;
+    color: #ffffff !important;
+    font-weight: 700;
+}
+
+/* AM / PM column */
+.custom-dt-ampm-col {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    justify-content: flex-start;
+    padding-top: 4px;
+    width: 44px;
+}
+
+.custom-dt-ampm-btn {
+    height: 32px;
+    min-height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: transparent;
+    border: 1px solid rgba(0, 0, 0, 0.14);
+    border-radius: 4px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: #1f2937;
+    cursor: pointer;
+    transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+}
+
+body.dark-theme .custom-dt-ampm-btn {
+    border-color: rgba(255, 255, 255, 0.15);
+    color: #e2e8f0;
+}
+
+.custom-dt-ampm-btn:hover:not(.active) {
+    background: rgba(0, 0, 0, 0.06);
+}
+
+body.dark-theme .custom-dt-ampm-btn:hover:not(.active) {
+    background: rgba(255, 255, 255, 0.1);
+}
+
+.custom-dt-ampm-btn.active {
+    background: #0e74f4 !important;
+    color: #ffffff !important;
+    border-color: #0e74f4 !important;
+}
+
+@media (max-width: 520px) {
+    .custom-dt-popover {
+        position: fixed;
+        top: auto;
+        bottom: 1.5rem;
+        left: 50%;
+        right: auto;
+        transform: translateX(-50%);
+        width: calc(100vw - 2rem);
+        max-width: 360px;
+        max-height: 80vh;
+        overflow-y: auto;
+    }
+    .custom-dt-body {
+        flex-direction: column;
+        gap: 0.5rem;
+    }
+    .custom-dt-calendar-panel {
+        width: 100%;
+    }
+    .custom-dt-divider {
+        width: 100%;
+        height: 1px;
+    }
+    .custom-dt-time-panel {
+        height: 160px;
+        justify-content: center;
+    }
+}
+
 
 
 

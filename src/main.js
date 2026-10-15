@@ -3467,6 +3467,12 @@ function setNewListingModalMode(mode = 'OFFER') {
       deadlineInput.required = false;
       deadlineInput.value = '';
     }
+    const deadlineDisplay = $('#nr-deadline-display');
+    if (deadlineDisplay) {
+      deadlineDisplay.required = false;
+      deadlineDisplay.value = '';
+    }
+    window.customDeadlinePicker?.close();
     if (submitBtn) submitBtn.textContent = editingListing ? 'Save Changes' : 'Publish Service Offer';
     if (imgLabel) imgLabel.textContent = 'Service Cover / Sample Photo (Optional)';
     if (imgDropTitle) imgDropTitle.textContent = 'Click or drag & drop a photo of your equipment or sample work';
@@ -3487,6 +3493,10 @@ function setNewListingModalMode(mode = 'OFFER') {
     if (deadlineInput) {
       deadlineInput.required = true;
     }
+    const deadlineDisplay = $('#nr-deadline-display');
+    if (deadlineDisplay) {
+      deadlineDisplay.required = true;
+    }
     if (submitBtn) submitBtn.textContent = editingListing ? 'Save Changes' : 'Publish Service Request';
     if (imgLabel) imgLabel.textContent = 'Project Reference Photo / Diagram (Optional)';
     if (imgDropTitle) imgDropTitle.textContent = 'Click or drag & drop a schematic, diagram, or reference photo';
@@ -3494,12 +3504,457 @@ function setNewListingModalMode(mode = 'OFFER') {
   }
 }
 
+/* ==========================================================================
+   CUSTOM DATE & HOUR PICKER IMPLEMENTATION
+   Matches Image 1 layout with dampened wheel scrolling on time columns
+   ========================================================================== */
+function initCustomDeadlinePicker() {
+  const hiddenInput = document.getElementById('nr-deadline');
+  const displayInput = document.getElementById('nr-deadline-display');
+  const toggleBtn = document.getElementById('nr-deadline-toggle-btn');
+  const popover = document.getElementById('custom-dt-popover');
+  const monthLabel = document.getElementById('custom-dt-month-label');
+  const prevMonthBtn = document.getElementById('custom-dt-prev-month');
+  const nextMonthBtn = document.getElementById('custom-dt-next-month');
+  const daysGrid = document.getElementById('custom-dt-days-grid');
+  const hoursCol = document.getElementById('custom-dt-hours-col');
+  const minutesCol = document.getElementById('custom-dt-minutes-col');
+  const amBtn = document.getElementById('custom-dt-ampm-am');
+  const pmBtn = document.getElementById('custom-dt-ampm-pm');
+  const clearBtn = document.getElementById('custom-dt-btn-clear');
+  const todayBtn = document.getElementById('custom-dt-btn-today');
+
+  if (!hiddenInput || !displayInput || !popover) return;
+
+  const MONTH_NAMES = [
+    'January', 'February', 'March', 'April', 'May', 'June',
+    'July', 'August', 'September', 'October', 'November', 'December'
+  ];
+
+  const now = new Date();
+  let viewYear = now.getFullYear();
+  let viewMonth = now.getMonth();
+
+  let selectedYear = null;
+  let selectedMonth = null;
+  let selectedDay = null;
+  let selectedHour = 1;
+  let selectedMinute = 0;
+  let selectedAmPm = 'pm';
+  let minIsoString = null;
+
+  const pad2 = (n) => String(n).padStart(2, '0');
+
+  // Populate Hours (01 - 12)
+  hoursCol.innerHTML = '';
+  for (let h = 1; h <= 12; h++) {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = `custom-dt-time-item ${h === selectedHour ? 'active' : ''}`;
+    btn.dataset.hour = String(h);
+    btn.textContent = pad2(h);
+    btn.addEventListener('click', (e) => {
+      e.preventDefault();
+      selectedHour = h;
+      updateTimeSelectionUI();
+      syncValues();
+      scrollToActive(hoursCol);
+    });
+    hoursCol.appendChild(btn);
+  }
+
+  // Populate Minutes (00 - 59)
+  minutesCol.innerHTML = '';
+  for (let m = 0; m <= 59; m++) {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = `custom-dt-time-item ${m === selectedMinute ? 'active' : ''}`;
+    btn.dataset.minute = String(m);
+    btn.textContent = pad2(m);
+    btn.addEventListener('click', (e) => {
+      e.preventDefault();
+      selectedMinute = m;
+      updateTimeSelectionUI();
+      syncValues();
+      scrollToActive(minutesCol);
+    });
+    minutesCol.appendChild(btn);
+  }
+
+  // DAMPED WHEEL SCROLL EVENT LISTENER
+  // Lowers the scroll sensitivity by accumulating wheel deltas and advancing exactly 1 item per notch
+  function attachDampedWheel(col, isMinute) {
+    let deltaAccum = 0;
+    const STEP_THRESHOLD = 50;
+
+    col.addEventListener('wheel', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+
+      deltaAccum += e.deltaY;
+      if (Math.abs(deltaAccum) >= STEP_THRESHOLD) {
+        const direction = Math.sign(deltaAccum);
+        deltaAccum = 0;
+
+        if (isMinute) {
+          let nextM = selectedMinute + direction;
+          if (nextM < 0) nextM = 59;
+          if (nextM > 59) nextM = 0;
+          selectedMinute = nextM;
+          updateTimeSelectionUI();
+          syncValues();
+          scrollToActive(minutesCol);
+        } else {
+          let nextH = selectedHour + direction;
+          if (nextH < 1) nextH = 12;
+          if (nextH > 12) nextH = 1;
+          selectedHour = nextH;
+          updateTimeSelectionUI();
+          syncValues();
+          scrollToActive(hoursCol);
+        }
+      }
+    }, { passive: false });
+  }
+
+  attachDampedWheel(hoursCol, false);
+  attachDampedWheel(minutesCol, true);
+
+  function scrollToActive(container) {
+    const active = container.querySelector('.custom-dt-time-item.active');
+    if (active) {
+      container.scrollTo({
+        top: active.offsetTop - container.offsetTop - (container.clientHeight / 2) + (active.clientHeight / 2),
+        behavior: 'smooth'
+      });
+    }
+  }
+
+  function updateTimeSelectionUI() {
+    hoursCol.querySelectorAll('.custom-dt-time-item').forEach(el => {
+      el.classList.toggle('active', Number(el.dataset.hour) === selectedHour);
+    });
+    minutesCol.querySelectorAll('.custom-dt-time-item').forEach(el => {
+      el.classList.toggle('active', Number(el.dataset.minute) === selectedMinute);
+    });
+    amBtn.classList.toggle('active', selectedAmPm === 'am');
+    pmBtn.classList.toggle('active', selectedAmPm === 'pm');
+  }
+
+  amBtn.addEventListener('click', (e) => {
+    e.preventDefault();
+    selectedAmPm = 'am';
+    updateTimeSelectionUI();
+    syncValues();
+  });
+
+  pmBtn.addEventListener('click', (e) => {
+    e.preventDefault();
+    selectedAmPm = 'pm';
+    updateTimeSelectionUI();
+    syncValues();
+  });
+
+  function renderCalendar() {
+    monthLabel.textContent = `${MONTH_NAMES[viewMonth]} ${viewYear}`;
+    daysGrid.innerHTML = '';
+
+    const firstDayIndex = new Date(viewYear, viewMonth, 1).getDay();
+    const daysInMonth = new Date(viewYear, viewMonth + 1, 0).getDate();
+    const daysInPrevMonth = new Date(viewYear, viewMonth, 0).getDate();
+
+    const cur = new Date();
+    const isCurrentYear = cur.getFullYear() === viewYear;
+    const isCurrentMonth = cur.getMonth() === viewMonth;
+    const curDate = cur.getDate();
+
+    // Previous month filler days
+    for (let i = firstDayIndex - 1; i >= 0; i--) {
+      const dNum = daysInPrevMonth - i;
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'custom-dt-day dt-out-month';
+      btn.textContent = String(dNum);
+      btn.addEventListener('click', (e) => {
+        e.preventDefault();
+        viewMonth--;
+        if (viewMonth < 0) {
+          viewMonth = 11;
+          viewYear--;
+        }
+        selectDate(viewYear, viewMonth, dNum);
+      });
+      daysGrid.appendChild(btn);
+    }
+
+    // Current month days
+    for (let d = 1; d <= daysInMonth; d++) {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'custom-dt-day';
+      btn.textContent = String(d);
+
+      if (isCurrentYear && isCurrentMonth && d === curDate) {
+        btn.classList.add('dt-today');
+      }
+
+      if (selectedYear === viewYear && selectedMonth === viewMonth && selectedDay === d) {
+        btn.classList.add('dt-selected');
+      }
+
+      btn.addEventListener('click', (e) => {
+        e.preventDefault();
+        selectDate(viewYear, viewMonth, d);
+      });
+      daysGrid.appendChild(btn);
+    }
+
+    // Next month filler days (up to 35 or 42 cells)
+    const totalRendered = firstDayIndex + daysInMonth;
+    const targetCells = totalRendered <= 35 ? 35 : 42;
+    const remaining = targetCells - totalRendered;
+    for (let nextD = 1; nextD <= remaining; nextD++) {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'custom-dt-day dt-out-month';
+      btn.textContent = String(nextD);
+      btn.addEventListener('click', (e) => {
+        e.preventDefault();
+        viewMonth++;
+        if (viewMonth > 11) {
+          viewMonth = 0;
+          viewYear++;
+        }
+        selectDate(viewYear, viewMonth, nextD);
+      });
+      daysGrid.appendChild(btn);
+    }
+  }
+
+  function selectDate(year, month, day) {
+    selectedYear = year;
+    selectedMonth = month;
+    selectedDay = day;
+    renderCalendar();
+    syncValues();
+  }
+
+  function syncValues() {
+    if (selectedYear == null || selectedMonth == null || selectedDay == null) {
+      hiddenInput.value = '';
+      displayInput.value = '';
+      return;
+    }
+
+    let h24 = selectedHour;
+    if (selectedAmPm === 'pm') {
+      if (h24 !== 12) h24 += 12;
+    } else {
+      if (h24 === 12) h24 = 0;
+    }
+
+    const isoStr = `${selectedYear}-${pad2(selectedMonth + 1)}-${pad2(selectedDay)}T${pad2(h24)}:${pad2(selectedMinute)}`;
+    const displayStr = `${pad2(selectedDay)}/${pad2(selectedMonth + 1)}/${selectedYear} ${pad2(selectedHour)}:${pad2(selectedMinute)} ${selectedAmPm}`;
+
+    hiddenInput.value = isoStr;
+    displayInput.value = displayStr;
+  }
+
+  prevMonthBtn?.addEventListener('click', (e) => {
+    e.preventDefault();
+    viewMonth--;
+    if (viewMonth < 0) {
+      viewMonth = 11;
+      viewYear--;
+    }
+    renderCalendar();
+  });
+
+  nextMonthBtn?.addEventListener('click', (e) => {
+    e.preventDefault();
+    viewMonth++;
+    if (viewMonth > 11) {
+      viewMonth = 0;
+      viewYear++;
+    }
+    renderCalendar();
+  });
+
+  clearBtn?.addEventListener('click', (e) => {
+    e.preventDefault();
+    selectedYear = null;
+    selectedMonth = null;
+    selectedDay = null;
+    syncValues();
+    renderCalendar();
+    closePopover();
+  });
+
+  todayBtn?.addEventListener('click', (e) => {
+    e.preventDefault();
+    const tNow = new Date();
+    viewYear = tNow.getFullYear();
+    viewMonth = tNow.getMonth();
+    let h = tNow.getHours();
+    selectedAmPm = h >= 12 ? 'pm' : 'am';
+    let h12 = h % 12;
+    selectedHour = h12 === 0 ? 12 : h12;
+    selectedMinute = tNow.getMinutes();
+    selectDate(tNow.getFullYear(), tNow.getMonth(), tNow.getDate());
+    updateTimeSelectionUI();
+    scrollToActive(hoursCol);
+    scrollToActive(minutesCol);
+  });
+
+  function parseIsoValue(iso) {
+    if (!iso) return;
+    try {
+      const [datePart, timePart] = iso.split('T');
+      if (datePart) {
+        const parts = datePart.split('-').map(Number);
+        if (parts.length === 3 && !parts.some(isNaN)) {
+          selectedYear = parts[0];
+          selectedMonth = parts[1] - 1;
+          selectedDay = parts[2];
+          viewYear = parts[0];
+          viewMonth = parts[1] - 1;
+        }
+      }
+      if (timePart) {
+        const tParts = timePart.split(':').map(Number);
+        if (!isNaN(tParts[0])) {
+          selectedAmPm = tParts[0] >= 12 ? 'pm' : 'am';
+          const h12 = tParts[0] % 12;
+          selectedHour = h12 === 0 ? 12 : h12;
+        }
+        if (!isNaN(tParts[1])) {
+          selectedMinute = tParts[1];
+        }
+      }
+    } catch (err) {
+      console.warn('Error parsing ISO date:', err);
+    }
+  }
+
+  function openPopover() {
+    popover.classList.remove('hidden');
+    if (hiddenInput.value) {
+      parseIsoValue(hiddenInput.value);
+    } else {
+      const cNow = new Date();
+      viewYear = cNow.getFullYear();
+      viewMonth = cNow.getMonth();
+    }
+    renderCalendar();
+    updateTimeSelectionUI();
+
+    setTimeout(() => {
+      scrollToActive(hoursCol);
+      scrollToActive(minutesCol);
+      const popoverRect = popover.getBoundingClientRect();
+      const dialogEl = document.getElementById('dialog-new-request');
+      if (dialogEl) {
+        const dialogRect = dialogEl.getBoundingClientRect();
+        if (popoverRect.bottom > dialogRect.bottom) {
+          dialogEl.scrollBy({ top: (popoverRect.bottom - dialogRect.bottom) + 24, behavior: 'smooth' });
+        }
+      }
+    }, 50);
+  }
+
+  function closePopover() {
+    popover.classList.add('hidden');
+  }
+
+  displayInput.addEventListener('click', (e) => {
+    e.stopPropagation();
+    if (popover.classList.contains('hidden')) {
+      openPopover();
+    } else {
+      closePopover();
+    }
+  });
+
+  toggleBtn?.addEventListener('click', (e) => {
+    e.stopPropagation();
+    if (popover.classList.contains('hidden')) {
+      openPopover();
+    } else {
+      closePopover();
+    }
+  });
+
+  popover.addEventListener('click', (e) => {
+    e.stopPropagation();
+  });
+
+  document.addEventListener('click', (e) => {
+    if (!popover.classList.contains('hidden') && !popover.contains(e.target) && e.target !== displayInput && e.target !== toggleBtn) {
+      closePopover();
+    }
+  });
+
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && !popover.classList.contains('hidden')) {
+      closePopover();
+    }
+  });
+
+  // Intercept hiddenInput setter to synchronize
+  const origDesc = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value');
+  if (origDesc) {
+    Object.defineProperty(hiddenInput, 'value', {
+      get() {
+        return origDesc.get.call(this);
+      },
+      set(val) {
+        origDesc.set.call(this, val);
+        if (val) {
+          parseIsoValue(val);
+          if (selectedYear != null && selectedMonth != null && selectedDay != null) {
+            displayInput.value = `${pad2(selectedDay)}/${pad2(selectedMonth + 1)}/${selectedYear} ${pad2(selectedHour)}:${pad2(selectedMinute)} ${selectedAmPm}`;
+          }
+        } else {
+          selectedYear = null;
+          selectedMonth = null;
+          selectedDay = null;
+          displayInput.value = '';
+        }
+      }
+    });
+  }
+
+  window.customDeadlinePicker = {
+    open: openPopover,
+    close: closePopover,
+    setValue: (val) => {
+      hiddenInput.value = val || '';
+    },
+    setMin: (minVal) => {
+      minIsoString = minVal;
+    },
+    reset: () => {
+      hiddenInput.value = '';
+      displayInput.value = '';
+      selectedYear = null;
+      selectedMonth = null;
+      selectedDay = null;
+      closePopover();
+    }
+  };
+}
+
 function setupNewRequestDialog() {
+  initCustomDeadlinePicker();
   const dropzone = $('#nr-image-dropzone');
   const fileInput = $('#nr-image-input');
   const removeBtn = $('#nr-image-remove-btn');
   const changeBtn = $('#nr-image-change-btn');
   const dialogNewReq = $('#dialog-new-request');
+
+  dialogNewReq?.addEventListener('close', () => {
+    window.customDeadlinePicker?.close();
+  });
 
   const nrTitleEl = $('#nr-title');
   const nrDescEl = $('#nr-description');

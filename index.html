@@ -1717,9 +1717,60 @@
                         <label class="form-label" for="nr-budget" id="nr-budget-label">Starting Price / Base Rate (₱) *</label>
                         <input type="number" id="nr-budget" class="form-control" placeholder="150" min="1" max="100000" required>
                     </div>
-                    <div class="form-group flex-1" id="nr-deadline-group" style="display: none;">
-                        <label class="form-label" for="nr-deadline" id="nr-deadline-label">Deadline (Date &amp; Hour) *</label>
-                        <input type="datetime-local" id="nr-deadline" class="form-control">
+                    <div class="form-group flex-1" id="nr-deadline-group" style="display: none; position: relative;">
+                        <label class="form-label" for="nr-deadline-display" id="nr-deadline-label">Deadline (Date &amp; Hour) *</label>
+                        <div class="custom-dt-wrapper">
+                            <input type="text" id="nr-deadline-display" class="form-control custom-dt-input" placeholder="dd/mm/yyyy --:-- --" readonly autocomplete="off">
+                            <button type="button" id="nr-deadline-toggle-btn" class="custom-dt-icon-btn" aria-label="Choose deadline date and hour" tabindex="-1">
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                                    <line x1="16" y1="2" x2="16" y2="6"></line>
+                                    <line x1="8" y1="2" x2="8" y2="6"></line>
+                                    <line x1="3" y1="10" x2="21" y2="10"></line>
+                                </svg>
+                            </button>
+                            <input type="hidden" id="nr-deadline" name="deadline">
+                        </div>
+
+                        <!-- Custom Date & Hour Popover with Damped Scroll Sensitivity -->
+                        <div class="custom-dt-popover hidden" id="custom-dt-popover" role="dialog" aria-modal="false" aria-label="Date and Hour Picker">
+                            <div class="custom-dt-body">
+                                <div class="custom-dt-calendar-panel">
+                                    <div class="custom-dt-cal-header">
+                                        <span class="custom-dt-month-label" id="custom-dt-month-label">October 2026</span>
+                                        <div class="custom-dt-nav-arrows">
+                                            <button type="button" class="custom-dt-nav-btn" id="custom-dt-prev-month" title="Previous Month" aria-label="Previous Month">
+                                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="18 15 12 9 6 15"></polyline></svg>
+                                            </button>
+                                            <button type="button" class="custom-dt-nav-btn" id="custom-dt-next-month" title="Next Month" aria-label="Next Month">
+                                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"></polyline></svg>
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <div class="custom-dt-weekdays">
+                                        <span>Su</span><span>Mo</span><span>Tu</span><span>We</span><span>Th</span><span>Fr</span><span>Sa</span>
+                                    </div>
+                                    <div class="custom-dt-days-grid" id="custom-dt-days-grid"></div>
+                                    <div class="custom-dt-cal-footer">
+                                        <button type="button" class="custom-dt-text-btn" id="custom-dt-btn-clear">Clear</button>
+                                        <button type="button" class="custom-dt-text-btn" id="custom-dt-btn-today">Today</button>
+                                    </div>
+                                </div>
+                                <div class="custom-dt-divider"></div>
+                                <div class="custom-dt-time-panel">
+                                    <div class="custom-dt-scroll-col-wrap">
+                                        <div class="custom-dt-scroll-col" id="custom-dt-hours-col" title="Scroll to select hour"></div>
+                                    </div>
+                                    <div class="custom-dt-scroll-col-wrap">
+                                        <div class="custom-dt-scroll-col" id="custom-dt-minutes-col" title="Scroll to select minute"></div>
+                                    </div>
+                                    <div class="custom-dt-ampm-col">
+                                        <button type="button" class="custom-dt-ampm-btn" id="custom-dt-ampm-am" data-ampm="am">am</button>
+                                        <button type="button" class="custom-dt-ampm-btn active" id="custom-dt-ampm-pm" data-ampm="pm">pm</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
 
