@@ -1803,7 +1803,6 @@
   /* --- 3. Modals and Dialogs Fitting Viewport <= 92vw --- */
   dialog.modal,
   dialog.landing-dialog,
-  dialog.workspace-guide,
   #dialog-new-request,
   #dialog-service-details,
   #dialog-apply,
@@ -1825,6 +1824,38 @@
     padding: 0 !important;
     box-sizing: border-box !important;
     box-shadow: 0 20px 50px rgba(0, 0, 0, 0.35) !important;
+  }
+
+  /* Getting Started guide box (native dialog without .modal-content) */
+  dialog.workspace-guide {
+    position: fixed !important;
+    inset: 0 !important;
+    margin: auto !important;
+    transform: none !important;
+    left: 0 !important;
+    top: 0 !important;
+    right: 0 !important;
+    bottom: 0 !important;
+    width: min(92vw, 440px) !important;
+    max-width: 92vw !important;
+    max-height: min(90dvh, 650px) !important;
+    border-radius: 18px !important;
+    overflow-y: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+    padding: 1.25rem 1rem !important;
+    box-sizing: border-box !important;
+    box-shadow: 0 25px 60px rgba(0, 0, 0, 0.65) !important;
+    background: #171d30 !important;
+    border: 1px solid rgba(255, 255, 255, 0.15) !important;
+  }
+  dialog.workspace-guide .guide-bottom {
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 0.75rem !important;
+  }
+  dialog.workspace-guide .guide-bottom .btn {
+    width: 100% !important;
   }
 
   dialog.modal .modal-content,
@@ -2129,12 +2160,18 @@
     gap: 0.85rem !important;
   }
 
-  .services-header-actions button {
+  .services-header-actions button:not(.hidden):not([hidden]):not([style*="display: none"]):not([style*="display:none"]) {
     width: 100% !important;
     min-height: 44px !important;
     display: inline-flex !important;
     align-items: center !important;
     justify-content: center !important;
+  }
+  .services-header-actions button.hidden,
+  .services-header-actions button[hidden],
+  .services-header-actions button[style*="display: none"],
+  .services-header-actions button[style*="display:none"] {
+    display: none !important;
   }
 
   .workspace-brand {
@@ -2517,7 +2554,7 @@
     font-size: 15px !important;
   }
 
-  /* Horizontally scrollable data tables on mobile with sticky first column */
+  /* Horizontally scrollable data tables on mobile */
   #section-admin .transactions-table-wrapper,
   #section-transactions .transactions-table-wrapper,
   .transactions-table-wrapper,
@@ -2527,18 +2564,23 @@
     width: 100% !important;
     max-width: 100% !important;
     box-sizing: border-box !important;
-    border-radius: 12px !important;
+    border-radius: 14px !important;
   }
 
-  #section-admin .data-table,
-  #section-transactions .data-table {
-    min-width: 620px !important;
-    border-collapse: separate !important;
-    border-spacing: 0 !important;
+  #section-admin .data-table {
+    min-width: 680px !important;
+    width: 100% !important;
+    border-collapse: collapse !important;
   }
 
+  /* Keep admin table scrolling cleanly without sticky first-column occlusion on narrow mobile screens */
   #section-admin .data-table th:first-child,
-  #section-admin .data-table td:first-child,
+  #section-admin .data-table td:first-child {
+    position: static !important;
+    left: auto !important;
+    box-shadow: none !important;
+  }
+
   #section-transactions .data-table th:first-child,
   #section-transactions .data-table td:first-child {
     position: sticky !important;
@@ -2548,19 +2590,48 @@
     box-shadow: 2px 0 6px rgba(0, 0, 0, 0.06) !important;
   }
 
-  #section-admin .data-table th:first-child,
   #section-transactions .data-table th:first-child {
     z-index: 3 !important;
     background: #f8fafc !important;
   }
 
-  .admin-table-actions .btn,
-  #section-admin .data-table .btn {
-    min-height: 44px !important;
+  #section-admin .data-table th {
+    padding: 10px 12px !important;
+    font-size: 0.74rem !important;
+    letter-spacing: 0.04em !important;
+    white-space: nowrap !important;
+  }
+
+  #section-admin .data-table td {
+    padding: 10px 12px !important;
+    font-size: 0.84rem !important;
+    vertical-align: middle !important;
+  }
+
+  #section-admin .data-table td:last-child {
+    white-space: nowrap !important;
+    text-align: center !important;
+  }
+
+  #section-admin .data-table td:last-child > div,
+  #section-admin .data-table td:last-child .flex {
     display: inline-flex !important;
     align-items: center !important;
     justify-content: center !important;
-    padding: 6px 12px !important;
+    gap: 6px !important;
+  }
+
+  .admin-table-actions .btn,
+  #section-admin .data-table .btn {
+    min-height: 36px !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    padding: 5px 12px !important;
+    font-size: 0.8rem !important;
+    border-radius: 8px !important;
+    white-space: nowrap !important;
+    flex-shrink: 0 !important;
   }
 
   .admin-page-btn,
@@ -2568,8 +2639,8 @@
   .admin-page-next,
   .admin-page-num,
   .admin-pagination-actions button {
-    min-width: 44px !important;
-    min-height: 44px !important;
+    min-width: 40px !important;
+    min-height: 40px !important;
     display: inline-flex !important;
     align-items: center !important;
     justify-content: center !important;
@@ -2677,14 +2748,28 @@
 
   #section-admin .admin-period-control {
     width: 100% !important;
+    display: flex !important;
+    flex-direction: row !important;
     flex-wrap: wrap !important;
-    gap: 0.5rem !important;
+    align-items: center !important;
+    gap: 0.65rem !important;
+    padding: 0.6rem 0.85rem !important;
+    box-sizing: border-box !important;
   }
 
   #section-admin #admin-period-select {
-    flex: 1 1 auto !important;
-    min-width: 160px !important;
-    max-width: calc(100% - 75px) !important;
+    flex: 1 1 180px !important;
+    width: 100% !important;
+    min-width: 0 !important;
+    max-width: 100% !important;
+    font-size: 0.85rem !important;
+    padding: 0.45rem 0.65rem !important;
+    box-sizing: border-box !important;
+  }
+
+  #section-admin #admin-period-badge {
+    margin-left: auto !important;
+    flex-shrink: 0 !important;
   }
 
   .admin-mini-kpis {

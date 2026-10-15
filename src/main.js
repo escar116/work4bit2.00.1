@@ -1469,7 +1469,7 @@ function showApp() {
 
   navigateTo(activeSection || 'dashboard');
   if (workspace) {
-    workspace.updateUser();
+    workspace.updateUser({ autoOpenGuide: true });
   }
   startBackgroundSync();
   updateNotificationCenter();
@@ -2585,8 +2585,16 @@ function setServicesTab(tab) {
   // Contextual post buttons: only show the post button relevant to active tab
   const btnOffer = $('#btn-post-offer');
   const btnReq = $('#btn-post-request');
-  if (btnOffer) btnOffer.style.display = isOffer ? 'inline-flex' : 'none';
-  if (btnReq) btnReq.style.display = isOffer ? 'none' : 'inline-flex';
+  if (btnOffer) {
+    btnOffer.classList.toggle('hidden', !isOffer);
+    btnOffer.hidden = !isOffer;
+    btnOffer.style.setProperty('display', isOffer ? 'inline-flex' : 'none', 'important');
+  }
+  if (btnReq) {
+    btnReq.classList.toggle('hidden', isOffer);
+    btnReq.hidden = isOffer;
+    btnReq.style.setProperty('display', isOffer ? 'none' : 'inline-flex', 'important');
+  }
 
   // Contextual search placeholder
   const searchInput = $('#marketplace-search-primary');

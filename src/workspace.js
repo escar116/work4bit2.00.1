@@ -476,7 +476,8 @@ export function setupWorkspace({ navigate, search, getUser, refresh, getServices
     }));
     $('#guide-next').textContent = 'Check answer'; $('#guide-next').disabled = true;
   };
-  $('.guide-open').addEventListener('click', () => { step = progress(); renderGuide(); guide.showModal(); });
+  const openGuide = () => { step = progress(); renderGuide(); if (!guide.open) guide.showModal(); };
+  $('.guide-open').addEventListener('click', openGuide);
   $('.guide-close').addEventListener('click', () => guide.close());
   $('#guide-next').addEventListener('click', () => {
     if (step === questions.length) { guide.close(); return; }
@@ -488,7 +489,16 @@ export function setupWorkspace({ navigate, search, getUser, refresh, getServices
   });
   guide.addEventListener('close', () => $('.guide-open').focus());
   return {
-    updateUser() {
+    openGuide,
+    checkGuideAutoOpen() {
+      const p = progress();
+      if (p < questions.length && !guide.open) {
+        step = p;
+        renderGuide();
+        try { guide.showModal(); } catch (e) { }
+      }
+    },
+    updateUser(options = {}) {
       const avatar = $('#workspace-avatar');
       const u = getUser();
       const photo = u?.photoURL || (u?.id ? localStorage.getItem('cached_photo_' + u.id) : null);
@@ -500,6 +510,18 @@ export function setupWorkspace({ navigate, search, getUser, refresh, getServices
         }
       }
       updateGuideBadge();
+      if (options?.autoOpenGuide) {
+        const p = progress();
+        if (p < questions.length && !guide.open) {
+          setTimeout(() => {
+            if (!guide.open && progress() < questions.length) {
+              step = progress();
+              renderGuide();
+              try { guide.showModal(); } catch (e) { }
+            }
+          }, 350);
+        }
+      }
     },
     reset() {
       guide.close();

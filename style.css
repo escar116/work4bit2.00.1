@@ -3629,10 +3629,12 @@ button, input, select, textarea, .nav-btn, .tab-btn, .icon-button {
         position: fixed !important;
         inset: 0 !important;
         margin: auto !important;
-        width: min(94vw, 560px) !important;
+        transform: none !important;
+        width: min(92vw, 480px) !important;
         max-height: min(90dvh, 700px) !important;
         padding: 1.25rem 1rem !important;
         overflow-y: auto !important;
+        box-sizing: border-box !important;
     }
     #dialog-certificate {
         width: min(96vw, 750px) !important;
@@ -5320,11 +5322,13 @@ dialog#dialog-certificate.modal {
    ========================================================================== */
 dialog.workspace-guide {
     position: fixed;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
+    inset: 0;
+    margin: auto;
+    transform: none;
     width: 92vw;
     max-width: 580px;
+    max-height: min(90dvh, 700px);
+    overflow-y: auto;
     background: #171d30;
     border: 1px solid rgba(255, 255, 255, 0.15);
     border-radius: 20px;
@@ -5332,6 +5336,7 @@ dialog.workspace-guide {
     color: #ffffff;
     box-shadow: 0 25px 60px rgba(0, 0, 0, 0.65);
     z-index: 2000;
+    box-sizing: border-box;
 }
 
 dialog.workspace-guide::backdrop {
