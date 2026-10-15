@@ -22,13 +22,15 @@
 #section-landing { display:block; color:var(--ink); position:relative; }
 #section-landing.hidden { display:none!important; }
 #section-landing section[id] { scroll-margin-top:100px; }
-#section-landing .landing-dialog { position:fixed; inset:0; margin:auto; border:1px solid var(--line); border-radius:20px; padding:30px; width:min(460px,calc(100% - 32px)); max-height:calc(100dvh - 32px); overflow:auto; background:white; color:var(--ink); box-shadow:0 25px 90px #19203640; }
+#section-landing .landing-dialog { position:fixed; inset:0; margin:auto; border:1px solid var(--line); border-radius:20px; padding:24px 20px; width:min(460px, 92vw); max-width:92vw; max-height:calc(100dvh - 32px); overflow:auto; background:white; color:var(--ink); box-shadow:0 25px 90px #19203640; box-sizing:border-box; }
 #section-landing .landing-dialog::backdrop { background:#1920368a; backdrop-filter:blur(5px); }
-#section-landing .landing-dialog-close { position:absolute; right:14px; top:9px; width:36px; height:36px; font-size:28px; border-radius:8px; }
-#section-landing .landing-dialog h2 { font-size:26px; margin:6px 0; }
+#section-landing .landing-dialog-close { position:absolute; right:10px; top:10px; width:44px; height:44px; min-width:44px; min-height:44px; display:inline-flex; align-items:center; justify-content:center; font-size:28px; border-radius:10px; cursor:pointer; }
+#section-landing .landing-dialog h2 { font-size:24px; margin:6px 0; }
 #section-landing .landing-dialog-intro { color:var(--muted); font-size:13px; margin-bottom:18px; }
 #section-landing .landing-auth-card { padding:0; margin:0; border:0; box-shadow:none; max-width:none; }
-#section-landing .landing-auth-card .form-control { background:white; }
+#section-landing .landing-auth-card .form-control { background:white; font-size:16px; min-height:44px; }
+#section-landing .landing-auth-card .btn-landing-action,
+#section-landing .landing-auth-card #landing-google-btn { min-height:44px; display:inline-flex; align-items:center; justify-content:center; }
 #section-landing .landing-auth-card .hidden { display:none!important; }
 #section-landing .t-stagger-line { opacity:1; transform:none; filter:none; }
 #section-landing.motion-ready .t-stagger:not(.is-shown) .t-stagger-line { opacity:0; transform:translateY(var(--stagger-distance)); filter:blur(var(--stagger-blur)); }
@@ -39,14 +41,41 @@
 /* Mobile header: keep Sign in one tap away without crowding the bar. */
 @media(max-width:720px) {
   #section-landing .mobile-signin { display:none!important; }
+  #section-landing .menu { display:inline-flex !important; min-width:44px !important; min-height:44px !important; align-items:center; justify-content:center; }
+  #section-landing .navlinks {
+    display:none;
+    position:absolute;
+    top:69px;
+    left:0;
+    right:0;
+    background:rgba(245, 246, 252, 0.98) !important;
+    backdrop-filter:blur(14px) !important;
+    padding:16px 20px !important;
+    box-shadow:0 14px 20px #19203615 !important;
+    border-bottom:1px solid #e2e8f0;
+    flex-direction:column;
+    z-index:100 !important;
+  }
+  #section-landing .navlinks.open { display:flex !important; }
+  #section-landing .navlinks a {
+    min-height:44px !important;
+    display:flex !important;
+    align-items:center !important;
+    padding:8px 12px !important;
+    font-size:14px !important;
+    border-radius:8px;
+  }
+  #section-landing .switch button { min-height:44px !important; display:inline-flex; align-items:center; justify-content:center; }
   #section-landing .account { gap:8px; }
   #section-landing .account .signin {
     display:inline-flex; align-items:center; justify-content:center;
     padding:9px 13px; border:1px solid var(--line); border-radius:10px;
     background:#fff; color:var(--ink); font-size:11px; font-weight:700; white-space:nowrap;
+    min-height:44px;
   }
-  #section-landing .account .button { padding:9px 13px; }
+  #section-landing .account .button { padding:9px 13px; min-height:44px; display:inline-flex; align-items:center; justify-content:center; }
   #section-landing .account .button > span[aria-hidden="true"] { display:none; }
+  #section-landing .actions .button { min-height:44px; display:inline-flex; align-items:center; justify-content:center; }
 }
 @media(max-width:400px) {
   #section-landing .nav { gap:6px; }

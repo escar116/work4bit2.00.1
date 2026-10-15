@@ -748,11 +748,16 @@
   line-height: 1.8 !important;
 }
 
+/* 4b. CTA Banner: Perfectly Centered (Middled) between FAQ and Footer */
+#section-landing .cta {
+  margin: 90px auto !important;
+}
+
 /* 5. Footer: Sleek Deep Violet Section */
 #section-landing .landing-footer {
   background: #0f0a28 !important;
   border-top: 1px solid #251c4a !important;
-  margin-top: 70px !important;
+  margin-top: 0 !important;
 }
 #section-landing .landing-footer .footer {
   padding: 37px 0 !important;
@@ -1624,26 +1629,822 @@
    Responsive Refinements (Mobile Viewport Defect Fixes)
    ========================================================================== */
 
+/* ==========================================================================
+   Responsive Refinements (Mobile Viewport Defect Fixes & Polish)
+   Strictly Mobile Media Queries: Never alters desktop layouts.
+   ========================================================================== */
+
 @media (max-width: 768px) {
+  /* --- 1. Viewport & Horizontal Scroll Elimination --- */
+  html, body {
+    overflow-x: clip !important;
+    overflow-x: hidden !important;
+    max-width: 100vw !important;
+    width: 100% !important;
+    box-sizing: border-box !important;
+  }
+
+  #app-views {
+    overflow-x: clip !important;
+    overflow-x: hidden !important;
+    max-width: 100vw !important;
+    width: 100% !important;
+  }
+
+  /* Landing CTA mobile vertical centering */
+  #section-landing .cta {
+    margin: 50px auto !important;
+  }
+
+  .main-content {
+    margin-left: 0 !important;
+    margin-top: calc(56px + env(safe-area-inset-top, 0px)) !important;
+    padding: 0.85rem 0.75rem max(2rem, env(safe-area-inset-bottom, 2rem)) !important;
+    max-width: 100vw !important;
+    width: 100% !important;
+    box-sizing: border-box !important;
+    overflow-x: hidden !important;
+  }
+
+  /* --- 2. Mobile Navigation Header & 44px Tap Targets --- */
+  .workspace-header {
+    height: calc(56px + env(safe-area-inset-top, 0px)) !important;
+    padding-left: max(0.65rem, env(safe-area-inset-left, 0px)) !important;
+    padding-right: max(0.65rem, env(safe-area-inset-right, 0px)) !important;
+    gap: 0.5rem !important;
+    z-index: 1030 !important;
+  }
+
+  .workspace-actions {
+    gap: 0.4rem !important;
+  }
+
+  .workspace-actions .icon-button,
+  .workspace-header .icon-button,
+  .btn-notification-bell,
+  .account-toggle,
+  .workspace-menu,
+  .workspace-messages {
+    min-width: 44px !important;
+    min-height: 44px !important;
+    width: 44px !important;
+    height: 44px !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    border-radius: 10px !important;
+    flex-shrink: 0 !important;
+  }
+
+  /* Slide-out Sidebar Drawer & Overlay */
+  #sidebar {
+    width: min(84vw, 300px) !important;
+    z-index: 1060 !important;
+    padding: max(1rem, env(safe-area-inset-top, 1rem)) 1rem max(1.25rem, env(safe-area-inset-bottom, 1.25rem)) !important;
+  }
+
+  #sidebar-close-btn,
+  #sidebar .mobile-close-btn {
+    min-width: 44px !important;
+    min-height: 44px !important;
+    width: 44px !important;
+    height: 44px !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    border-radius: 10px !important;
+    background: rgba(255, 255, 255, 0.12) !important;
+    color: #ffffff !important;
+    font-size: 1.25rem !important;
+    cursor: pointer !important;
+    border: none !important;
+    flex-shrink: 0 !important;
+  }
+
+  #sidebar .nav-btn {
+    min-height: 44px !important;
+    padding: 0.75rem 1rem !important;
+    font-size: 0.92rem !important;
+    display: flex !important;
+    align-items: center !important;
+  }
+
+  .sidebar-user-footer {
+    padding-bottom: max(0.5rem, env(safe-area-inset-bottom, 0.5rem)) !important;
+  }
+
+  .sidebar-leave-btn {
+    min-width: 44px !important;
+    min-height: 44px !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+  }
+
+  /* --- 3. Modals and Dialogs Fitting Viewport <= 92vw --- */
+  dialog.modal,
+  dialog.landing-dialog,
+  dialog.workspace-guide,
+  #dialog-new-request,
+  #dialog-service-details,
+  #dialog-apply,
+  #dialog-edit-profile,
+  #dialog-review,
+  #dialog-applicant-details,
+  #dialog-certificate,
+  #dialog-view-profile,
+  #dialog-mentoring-apply,
+  #dialog-add-portfolio {
+    width: min(92vw, 480px) !important;
+    max-width: 92vw !important;
+    max-height: 90dvh !important;
+    max-height: 90vh !important;
+    margin: auto !important;
+    border-radius: 16px !important;
+    overflow-y: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+    padding: 0 !important;
+    box-sizing: border-box !important;
+    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.35) !important;
+  }
+
+  dialog.modal .modal-content,
+  #dialog-view-profile .modal-content,
+  #dialog-service-details .modal-content,
+  #dialog-mentoring-apply .modal-content,
+  #dialog-add-portfolio .modal-content,
+  #dialog-new-request .modal-content {
+    max-width: 100% !important;
+    width: 100% !important;
+    box-sizing: border-box !important;
+    padding: 1.25rem 1rem !important;
+  }
+
+  dialog.modal .modal-header h2,
+  dialog.modal .modal-header .modal-title {
+    font-size: 1.2rem !important;
+    line-height: 1.3 !important;
+  }
+
+  .dialog-close-btn,
+  .modal-close-btn,
+  #dialog-new-request .dialog-close-btn,
+  #dialog-service-details .dialog-close-btn {
+    min-width: 44px !important;
+    min-height: 44px !important;
+    width: 44px !important;
+    height: 44px !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    font-size: 1.75rem !important;
+    border-radius: 10px !important;
+    cursor: pointer !important;
+    flex-shrink: 0 !important;
+  }
+
+  dialog.modal .modal-footer {
+    flex-direction: column-reverse !important;
+    gap: 0.65rem !important;
+    width: 100% !important;
+  }
+
+  dialog.modal .modal-footer .btn {
+    width: 100% !important;
+    min-height: 44px !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+  }
+
+  /* --- 4. Messages Conversation List vs Active Chat Panel --- */
   #section-messages .page-header {
-    padding: 12px 16px;
-    margin-bottom: 8px;
+    display: none !important;
   }
+
   #section-messages .messages-layout {
-    height: calc(100dvh - 160px);
-    min-height: 400px;
-    max-height: calc(100dvh - 150px);
+    height: calc(100dvh - 56px - 1.5rem - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px)) !important;
+    max-height: calc(100dvh - 56px - 1.5rem) !important;
+    min-height: 420px !important;
+    margin: 0 !important;
+    border-radius: 14px !important;
+    display: flex !important;
+    flex-direction: column !important;
+    overflow: hidden !important;
   }
-  #section-messages .chat-input-row {
-    padding: 0.6rem 0.85rem;
+
+  .messages-layout .conversations-sidebar {
+    width: 100% !important;
+    height: 100% !important;
+    display: flex !important;
+    flex-direction: column !important;
+    border-right: none !important;
+    overflow-y: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+  }
+
+  .messages-layout .chat-panel {
+    display: none !important;
+    width: 100% !important;
+    height: 100% !important;
+    max-height: 100% !important;
+    flex-direction: column !important;
+    min-height: 0 !important;
+    overflow: hidden !important;
+  }
+
+  .messages-layout.chat-open .conversations-sidebar {
+    display: none !important;
+  }
+
+  .messages-layout.chat-open .chat-panel {
+    display: flex !important;
+    width: 100% !important;
+    height: 100% !important;
+    max-height: 100% !important;
+  }
+
+  .chat-header {
+    flex-shrink: 0 !important;
+    padding: 0.65rem 0.85rem !important;
+    display: flex !important;
+    align-items: center !important;
+    gap: 0.5rem !important;
+    background: #ffffff !important;
+    border-bottom: 1px solid #e4e7f2 !important;
+    min-height: 52px !important;
+  }
+
+  #chat-back-btn {
+    min-width: 44px !important;
+    min-height: 44px !important;
+    width: 44px !important;
+    height: 44px !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    font-size: 1.25rem !important;
+    font-weight: 700 !important;
+    border-radius: 10px !important;
+    padding: 0 !important;
+    flex-shrink: 0 !important;
+    background: white !important;
+    border: 1px solid #dce1ef !important;
+  }
+
+  #btn-terminate {
+    min-height: 44px !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    padding: 0 14px !important;
+  }
+
+  .chat-messages {
+    flex: 1 1 0% !important;
+    min-height: 0 !important;
+    overflow-y: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+    padding: 1rem 0.85rem !important;
+  }
+
+  .chat-input-row {
+    flex-shrink: 0 !important;
+    position: sticky !important;
+    bottom: 0 !important;
+    padding: 0.65rem 0.85rem !important;
+    background: #ffffff !important;
+    border-top: 1px solid #e4e7f2 !important;
+    display: flex !important;
+    align-items: center !important;
+    gap: 0.5rem !important;
+    z-index: 10 !important;
+  }
+
+  #chat-attach-btn {
+    min-width: 44px !important;
+    min-height: 44px !important;
+    width: 44px !important;
+    height: 44px !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    border-radius: 10px !important;
+    flex-shrink: 0 !important;
+  }
+
+  #chat-input {
+    min-height: 44px !important;
+    font-size: 16px !important;
+  }
+
+  #chat-send-btn {
+    min-width: 72px !important;
+    min-height: 44px !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    border-radius: 10px !important;
+    padding: 0 16px !important;
+    flex-shrink: 0 !important;
+  }
+
+  /* --- 5. Dashboard Stacking, Quick Actions & Charts --- */
+  .dashboard-top-header {
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 0.85rem !important;
+    margin-bottom: 1.25rem !important;
+  }
+
+  .dashboard-quick-actions {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 0.5rem !important;
+    width: 100% !important;
+  }
+
+  .dashboard-quick-actions .btn {
+    width: 100% !important;
+    min-height: 44px !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+  }
+
+  .db-segment {
+    display: flex !important;
+    flex-wrap: nowrap !important;
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+    scrollbar-width: none !important;
+    width: 100% !important;
+    max-width: 100% !important;
+  }
+  .db-segment::-webkit-scrollbar {
+    display: none !important;
+  }
+
+  .db-segment .tab-btn,
+  .period-tab-btn,
+  .scope-tab-btn {
+    min-height: 44px !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    padding: 8px 14px !important;
+    flex: 1 0 auto !important;
+    white-space: nowrap !important;
+  }
+
+  .db-kpis {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 10px !important;
+  }
+
+  .db-kpi {
+    padding: 14px 12px !important;
+  }
+
+  .db-kpi strong {
+    font-size: 1.35rem !important;
+    word-break: break-word !important;
+  }
+
+  .db-main-charts {
+    grid-template-columns: 1fr !important;
+    gap: 14px !important;
+  }
+
+  .db-line-chart {
+    max-width: 100% !important;
+    height: auto !important;
+  }
+
+  .db-donut-layout {
+    grid-template-columns: 1fr !important;
+    justify-items: center !important;
+    text-align: center !important;
+    gap: 16px !important;
+  }
+
+  .db-support {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 10px !important;
+  }
+
+  .db-support article {
+    padding: 14px 12px !important;
+  }
+
+  .db-bottom {
+    grid-template-columns: 1fr !important;
+    gap: 14px !important;
+  }
+
+  /* --- 6. Service Offers & Requests (1-Column Card Grids & Filters) --- */
+  .services-header-top {
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 0.85rem !important;
+  }
+
+  .services-header-actions button {
+    width: 100% !important;
+    min-height: 44px !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+  }
+
+  .workspace-brand {
+    min-height: 44px !important;
+    display: inline-flex !important;
+    align-items: center !important;
+  }
+
+  .marketplace-search-combined-bar {
+    min-height: 48px !important;
+    padding: 4px 8px !important;
+  }
+
+  .marketplace-search-input,
+  #marketplace-search-primary,
+  #mentoring-search-input {
+    min-height: 44px !important;
+    height: 44px !important;
+    font-size: 16px !important;
+  }
+
+  .marketplace-filter-toggle,
+  .marketplace-search-clear,
+  #btn-marketplace-reset,
+  #btn-search-clear,
+  .btn-combined-filter,
+  #btn-toggle-filters,
+  #btn-toggle-mentoring-filters {
+    min-height: 44px !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    padding: 8px 12px !important;
+  }
+
+  .btn-combined-reset,
+  #btn-reset-filters,
+  #btn-reset-mentoring-filters {
+    min-width: 44px !important;
+    min-height: 44px !important;
+    width: 44px !important;
+    height: 44px !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+  }
+
+  .services-grid,
+  .requests-grid,
+  #services-list {
+    grid-template-columns: 1fr !important;
+    gap: 14px !important;
+  }
+
+  .job-card,
+  .service-card {
+    padding: 1.15rem 1rem !important;
+  }
+
+  .job-card .btn,
+  .service-card .btn,
+  .btn-edit-service,
+  .btn-delete-service,
+  .edit-job-btn,
+  .delete-job-btn,
+  .btn-pause-service,
+  .btn-toggle-closed-offer,
+  .card-open-details,
+  .btn-view-details,
+  .edit-listing-btn,
+  .apply-btn {
+    min-height: 44px !important;
+    min-width: 56px !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    padding: 8px 14px !important;
+    font-size: 0.86rem !important;
+  }
+
+  .job-card-actions,
+  .service-card-actions {
+    display: flex !important;
+    flex-wrap: wrap !important;
+    gap: 8px !important;
+    width: 100% !important;
+  }
+
+  .job-card-actions .btn,
+  .service-card-actions .btn {
+    flex: 1 1 calc(50% - 4px) !important;
+  }
+
+  .job-card-actions .btn-pause-service,
+  .service-card-actions .btn-pause-service,
+  .job-card-actions .btn-toggle-closed-offer,
+  .service-card-actions .btn-toggle-closed-offer {
+    flex: 1 1 100% !important;
+  }
+
+  /* --- 7. Mentoring Hub --- */
+  .mentors-grid {
+    grid-template-columns: 1fr !important;
+    gap: 14px !important;
+  }
+
+  .mentor-card {
+    padding: 1.25rem 1rem !important;
+  }
+
+  .mentor-card-actions {
+    display: flex !important;
+    gap: 8px !important;
+    width: 100% !important;
+  }
+
+  .mentor-card-actions .btn {
+    flex: 1 1 50% !important;
+    min-height: 44px !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+  }
+
+  #btn-mentoring-become-mentor,
+  .mentoring-banner .btn,
+  #section-mentoring .banner-btn,
+  #btn-mentoring-apply-mentor,
+  .mentoring-callout-cta {
+    min-height: 44px !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    width: 100% !important;
+    padding: 10px 18px !important;
+  }
+
+  #btn-callout-goto-profile,
+  .mentoring-callout-link {
+    min-height: 44px !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    padding: 4px 6px !important;
+    font-weight: 700 !important;
+    text-decoration: underline !important;
+  }
+
+  .db-attention a {
+    min-height: 44px !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    padding: 8px 14px !important;
+  }
+
+  /* --- 8. Applications Hub --- */
+  #section-applications .tabs {
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+    scrollbar-width: none !important;
+    display: flex !important;
+    gap: 6px !important;
+    width: 100% !important;
+    padding: 4px !important;
+  }
+
+  #section-applications .tabs::-webkit-scrollbar {
+    display: none !important;
+  }
+
+  #section-applications .tab-btn {
+    min-height: 44px !important;
+    padding: 10px 14px !important;
+    white-space: nowrap !important;
+    flex-shrink: 0 !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+  }
+
+  .application-card {
+    padding: 1.15rem 1rem !important;
+  }
+
+  .application-card .candidate-actions {
+    display: flex !important;
+    flex-direction: row !important;
+    gap: 8px !important;
+    width: 100% !important;
+  }
+
+  .application-card .candidate-actions .btn,
+  .reject-btn,
+  .approve-btn {
+    flex: 1 1 50% !important;
+    min-height: 44px !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+  }
+
+  .application-service-header .btn {
+    min-height: 44px !important;
+    min-width: 60px !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+  }
+
+  /* --- 9. Profile & Portfolio --- */
+  .profile-header-card {
+    padding: 1.5rem 1rem !important;
+  }
+
+  #btn-change-avatar,
+  .avatar-camera-badge {
+    min-width: 44px !important;
+    min-height: 44px !important;
+    width: 44px !important;
+    height: 44px !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    border-radius: 50% !important;
+  }
+
+  #btn-edit-profile,
+  .edit-profile-pill-btn {
+    min-height: 44px !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    width: 100% !important;
+    max-width: 280px !important;
+    margin: 0.5rem auto 0 !important;
+  }
+
+  #btn-add-portfolio-item {
+    min-height: 44px !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+  }
+
+  .portfolio-delete-btn {
+    min-width: 44px !important;
+    min-height: 44px !important;
+    width: 44px !important;
+    height: 44px !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    font-size: 1.25rem !important;
+    cursor: pointer !important;
+  }
+
+  .platform-stats-grid {
+    grid-template-columns: 1fr 1fr !important;
+    gap: 10px !important;
+  }
+
+  /* --- 10. Admin Tabs, Tables & 2-Column Stat Cards --- */
+  .admin-stats-grid {
+    display: grid !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 10px !important;
+  }
+
+  .admin-stats-grid .dash-stat-card {
+    padding: 14px 12px !important;
+  }
+
+  .admin-stats-grid .stat-card-number {
+    font-size: 1.5rem !important;
+  }
+
+  .admin-stats-grid .dash-stat-card:last-child:nth-child(odd) {
+    grid-column: 1 / -1 !important;
+  }
+
+  #admin-management-tabs {
+    overflow-x: auto !important;
+    white-space: nowrap !important;
+    -webkit-overflow-scrolling: touch !important;
+    scrollbar-width: none !important;
+    display: flex !important;
+    width: 100% !important;
+    padding: 4px !important;
+    gap: 6px !important;
+  }
+
+  #admin-management-tabs::-webkit-scrollbar {
+    display: none !important;
+  }
+
+  #admin-management-tabs .tab-btn,
+  .admin-tab-btn {
+    flex-shrink: 0 !important;
+    min-height: 44px !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    padding: 8px 14px !important;
+    font-size: 0.85rem !important;
+  }
+
+  #admin-period-select {
+    min-height: 44px !important;
+    font-size: 15px !important;
+  }
+
+  /* Horizontally scrollable data tables on mobile */
+  #section-admin .transactions-table-wrapper,
+  #section-transactions .transactions-table-wrapper,
+  .transactions-table-wrapper {
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+    width: 100% !important;
+    max-width: 100% !important;
+  }
+
+  #section-admin .data-table,
+  #section-transactions .data-table {
+    min-width: 580px !important;
+  }
+
+  .admin-table-actions .btn,
+  #section-admin .data-table .btn {
+    min-height: 44px !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    padding: 6px 12px !important;
+  }
+
+  .admin-page-btn,
+  .admin-page-prev,
+  .admin-page-next,
+  .admin-page-num,
+  .admin-pagination-actions button {
+    min-width: 44px !important;
+    min-height: 44px !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+  }
+
+  /* --- 11. Transactions & Logs Section Controls --- */
+  .trans-stat-card {
+    padding: 14px 12px !important;
+  }
+
+  #section-transactions .tabs,
+  #section-logs .logs-filter-pills {
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+    scrollbar-width: none !important;
+    display: flex !important;
+    gap: 6px !important;
+    width: 100% !important;
+    padding: 4px !important;
+  }
+
+  #section-transactions .tabs::-webkit-scrollbar,
+  #section-logs .logs-filter-pills::-webkit-scrollbar {
+    display: none !important;
+  }
+
+  #section-transactions .tab-btn,
+  .logs-pill-btn {
+    min-height: 44px !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    padding: 8px 14px !important;
+    white-space: nowrap !important;
+    flex-shrink: 0 !important;
+  }
+
+  #logs-search-input {
+    min-height: 44px !important;
+    font-size: 16px !important;
   }
 }
 
 @media (max-width: 640px) {
   #section-dashboard .db-context {
-    padding: 18px 16px;
-    gap: 12px;
+    padding: 16px 14px;
+    gap: 10px;
   }
+
   #section-dashboard .db-context time,
   #section-dashboard .db-context .db-time-badge {
     white-space: normal;
@@ -1653,15 +2454,102 @@
     line-height: 1.4;
     max-width: 100%;
   }
+
   #section-admin .admin-period-control {
     width: 100% !important;
     flex-wrap: wrap !important;
     gap: 0.5rem !important;
   }
+
   #section-admin #admin-period-select {
     flex: 1 1 auto !important;
     min-width: 160px !important;
     max-width: calc(100% - 75px) !important;
+  }
+
+  .admin-mini-kpis {
+    display: grid !important;
+    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+    gap: 6px !important;
+    padding: 0.65rem 0.75rem !important;
+    text-align: center !important;
+  }
+
+  .admin-mini-kpis .mini-kpi-divider {
+    display: none !important;
+  }
+
+  .admin-mini-kpis .mini-kpi-item {
+    align-items: center !important;
+  }
+
+  .admin-mini-kpis .mini-kpi-item span {
+    font-size: 0.68rem !important;
+    line-height: 1.2 !important;
+    white-space: normal !important;
+  }
+
+  .admin-mini-kpis .mini-kpi-item strong {
+    font-size: 0.95rem !important;
+  }
+
+  .sd-poster-card {
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 10px !important;
+  }
+
+  .sd-poster-card button {
+    width: 100% !important;
+    min-height: 44px !important;
+    justify-content: center !important;
+  }
+
+  .sd-specs-grid {
+    grid-template-columns: 1fr !important;
+    gap: 8px !important;
+  }
+}
+
+@media (max-width: 480px) {
+  .db-kpis {
+    grid-template-columns: 1fr 1fr !important;
+    gap: 8px !important;
+  }
+
+  .db-support {
+    grid-template-columns: 1fr !important;
+  }
+
+  .platform-stats-grid {
+    grid-template-columns: 1fr !important;
+    gap: 10px !important;
+  }
+
+  .admin-stats-grid {
+    grid-template-columns: 1fr 1fr !important;
+    gap: 8px !important;
+  }
+
+  .admin-stats-grid .stat-card-number {
+    font-size: 1.35rem !important;
+  }
+}
+
+/* Mobile Landscape Height Constraints (e.g., 390px tall phone landscape) */
+@media (max-height: 500px) and (orientation: landscape) {
+  #section-messages .page-header {
+    display: none !important;
+  }
+
+  #section-messages .messages-layout {
+    height: calc(100dvh - 56px - 1rem) !important;
+    min-height: 280px !important;
+  }
+
+  dialog.modal,
+  dialog.landing-dialog {
+    max-height: 94dvh !important;
   }
 }
 
