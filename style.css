@@ -1255,7 +1255,7 @@ body.dark-theme .image-upload-dropzone.drag-over {
 .services-header-top {
     display: flex;
     justify-content: space-between;
-    align-items: flex-start;
+    align-items: center;
     gap: 1.5rem;
     flex-wrap: wrap;
 }

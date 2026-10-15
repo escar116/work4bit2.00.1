@@ -221,6 +221,11 @@
   padding: 18px 24px;
   margin-bottom: 16px;
 }
+#app-views .main-content #section-services .services-header-top {
+  display: flex !important;
+  justify-content: space-between !important;
+  align-items: center !important;
+}
 #app-views .main-content #section-services .services-header-wrapper,
 #app-views .main-content #section-services[data-services-theme="offers"] .services-header-wrapper,
 #section-services[data-services-theme="offers"] .services-header-wrapper,

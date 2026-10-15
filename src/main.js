@@ -4630,7 +4630,9 @@ async function getNegotiatedPricesMap() {
       localStorage.setItem('negotiated_prices_map', JSON.stringify(map));
     } catch (err) { }
   } catch (e) {
-    console.warn('Could not sync negotiated prices from Firestore:', e);
+    if (e?.code !== 'permission-denied') {
+      console.warn('Could not sync negotiated prices from Firestore:', e);
+    }
   }
   return map;
 }
