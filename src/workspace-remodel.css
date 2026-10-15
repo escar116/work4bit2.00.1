@@ -1644,14 +1644,21 @@
     box-sizing: border-box !important;
   }
 
-  #app-views {
+  #app-views,
+  #auth-views {
     overflow-x: clip !important;
     overflow-x: hidden !important;
     max-width: 100vw !important;
     width: 100% !important;
+    box-sizing: border-box !important;
   }
 
-  /* Landing CTA mobile vertical centering */
+  /* Prevent iOS automatic zooming on inputs */
+  input, select, textarea {
+    font-size: 16px !important;
+  }
+
+  /* Landing CTA mobile vertical spacing */
   #section-landing .cta {
     margin: 50px auto !important;
   }
@@ -1696,6 +1703,30 @@
     flex-shrink: 0 !important;
   }
 
+  /* Floating Dropdowns within safe viewport bounds */
+  .notification-dropdown {
+    position: fixed !important;
+    top: calc(58px + env(safe-area-inset-top, 0px)) !important;
+    left: 10px !important;
+    right: 10px !important;
+    width: auto !important;
+    max-width: none !important;
+    z-index: 1200 !important;
+    max-height: min(75dvh, 480px) !important;
+    box-shadow: 0 15px 40px rgba(0, 0, 0, 0.5) !important;
+  }
+
+  .workspace-account-menu {
+    position: fixed !important;
+    top: calc(58px + env(safe-area-inset-top, 0px)) !important;
+    right: 10px !important;
+    left: auto !important;
+    width: min(300px, calc(100vw - 20px)) !important;
+    max-width: calc(100vw - 20px) !important;
+    z-index: 1200 !important;
+    box-shadow: 0 15px 40px rgba(0, 0, 0, 0.5) !important;
+  }
+
   /* Slide-out Sidebar Drawer & Overlay */
   #sidebar {
     width: min(84vw, 300px) !important;
@@ -1703,8 +1734,28 @@
     padding: max(1rem, env(safe-area-inset-top, 1rem)) 1rem max(1.25rem, env(safe-area-inset-bottom, 1.25rem)) !important;
   }
 
+  #sidebar .sidebar-header {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    margin-bottom: 1.25rem !important;
+    padding-bottom: 0.75rem !important;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1) !important;
+  }
+
+  #sidebar .sidebar-header::before {
+    content: "WORK 4 A BIT" !important;
+    font-weight: 850 !important;
+    font-size: 1.1rem !important;
+    letter-spacing: -0.02em !important;
+    color: #ffffff !important;
+    display: inline-flex !important;
+    align-items: center !important;
+  }
+
   #sidebar-close-btn,
   #sidebar .mobile-close-btn {
+    order: 2 !important;
     min-width: 44px !important;
     min-height: 44px !important;
     width: 44px !important;
@@ -1721,12 +1772,20 @@
     flex-shrink: 0 !important;
   }
 
-  #sidebar .nav-btn {
+  #sidebar .nav-btn,
+  #sidebar .guide-open {
     min-height: 44px !important;
     padding: 0.75rem 1rem !important;
     font-size: 0.92rem !important;
     display: flex !important;
     align-items: center !important;
+  }
+
+  /* Hide redundant desktop collapse button in mobile drawer */
+  #sidebar .sidebar-toggle,
+  #sidebar .nav-btn.sidebar-toggle,
+  #btn-collapse-sidebar {
+    display: none !important;
   }
 
   .sidebar-user-footer {
@@ -1773,11 +1832,14 @@
   #dialog-service-details .modal-content,
   #dialog-mentoring-apply .modal-content,
   #dialog-add-portfolio .modal-content,
-  #dialog-new-request .modal-content {
+  #dialog-new-request .modal-content,
+  #dialog-edit-profile .modal-content,
+  #dialog-apply .modal-content,
+  #dialog-review .modal-content {
     max-width: 100% !important;
     width: 100% !important;
     box-sizing: border-box !important;
-    padding: 1.25rem 1rem !important;
+    padding: 1.25rem 1rem max(1.5rem, env(safe-area-inset-bottom, 1.5rem)) !important;
   }
 
   dialog.modal .modal-header h2,
@@ -1788,6 +1850,7 @@
 
   .dialog-close-btn,
   .modal-close-btn,
+  .landing-dialog-close,
   #dialog-new-request .dialog-close-btn,
   #dialog-service-details .dialog-close-btn {
     min-width: 44px !important;
@@ -1797,7 +1860,7 @@
     display: inline-flex !important;
     align-items: center !important;
     justify-content: center !important;
-    font-size: 1.75rem !important;
+    font-size: 1.6rem !important;
     border-radius: 10px !important;
     cursor: pointer !important;
     flex-shrink: 0 !important;
@@ -1998,12 +2061,21 @@
   }
 
   .db-kpis {
+    display: grid !important;
     grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
     gap: 10px !important;
   }
 
   .db-kpi {
     padding: 14px 12px !important;
+  }
+
+  .db-kpi:last-child {
+    grid-column: auto !important;
+  }
+
+  .db-kpi:last-child:nth-child(odd) {
+    grid-column: 1 / -1 !important;
   }
 
   .db-kpi strong {
@@ -2018,7 +2090,15 @@
 
   .db-line-chart {
     max-width: 100% !important;
+    width: 100% !important;
     height: auto !important;
+    min-height: 180px !important;
+  }
+
+  .db-line-chart svg {
+    width: 100% !important;
+    height: auto !important;
+    min-height: 180px !important;
   }
 
   .db-donut-layout {
@@ -2063,9 +2143,23 @@
     align-items: center !important;
   }
 
+  .marketplace-search-combined-wrap {
+    width: 100% !important;
+    max-width: 100% !important;
+    box-sizing: border-box !important;
+  }
+
   .marketplace-search-combined-bar {
     min-height: 48px !important;
-    padding: 4px 8px !important;
+    padding: 4px 6px !important;
+    gap: 4px !important;
+    box-sizing: border-box !important;
+    width: 100% !important;
+  }
+
+  .search-input-section {
+    min-width: 0 !important;
+    flex: 1 1 auto !important;
   }
 
   .marketplace-search-input,
@@ -2074,12 +2168,23 @@
     min-height: 44px !important;
     height: 44px !important;
     font-size: 16px !important;
+    min-width: 0 !important;
+    width: 100% !important;
   }
 
-  .marketplace-filter-toggle,
-  .marketplace-search-clear,
-  #btn-marketplace-reset,
   #btn-search-clear,
+  .marketplace-search-clear,
+  #btn-mentoring-search-clear {
+    min-width: 44px !important;
+    min-height: 44px !important;
+    width: 44px !important;
+    height: 44px !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    flex-shrink: 0 !important;
+  }
+
   .btn-combined-filter,
   #btn-toggle-filters,
   #btn-toggle-mentoring-filters {
@@ -2087,7 +2192,10 @@
     display: inline-flex !important;
     align-items: center !important;
     justify-content: center !important;
-    padding: 8px 12px !important;
+    padding: 8px 10px !important;
+    font-size: 0.85rem !important;
+    white-space: nowrap !important;
+    flex-shrink: 0 !important;
   }
 
   .btn-combined-reset,
@@ -2100,6 +2208,7 @@
     display: inline-flex !important;
     align-items: center !important;
     justify-content: center !important;
+    flex-shrink: 0 !important;
   }
 
   .services-grid,
@@ -2210,32 +2319,68 @@
   }
 
   /* --- 8. Applications Hub --- */
-  #section-applications .tabs {
+  #applications-marketplace-tabs,
+  #section-applications .tabs,
+  .apps-tabs-wrapper {
+    display: flex !important;
+    width: 100% !important;
+    max-width: 100% !important;
     overflow-x: auto !important;
     -webkit-overflow-scrolling: touch !important;
     scrollbar-width: none !important;
-    display: flex !important;
-    gap: 6px !important;
-    width: 100% !important;
     padding: 4px !important;
+    gap: 6px !important;
+    box-sizing: border-box !important;
+    border-radius: 12px !important;
   }
 
+  #applications-marketplace-tabs::-webkit-scrollbar,
   #section-applications .tabs::-webkit-scrollbar {
     display: none !important;
   }
 
+  #applications-marketplace-tabs .marketplace-tab-btn,
   #section-applications .tab-btn {
+    flex: 0 0 auto !important;
     min-height: 44px !important;
-    padding: 10px 14px !important;
-    white-space: nowrap !important;
-    flex-shrink: 0 !important;
     display: inline-flex !important;
     align-items: center !important;
     justify-content: center !important;
+    padding: 8px 14px !important;
+    font-size: 0.85rem !important;
+    white-space: nowrap !important;
   }
 
   .application-card {
     padding: 1.15rem 1rem !important;
+  }
+
+  .application-service-header {
+    display: flex !important;
+    flex-wrap: wrap !important;
+    gap: 8px !important;
+    align-items: center !important;
+  }
+
+  .application-service-header .header-badges {
+    display: flex !important;
+    flex-wrap: wrap !important;
+    gap: 6px !important;
+  }
+
+  .application-service-header .header-actions {
+    display: flex !important;
+    gap: 6px !important;
+    margin-left: auto !important;
+  }
+
+  .application-service-header .header-actions .btn,
+  .application-service-header .btn {
+    min-height: 44px !important;
+    min-width: 60px !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
   }
 
   .application-card .candidate-actions {
@@ -2255,15 +2400,12 @@
     justify-content: center !important;
   }
 
-  .application-service-header .btn {
-    min-height: 44px !important;
-    min-width: 60px !important;
-    display: inline-flex !important;
-    align-items: center !important;
-    justify-content: center !important;
+  /* --- 9. Profile & Portfolio --- */
+  .skel-bone {
+    max-width: 100% !important;
+    box-sizing: border-box !important;
   }
 
-  /* --- 9. Profile & Portfolio --- */
   .profile-header-card {
     padding: 1.5rem 1rem !important;
   }
@@ -2330,19 +2472,27 @@
     font-size: 1.5rem !important;
   }
 
+  .admin-stats-grid .stat-card-label {
+    font-size: 0.78rem !important;
+    line-height: 1.25 !important;
+  }
+
   .admin-stats-grid .dash-stat-card:last-child:nth-child(odd) {
     grid-column: 1 / -1 !important;
   }
 
   #admin-management-tabs {
+    display: flex !important;
+    width: 100% !important;
+    max-width: 100% !important;
     overflow-x: auto !important;
     white-space: nowrap !important;
     -webkit-overflow-scrolling: touch !important;
     scrollbar-width: none !important;
-    display: flex !important;
-    width: 100% !important;
     padding: 4px !important;
     gap: 6px !important;
+    box-sizing: border-box !important;
+    border-radius: 12px !important;
   }
 
   #admin-management-tabs::-webkit-scrollbar {
@@ -2351,6 +2501,7 @@
 
   #admin-management-tabs .tab-btn,
   .admin-tab-btn {
+    flex: 0 0 auto !important;
     flex-shrink: 0 !important;
     min-height: 44px !important;
     display: inline-flex !important;
@@ -2358,6 +2509,7 @@
     justify-content: center !important;
     padding: 8px 14px !important;
     font-size: 0.85rem !important;
+    white-space: nowrap !important;
   }
 
   #admin-period-select {
@@ -2365,19 +2517,41 @@
     font-size: 15px !important;
   }
 
-  /* Horizontally scrollable data tables on mobile */
+  /* Horizontally scrollable data tables on mobile with sticky first column */
   #section-admin .transactions-table-wrapper,
   #section-transactions .transactions-table-wrapper,
-  .transactions-table-wrapper {
+  .transactions-table-wrapper,
+  .table-responsive {
     overflow-x: auto !important;
     -webkit-overflow-scrolling: touch !important;
     width: 100% !important;
     max-width: 100% !important;
+    box-sizing: border-box !important;
+    border-radius: 12px !important;
   }
 
   #section-admin .data-table,
   #section-transactions .data-table {
-    min-width: 580px !important;
+    min-width: 620px !important;
+    border-collapse: separate !important;
+    border-spacing: 0 !important;
+  }
+
+  #section-admin .data-table th:first-child,
+  #section-admin .data-table td:first-child,
+  #section-transactions .data-table th:first-child,
+  #section-transactions .data-table td:first-child {
+    position: sticky !important;
+    left: 0 !important;
+    z-index: 2 !important;
+    background: #ffffff !important;
+    box-shadow: 2px 0 6px rgba(0, 0, 0, 0.06) !important;
+  }
+
+  #section-admin .data-table th:first-child,
+  #section-transactions .data-table th:first-child {
+    z-index: 3 !important;
+    background: #f8fafc !important;
   }
 
   .admin-table-actions .btn,
@@ -2436,6 +2610,52 @@
   #logs-search-input {
     min-height: 44px !important;
     font-size: 16px !important;
+  }
+
+  /* --- 12. Auth Modals & Public Views Fitting Viewport --- */
+  .auth-container {
+    padding: 1rem 0.75rem max(2rem, env(safe-area-inset-bottom, 2rem)) !important;
+  }
+
+  .auth-card,
+  #section-register,
+  #section-forgot-password,
+  #section-pending {
+    width: min(92vw, 440px) !important;
+    max-width: 92vw !important;
+    margin: 1.25rem auto !important;
+    padding: 1.5rem 1.15rem !important;
+    border-radius: 16px !important;
+    box-sizing: border-box !important;
+  }
+
+  .auth-card .form-row {
+    flex-direction: column !important;
+    gap: 0.75rem !important;
+  }
+
+  .auth-card .btn,
+  .auth-card .form-control {
+    min-height: 44px !important;
+    font-size: 16px !important;
+  }
+
+  .auth-card a,
+  .auth-links a {
+    min-height: 44px !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    padding: 4px 6px !important;
+  }
+
+  .password-toggle-btn {
+    min-width: 44px !important;
+    min-height: 44px !important;
+    width: 44px !important;
+    height: 44px !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
   }
 }
 
@@ -2534,17 +2754,31 @@
   .admin-stats-grid .stat-card-number {
     font-size: 1.35rem !important;
   }
+
+  .job-card,
+  .service-card {
+    padding: 1rem 0.85rem !important;
+  }
 }
 
 /* Mobile Landscape Height Constraints (e.g., 390px tall phone landscape) */
 @media (max-height: 500px) and (orientation: landscape) {
+  .workspace-header {
+    height: 48px !important;
+  }
+
+  .main-content {
+    margin-top: 48px !important;
+    padding: 0.65rem 0.75rem 1.5rem !important;
+  }
+
   #section-messages .page-header {
     display: none !important;
   }
 
   #section-messages .messages-layout {
-    height: calc(100dvh - 56px - 1rem) !important;
-    min-height: 280px !important;
+    height: calc(100dvh - 48px - 0.75rem) !important;
+    min-height: 260px !important;
   }
 
   dialog.modal,
@@ -2552,6 +2786,7 @@
     max-height: 94dvh !important;
   }
 }
+
 
 
 
