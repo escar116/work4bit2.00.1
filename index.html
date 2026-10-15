@@ -281,7 +281,7 @@
                         <input type="file" id="register-certificate" accept="image/*"
                             style="opacity:0; position:absolute; z-index:-1;">
                     </div>
-                    <img id="register-cert-preview" class="file-preview hidden" alt="Certificate Preview">
+                    <img id="register-cert-preview" class="file-preview hidden" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg'/%3E" alt="Certificate Preview">
                 </div>
 
                 <p id="register-error" class="error-message hidden"></p>
@@ -343,7 +343,7 @@
                     <span class="logo-text">WORK <span class="logo-badge">4</span> A BIT</span>
                 </div>
                 <div class="header-bell-wrapper">
-                    <button type="button" class="btn-notification-bell" id="btn-notifications" title="Notifications">
+                    <button type="button" class="btn-notification-bell" id="btn-notifications" title="Notifications" aria-label="Notifications">
                         <svg class="bell-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                             <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
                             <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
@@ -471,7 +471,7 @@
                     </div>
                 </div>
                 <!-- Highlight Leave/Logout Icon Button -->
-                <button type="button" class="sidebar-leave-btn" id="btn-logout" title="Log Out">
+                <button type="button" class="sidebar-leave-btn" id="btn-logout" title="Log Out" aria-label="Log Out">
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"
                         stroke-linecap="round" stroke-linejoin="round">
                         <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
@@ -488,10 +488,10 @@
 
                 <!-- Mobile Top Header Bar -->
                 <div class="mobile-top-bar">
-                    <button type="button" id="mobile-menu-btn" class="btn btn-ghost btn-sm">☰</button>
+                    <button type="button" id="mobile-menu-btn" class="btn btn-ghost btn-sm" aria-label="Toggle navigation menu">☰</button>
                     <div class="brand-title">WORK 4 A BIT</div>
                     <div class="header-bell-wrapper mobile-bell-wrapper">
-                        <button type="button" class="btn-notification-bell mobile-bell-btn" id="btn-mobile-notifications" title="Notifications">
+                        <button type="button" class="btn-notification-bell mobile-bell-btn" id="btn-mobile-notifications" title="Notifications" aria-label="Notifications">
                             <svg class="bell-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                 <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
                                 <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
@@ -521,7 +521,7 @@
                             <p class="welcome-subtext">Manage your campus freelance activity, applications, and student peer services.</p>
                         </div>
                         <div class="dashboard-quick-actions">
-                            <button type="button" class="btn btn-outline btn-sm" id="dashboard-refresh" title="Refresh dashboard data">↻ Refresh</button>
+                            <button type="button" class="btn btn-outline btn-sm" id="dashboard-refresh" title="Refresh dashboard data" aria-label="Refresh dashboard data">↻ Refresh</button>
                             <button type="button" class="btn btn-purple btn-sm" id="dash-btn-post-offer">+ Post Service Offer</button>
                             <button type="button" class="btn btn-outline btn-sm" id="dash-btn-post-request">+ Post Service Request</button>
                         </div>
@@ -568,7 +568,7 @@
                                     <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
                                 </svg>
                                 <input type="text" id="marketplace-search-primary" class="marketplace-search-input" placeholder="Search posts">
-                                <button type="button" id="btn-search-clear" class="marketplace-search-clear hidden" title="Clear search">✕</button>
+                                <button type="button" id="btn-search-clear" class="marketplace-search-clear hidden" title="Clear search" aria-label="Clear search">✕</button>
                             </div>
 
                             <!-- Subtle Vertical Divider -->
@@ -576,14 +576,14 @@
 
                             <!-- Right: Filter section -->
                             <div class="search-filter-section">
-                                <button type="button" id="btn-toggle-filters" class="btn-combined-filter" aria-expanded="false" title="Toggle Filters">
+                                <button type="button" id="btn-toggle-filters" class="btn-combined-filter" aria-expanded="false" title="Toggle Filters" aria-label="Toggle filters">
                                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                                         <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon>
                                     </svg>
                                     <span class="filter-btn-text">Filters</span>
                                     <span id="filter-active-count" class="filter-count-badge hidden">(0)</span>
                                 </button>
-                                <button type="button" id="btn-reset-filters" class="btn-combined-reset" title="Reset all filters">
+                                <button type="button" id="btn-reset-filters" class="btn-combined-reset" title="Reset all filters" aria-label="Reset all filters">
                                     <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
                                         <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path>
                                         <path d="M3 3v5h5"></path>
@@ -732,7 +732,7 @@
                                     <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
                                 </svg>
                                 <input type="text" id="mentoring-search-input" class="marketplace-search-input" placeholder="Search mentors by name, role, or skill">
-                                <button type="button" id="btn-mentoring-search-clear" class="marketplace-search-clear hidden" title="Clear search">✕</button>
+                                <button type="button" id="btn-mentoring-search-clear" class="marketplace-search-clear hidden" title="Clear search" aria-label="Clear mentoring search">✕</button>
                             </div>
 
                             <!-- Subtle Vertical Divider -->
@@ -740,14 +740,14 @@
 
                             <!-- Right: Filter section -->
                             <div class="search-filter-section">
-                                <button type="button" id="btn-toggle-mentoring-filters" class="btn-combined-filter" aria-expanded="false" title="Toggle Filters">
+                                <button type="button" id="btn-toggle-mentoring-filters" class="btn-combined-filter" aria-expanded="false" title="Toggle Filters" aria-label="Toggle mentoring filters">
                                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                                         <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon>
                                     </svg>
                                     <span class="filter-btn-text">Filters</span>
                                     <span id="mentoring-filter-active-count" class="filter-count-badge hidden">(0)</span>
                                 </button>
-                                <button type="button" id="btn-reset-mentoring-filters" class="btn-combined-reset" title="Reset all filters">
+                                <button type="button" id="btn-reset-mentoring-filters" class="btn-combined-reset" title="Reset all filters" aria-label="Reset mentoring filters">
                                     <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
                                         <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path>
                                         <path d="M3 3v5h5"></path>
@@ -875,7 +875,7 @@
                         <div id="chat-panel" class="chat-panel">
                             <div class="chat-header">
                                 <button type="button" id="chat-back-btn"
-                                    class="btn btn-outline btn-sm mobile-only">←</button>
+                                    class="btn btn-outline btn-sm mobile-only" aria-label="Back to conversations">←</button>
                                 <div id="chat-header-content" class="chat-header-content">
                                     <span class="text-muted">Select a conversation to start chatting</span>
                                 </div>
@@ -890,12 +890,12 @@
                                 <div class="attachment-chip">
                                     <span class="attachment-chip-icon">📎</span>
                                     <span id="attachment-name" class="attachment-chip-name truncate">model.stl</span>
-                                    <button type="button" id="btn-cancel-attachment" class="attachment-chip-remove" title="Remove attachment">✕</button>
+                                    <button type="button" id="btn-cancel-attachment" class="attachment-chip-remove" title="Remove attachment" aria-label="Remove attachment">✕</button>
                                 </div>
                             </div>
 
                             <div class="chat-input-row">
-                                <button type="button" id="chat-attach-btn" class="chat-attach-btn" title="Attach project file (STL, OBJ, PDF, ZIP, Images, Code)">
+                                <button type="button" id="chat-attach-btn" class="chat-attach-btn" title="Attach project file (STL, OBJ, PDF, ZIP, Images, Code)" aria-label="Attach project file">
                                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                         <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"></path>
                                     </svg>
@@ -977,11 +977,11 @@
                                 <p class="text-muted text-sm mt-1">Real-time audit history of marketplace listings, proposals, order completions, messages, and profile updates.</p>
                             </div>
                             <div class="logs-header-actions">
-                                <button type="button" id="btn-export-logs" class="btn btn-outline" title="Export logs as JSON">
+                                <button type="button" id="btn-export-logs" class="btn btn-outline" title="Export logs as JSON" aria-label="Export audit log as JSON">
                                     <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
                                     <span>Export Audit Log</span>
                                 </button>
-                                <button type="button" id="btn-clear-logs" class="btn btn-outline-danger" title="Clear your local action logs">
+                                <button type="button" id="btn-clear-logs" class="btn btn-outline-danger" title="Clear your local action logs" aria-label="Clear local action logs">
                                     <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
                                     <span>Clear Logs</span>
                                 </button>
@@ -1341,21 +1341,21 @@
                     <!-- Admin Management Tabs -->
                     <div class="db-segment t-tabs mt-6" id="admin-management-tabs" role="group" aria-label="Admin category">
                         <span class="t-tabs-pill" aria-hidden="true"></span>
-                        <button type="button" class="tab-btn active admin-tab-btn" data-admintab="pending" aria-pressed="true">
+                        <button type="button" class="tab-btn active admin-tab-btn" id="tab-admin-pending" data-admintab="pending" aria-pressed="true">
                             <span>Pending Verifications</span>
                             <span class="tab-count-pill" id="admin-pending-tab-badge">0</span>
                         </button>
-                        <button type="button" class="tab-btn admin-tab-btn" data-admintab="users" aria-pressed="false">
+                        <button type="button" class="tab-btn admin-tab-btn" id="tab-admin-registered" data-admintab="users" aria-pressed="false">
                             <span>All Registered Students</span>
                         </button>
-                        <button type="button" class="tab-btn admin-tab-btn" data-admintab="applications" aria-pressed="false">
+                        <button type="button" class="tab-btn admin-tab-btn" id="tab-admin-applications" data-admintab="applications" aria-pressed="false">
                             <span>All Applications & Bids</span>
                         </button>
-                        <button type="button" class="tab-btn admin-tab-btn" data-admintab="listings" aria-pressed="false">
+                        <button type="button" class="tab-btn admin-tab-btn" id="tab-admin-live-requests" data-admintab="listings" aria-pressed="false">
                             <span>Live Services & Mentoring</span>
                             <span class="tab-count-pill" id="admin-listings-tab-badge">0</span>
                         </button>
-                        <button type="button" class="tab-btn admin-tab-btn" data-admintab="audit-logs" aria-pressed="false">
+                        <button type="button" class="tab-btn admin-tab-btn" id="tab-admin-audit-logs" data-admintab="audit-logs" aria-pressed="false">
                             <span>Activity & Audit Logs</span>
                             <span class="tab-count-pill" id="admin-logs-tab-badge">0</span>
                         </button>
@@ -1608,7 +1608,7 @@
         <div class="modal-content">
             <div class="modal-header">
                 <h2 id="new-listing-modal-title">Post a Service Offer</h2>
-                <button type="button" class="dialog-close-btn">✕</button>
+                <button type="button" class="dialog-close-btn" aria-label="Close dialog">✕</button>
             </div>
             <p class="text-muted text-sm mb-3" id="new-listing-modal-desc">Offer your equipment (3D printing, laser cutting, paper printing) or skills. Standing services stay active continuously for multiple orders.</p>
             
@@ -1771,7 +1771,7 @@
                     <span id="sd-modal-type-badge" class="badge badge-normal mb-1">Service Offer</span>
                     <h2 id="sd-modal-title" style="margin: 0; font-size: 1.35rem; line-height: 1.3;">Service Details</h2>
                 </div>
-                <button type="button" class="dialog-close-btn">✕</button>
+                <button type="button" class="dialog-close-btn" aria-label="Close dialog">✕</button>
             </div>
             
             <div class="service-details-body" style="display: flex; flex-direction: column; gap: 1.25rem; margin-top: 1rem;">
@@ -1834,7 +1834,7 @@
         <div class="modal-content">
             <div class="modal-header">
                 <h2 id="apply-modal-title">Submit Your Application</h2>
-                <button type="button" class="dialog-close-btn">✕</button>
+                <button type="button" class="dialog-close-btn" aria-label="Close dialog">✕</button>
             </div>
             <p class="text-muted mb-4" id="apply-job-title">Job Title</p>
             <form id="apply-form">
@@ -1861,7 +1861,7 @@
         <div class="modal-content">
             <div class="modal-header">
                 <h2>Edit Profile</h2>
-                <button type="button" class="dialog-close-btn">✕</button>
+                <button type="button" class="dialog-close-btn" aria-label="Close dialog">✕</button>
             </div>
             <form id="edit-profile-form">
                 <!-- Profile Picture Upload Section -->
@@ -2000,7 +2000,7 @@
         <div class="modal-content">
             <div class="modal-header">
                 <h2 id="review-modal-title">Complete Job & Payment</h2>
-                <button type="button" class="dialog-close-btn">✕</button>
+                <button type="button" class="dialog-close-btn" aria-label="Close dialog">✕</button>
             </div>
             <form id="review-form">
                 <!-- Payment Summary Step -->
@@ -2064,7 +2064,7 @@
         <div class="modal-content">
             <div class="modal-header">
                 <h2>Applicant Full Information</h2>
-                <button type="button" class="dialog-close-btn">✕</button>
+                <button type="button" class="dialog-close-btn" aria-label="Close dialog">✕</button>
             </div>
             <div id="applicant-modal-body" class="space-y-3 mt-3">
                 <!-- Injected via JS -->
@@ -2080,7 +2080,7 @@
         <div class="modal-content cert-modal-content text-center">
             <div class="modal-header">
                 <h2>Certificate Preview</h2>
-                <button type="button" class="dialog-close-btn">&times;</button>
+                <button type="button" class="dialog-close-btn" aria-label="Close dialog">&times;</button>
             </div>
             <div class="cert-preview-wrapper">
                 <img id="cert-preview-img" class="cert-full-image" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg'/%3E" alt="Certificate Full Size">
@@ -2091,12 +2091,12 @@
         </div>
     </dialog>
 
-﻿    <dialog id="dialog-view-profile" class="modal">
+    <dialog id="dialog-view-profile" class="modal">
         <div class="modal-content" style="max-width: 800px; padding: 2.5rem; border-radius: 12px; position: relative;">
             
             <div class="modal-header border-b pb-4 mb-4" style="border-color: var(--border-light);">
                 <h2 style="font-size: 1.5rem;">User Profile</h2>
-                <button type="button" class="dialog-close-btn">&times;</button>
+                <button type="button" class="dialog-close-btn" aria-label="Close dialog">&times;</button>
             </div>
         <div id="vp-skeleton" class="hidden">
             <div class="profile-hero mb-6" style="display: flex; flex-wrap: wrap; gap: 2rem; position: relative;">
@@ -2277,8 +2277,12 @@
                     <p class="text-muted text-sm text-center">No reviews yet.</p>
                 </div>
             </div>
+            <div class="modal-footer" style="margin-top: 1.5rem; display: flex; justify-content: flex-end;">
+                <button type="button" class="btn btn-outline dialog-close-btn" aria-label="Close profile dialog">Close</button>
+            </div>
         </div>
-</dialog>
+        </div>
+    </dialog>
 
     <!-- ==========================================================================
          13. TOAST NOTIFICATIONS & SCRIPTS
@@ -2289,7 +2293,7 @@
         <div class="modal-content" style="max-width: 500px;">
             <div class="modal-header">
                 <h2>Propose Mentoring Session</h2>
-                <button type="button" class="dialog-close-btn">&times;</button>
+                <button type="button" class="dialog-close-btn" aria-label="Close dialog">&times;</button>
             </div>
             <p class="text-sm text-muted mb-4">Send a request to <strong id="mentoring-target-name"></strong>.</p>
             <form id="mentoring-apply-form">
@@ -2322,7 +2326,7 @@
         <div class="modal-content" style="max-width: 520px;">
             <div class="modal-header">
                 <h2>Add Portfolio Project</h2>
-                <button type="button" class="dialog-close-btn">✕</button>
+                <button type="button" class="dialog-close-btn" aria-label="Close dialog">✕</button>
             </div>
             <form id="form-add-portfolio">
                 <div class="form-group">

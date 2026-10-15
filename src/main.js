@@ -2151,13 +2151,21 @@ async function loadDashboard(isSilent = false) {
   }
 
   try {
-    const [appResult, postResult, posterAppResult, reviewResult, negotiatedMapRes] = await Promise.allSettled([
-      listApplicationsByApplicant(dc, { userId: userData.id }, SERVER_ONLY),
-      listMyHelpRequestsWithApplications(dc, { userId: userData.id }, SERVER_ONLY),
-      listApplicationsForMyRequests(dc, { userId: userData.id }, SERVER_ONLY),
-      getDocs(query(collection(firestore, "reviews"), where("targetUserId", "==", userData.id))),
-      getNegotiatedPricesMap()
-    ]);
+    const [appResult, postResult, posterAppResult, reviewResult, negotiatedMapRes] = devPreview
+      ? [
+        { status: 'fulfilled', value: { data: { applications: [] } } },
+        { status: 'fulfilled', value: { data: { helpRequests: [] } } },
+        { status: 'fulfilled', value: { data: { applications: [] } } },
+        { status: 'fulfilled', value: { docs: [] } },
+        { status: 'fulfilled', value: {} }
+      ]
+      : await Promise.allSettled([
+        listApplicationsByApplicant(dc, { userId: userData.id }, SERVER_ONLY),
+        listMyHelpRequestsWithApplications(dc, { userId: userData.id }, SERVER_ONLY),
+        listApplicationsForMyRequests(dc, { userId: userData.id }, SERVER_ONLY),
+        getDocs(query(collection(firestore, "reviews"), where("targetUserId", "==", userData.id))),
+        getNegotiatedPricesMap()
+      ]);
     if (!devPreview && [appResult, postResult, posterAppResult].some(result => result.status === 'rejected')) {
       throw new Error('One or more dashboard data sources could not be loaded.');
     }
@@ -3979,7 +3987,7 @@ async function loadPostedJobs(isSilent = false) {
   const container = $('#posted-jobs-list');
   if (!isSilent) container.innerHTML = getSkeletonApplicationsHtml(3);
   try {
-    const res = await listMyHelpRequestsWithApplications(dc, { userId: userData?.id }, SERVER_ONLY).catch(() => ({ data: { helpRequests: [] } }));
+    const res = !devPreview ? await listMyHelpRequestsWithApplications(dc, { userId: userData?.id }, SERVER_ONLY).catch(() => ({ data: { helpRequests: [] } })) : { data: { helpRequests: [] } };
     allMyJobs = res.data?.helpRequests || [];
 
     if (devPreview && allMyJobs.length === 0) {
@@ -4142,8 +4150,8 @@ async function loadMentoringRequests(isSilent = false) {
   if (!container) return;
   if (!isSilent) container.innerHTML = getSkeletonApplicationsHtml(3);
   try {
-    const res = await listMyHelpRequestsWithApplications(dc, { userId: userData.id }, SERVER_ONLY);
-    const jobs = (res.data.helpRequests || []).filter(j => {
+    const res = !devPreview ? await listMyHelpRequestsWithApplications(dc, { userId: userData?.id }, SERVER_ONLY).catch(() => ({ data: { helpRequests: [] } })) : { data: { helpRequests: [] } };
+    const jobs = (res.data?.helpRequests || []).filter(j => {
       const isMentoring = j.category === 'MENTORING' || (j.title && j.title.toLowerCase().startsWith('mentoring:'));
       return (j.status === 'OPEN' || !j.status) && isMentoring;
     });
@@ -4212,7 +4220,7 @@ async function loadMyApplications(isSilent = false) {
   const container = $('#my-applications-list');
   if (!isSilent) container.innerHTML = getSkeletonApplicationsHtml(3);
   try {
-    const res = await listApplicationsByApplicant(dc, { userId: userData?.id }, SERVER_ONLY).catch(() => ({ data: { applications: [] } }));
+    const res = !devPreview ? await listApplicationsByApplicant(dc, { userId: userData?.id }, SERVER_ONLY).catch(() => ({ data: { applications: [] } })) : { data: { applications: [] } };
     let apps = (res.data?.applications || []).filter(a => a.status !== 'REJECTED');
     apps.forEach(a => {
       if (a?.id && cachedNegotiatedPrices[a.id] != null) a.priceOffer = cachedNegotiatedPrices[a.id];
@@ -5593,10 +5601,11 @@ function renderTransactionsTable(filter = 'all') {
       <td>
         <strong>${item.title}</strong>
         <div class="text-xs text-muted" style="margin-top: 2px;">${item.counterpart} • ${typeBadge}</div>
+        <div class="text-xs text-muted tx-mobile-date" style="margin-top: 3px; display: none;">${item.date}</div>
       </td>
-      <td>${item.date}</td>
-      <td><strong style="${amountColor}">${amountPrefix}${peso(item.amount)}</strong></td>
-      <td><span class="badge ${statusBadgeClass}">${statusLabel}</span></td>
+      <td class="tx-col-date">${item.date}</td>
+      <td class="tx-col-amount"><strong style="${amountColor}">${amountPrefix}${peso(item.amount)}</strong></td>
+      <td class="tx-col-status"><span class="badge ${statusBadgeClass}">${statusLabel}</span></td>
     `;
     tbody.appendChild(tr);
   });
@@ -6401,16 +6410,15 @@ window.openViewProfileDialog = async function (userId) {
   if (vpBody) vpBody.classList.add('hidden');
   if (vpSkeleton) vpSkeleton.classList.remove('hidden');
 
-  // User requested: Always hide skeleton after 1 second
-  setTimeout(() => {
+  let skeletonTimer = setTimeout(() => {
     if (vpBody) vpBody.classList.remove('hidden');
     if (vpSkeleton) vpSkeleton.classList.add('hidden');
-  }, 1000);
+  }, 600);
 
   try {
     let user = null;
     try {
-      const res = await getUserProfile(dc, { id: userId }, SERVER_ONLY);
+      const res = !devPreview ? await getUserProfile(dc, { id: userId }, SERVER_ONLY).catch(() => null) : null;
       user = res?.data?.user;
     } catch (err) {
       console.warn("getUserProfile query error, checking fallbacks:", err);
@@ -6419,15 +6427,43 @@ window.openViewProfileDialog = async function (userId) {
       user = (typeof adminUsersData !== 'undefined' ? adminUsersData : []).find(u => u.id === userId) ||
         (typeof allUsersCache !== 'undefined' ? allUsersCache : []).find(u => u.id === userId);
     }
-    if (!user) return;
+    if (!user && (userId === userData?.id || userId === 'dev_student_1')) {
+      user = {
+        id: 'dev_student_1',
+        fullName: userData?.fullName || 'Charles B.',
+        studentId: userData?.studentId || '2023-10482',
+        program: userData?.program || 'BS Computer Engineering',
+        facultyReference: userData?.facultyReference || 'Engr. Liza Fernandez',
+        applications_on_applicant: [{ status: 'PENDING' }, { status: 'COMPLETED' }, { status: 'COMPLETED' }],
+        helpRequests_on_requester: [{ status: 'OPEN' }, { status: 'COMPLETED' }]
+      };
+    }
+    if (!user && devPreview) {
+      user = {
+        id: userId,
+        fullName: 'Engr. Noel Villanueva',
+        studentId: 'FAC-01',
+        program: 'Faculty Mentor & Electronics Specialist',
+        facultyReference: 'ECE Department',
+        applications_on_applicant: [{ status: 'COMPLETED' }, { status: 'COMPLETED' }],
+        helpRequests_on_requester: [{ status: 'OPEN' }, { status: 'OPEN' }]
+      };
+    }
+    if (!user) {
+      if (vpBody) vpBody.classList.remove('hidden');
+      if (vpSkeleton) vpSkeleton.classList.add('hidden');
+      return;
+    }
 
-    try {
-      const allRes = await listAllUsers(dc);
-      const fullUser = allRes.data.users.find(u => u.id === userId);
-      if (fullUser) {
-        user.facultyReference = fullUser.facultyReference;
-      }
-    } catch (e) { }
+    if (!devPreview) {
+      try {
+        const allRes = await listAllUsers(dc);
+        const fullUser = allRes.data.users.find(u => u.id === userId);
+        if (fullUser) {
+          user.facultyReference = fullUser.facultyReference;
+        }
+      } catch (e) { }
+    }
 
     const initialPhoto = getUserPhoto(userId);
     const vpAvatar = document.getElementById('vp-avatar');
@@ -6455,60 +6491,107 @@ window.openViewProfileDialog = async function (userId) {
     document.getElementById('vp-emp-terminated').textContent = reqs.filter(r => r.status === 'TERMINATED').length;
 
     try {
-      const profileDoc = await getDoc(doc(firestore, "user_profiles", userId));
-      if (profileDoc.exists()) {
-        const data = profileDoc.data();
-        const vpBio = document.getElementById('vp-bio');
-        if (vpBio) vpBio.textContent = censorProfanity(data.bio) || 'No bio provided.';
+      if (!devPreview) {
+        const profileDoc = await getDoc(doc(firestore, "user_profiles", userId)).catch(() => null);
+        if (profileDoc && profileDoc.exists()) {
+          const data = profileDoc.data();
+          const vpBio = document.getElementById('vp-bio');
+          if (vpBio) vpBio.textContent = censorProfanity(data.bio) || 'No bio provided.';
 
-        const photo = data.photoURL || data.profilePicture;
-        if (photo) {
-          setUserPhoto(userId, photo);
-          if (vpAvatar) {
-            vpAvatar.innerHTML = `<img src="${photo}" alt="${escapeHtml(user.fullName)}" class="profile-avatar-img">`;
+          const photo = data.photoURL || data.profilePicture;
+          if (photo) {
+            setUserPhoto(userId, photo);
+            if (vpAvatar) {
+              vpAvatar.innerHTML = `<img src="${photo}" alt="${escapeHtml(user.fullName)}" class="profile-avatar-img">`;
+            }
           }
-        }
 
-        const vpSkills = document.getElementById('vp-skills');
-        if (vpSkills) {
-          if (data.skills && data.skills.length > 0) {
-            vpSkills.innerHTML = '<div class="flex flex-wrap gap-2">' + data.skills.map(s => `<span class="badge" style="background: rgba(255,255,255,0.05);">${s}</span>`).join('') + '</div>';
-          } else {
-            vpSkills.innerHTML = '<span class="text-sm text-muted">No skills listed.</span>';
+          const vpSkills = document.getElementById('vp-skills');
+          if (vpSkills) {
+            if (data.skills && data.skills.length > 0) {
+              vpSkills.innerHTML = '<div class="flex flex-wrap gap-2">' + data.skills.map(s => `<span class="badge" style="background: rgba(255,255,255,0.05);">${s}</span>`).join('') + '</div>';
+            } else {
+              vpSkills.innerHTML = '<span class="text-sm text-muted">No skills listed.</span>';
+            }
           }
-        }
 
-        const vpPortGrid = document.getElementById('vp-portfolio-grid');
-        if (vpPortGrid) {
-          const portfolio = data.portfolio || [];
-          if (portfolio.length > 0) {
-            vpPortGrid.innerHTML = portfolio.map(item => `
-              <div class="portfolio-card">
-                ${item.imageUrl ? `
-                  <div style="margin-bottom: 0.75rem; border-radius: 8px; overflow: hidden; border: 1px solid var(--border-light); max-height: 180px;">
-                    <img src="${item.imageUrl}" alt="${escapeHtml(item.title)}" style="width: 100%; height: 180px; object-fit: cover; display: block;" />
-                  </div>
-                ` : ''}
-                <h4 class="portfolio-card-title">${escapeHtml(censorProfanity(item.title))}</h4>
-                <p class="portfolio-card-desc">${escapeHtml(censorProfanity(item.description))}</p>
-              </div>
-            `).join('');
-          } else {
-            vpPortGrid.innerHTML = '<span class="text-sm text-muted">No projects listed.</span>';
+          const vpPortGrid = document.getElementById('vp-portfolio-grid');
+          if (vpPortGrid) {
+            const portfolio = data.portfolio || [];
+            if (portfolio.length > 0) {
+              vpPortGrid.innerHTML = portfolio.map(item => `
+                <div class="portfolio-card">
+                  ${item.imageUrl ? `
+                    <div style="margin-bottom: 0.75rem; border-radius: 8px; overflow: hidden; border: 1px solid var(--border-light); max-height: 180px;">
+                      <img src="${item.imageUrl}" alt="${escapeHtml(item.title)}" style="width: 100%; height: 180px; object-fit: cover; display: block;" />
+                    </div>
+                  ` : ''}
+                  <h4 class="portfolio-card-title">${escapeHtml(censorProfanity(item.title))}</h4>
+                  <p class="portfolio-card-desc">${escapeHtml(censorProfanity(item.description))}</p>
+                </div>
+              `).join('');
+            } else {
+              vpPortGrid.innerHTML = '<span class="text-sm text-muted">No projects listed.</span>';
+            }
           }
+        } else {
+          document.getElementById('vp-bio').textContent = 'No bio provided.';
+          document.getElementById('vp-skills').innerHTML = '<span class="text-sm text-muted">No skills listed.</span>';
+          if (document.getElementById('vp-portfolio-grid')) document.getElementById('vp-portfolio-grid').innerHTML = '<span class="text-sm text-muted">No projects listed.</span>';
         }
       } else {
-        document.getElementById('vp-bio').textContent = 'No bio provided.';
-        document.getElementById('vp-skills').innerHTML = '<span class="text-sm text-muted">No skills listed.</span>';
-        if (document.getElementById('vp-portfolio-grid')) document.getElementById('vp-portfolio-grid').innerHTML = '<span class="text-sm text-muted">No projects listed.</span>';
+        // Dev preview mock profile data
+        const vpBio = document.getElementById('vp-bio');
+        if (vpBio) vpBio.textContent = user.bio || 'Computer engineering student and active campus freelancer specializing in hardware prototyping, embedded systems, and 3D printing.';
+        const vpSkills = document.getElementById('vp-skills');
+        if (vpSkills) {
+          vpSkills.innerHTML = '<div class="flex flex-wrap gap-2"><span class="badge badge-skill" style="background: rgba(124, 108, 248, 0.15); color: var(--primary-purple); font-weight: 600;">3D Printing</span><span class="badge badge-skill" style="background: rgba(124, 108, 248, 0.15); color: var(--primary-purple); font-weight: 600;">Arduino</span><span class="badge badge-skill" style="background: rgba(124, 108, 248, 0.15); color: var(--primary-purple); font-weight: 600;">PCB Design</span><span class="badge badge-skill" style="background: rgba(124, 108, 248, 0.15); color: var(--primary-purple); font-weight: 600;">SolidWorks</span></div>';
+        }
+        const vpPortGrid = document.getElementById('vp-portfolio-grid');
+        if (vpPortGrid) {
+          vpPortGrid.innerHTML = `
+            <div class="portfolio-card" style="padding: 1rem; border: 1px solid var(--border-light); border-radius: 10px; background: var(--bg-card, #ffffff);">
+              <h4 class="portfolio-card-title" style="margin: 0 0 6px; font-size: 0.95rem; font-weight: 600;">Custom 3D Macro Keypad</h4>
+              <p class="portfolio-card-desc text-muted text-sm" style="margin: 0;">Mechanical switches with RP2040 microcontroller and custom acrylic housing.</p>
+            </div>
+            <div class="portfolio-card" style="padding: 1rem; border: 1px solid var(--border-light); border-radius: 10px; background: var(--bg-card, #ffffff);">
+              <h4 class="portfolio-card-title" style="margin: 0 0 6px; font-size: 0.95rem; font-weight: 600;">IoT Automated Plant Watering</h4>
+              <p class="portfolio-card-desc text-muted text-sm" style="margin: 0;">Soil moisture and water level telemetry with automated peristaltic pump control.</p>
+            </div>
+          `;
+        }
       }
     } catch (e) {
       console.error(e);
     }
 
     // Fetch reviews from Firestore
-    const reviewsSnap = await getDocs(query(collection(firestore, "reviews"), where("targetUserId", "==", userId)));
-    const reviews = reviewsSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+    let reviews = [];
+    try {
+      const reviewsSnap = !devPreview
+        ? await getDocs(query(collection(firestore, "reviews"), where("targetUserId", "==", userId))).catch(() => ({ docs: [] }))
+        : { docs: [] };
+      reviews = (reviewsSnap?.docs || []).map(d => ({ id: d.id, ...d.data() }));
+    } catch (e) {
+      reviews = [];
+    }
+
+    if (devPreview && reviews.length === 0) {
+      reviews = [
+        {
+          reviewerName: 'Maria Santos',
+          rating: 5,
+          comment: 'Super fast delivery and clean 3D print finish! Highly recommended.',
+          createdAt: '2026-10-12T09:30:00.000Z'
+        },
+        {
+          reviewerName: 'Engr. Noel Villanueva',
+          rating: 5,
+          comment: 'Very professional, clean code and great documentation.',
+          createdAt: '2026-10-06T15:20:00.000Z'
+        }
+      ];
+    }
 
     for (let r of reviews) {
       if (!r.reviewerName && r.reviewerId) {
@@ -6561,6 +6644,10 @@ window.openViewProfileDialog = async function (userId) {
   } catch (err) {
     console.error('Profile Dialog Error:', err);
     showToast('Failed to load profile', 'error');
+  } finally {
+    clearTimeout(skeletonTimer);
+    if (vpBody) vpBody.classList.remove('hidden');
+    if (vpSkeleton) vpSkeleton.classList.add('hidden');
   }
 };
 
