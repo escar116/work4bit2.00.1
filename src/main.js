@@ -4611,11 +4611,12 @@ function openMentoringDetailsModal(app, job) {
 
   const applicant = app.applicant || (app.applicantId && window.__usersMap ? window.__usersMap.get(app.applicantId) : null) || { id: app.applicantId, fullName: 'Student Mentee' };
   const proposedAmt = app.priceOffer != null ? app.priceOffer : job.budget;
+  const cleanModalTitle = censorProfanity(job.title || '').replace(/^mentoring\s*:\s*/i, '').trim() || 'Mentoring Session';
 
   body.innerHTML = `
     <div style="background: var(--bg-card); border: 1px solid var(--border-light); border-radius: 10px; padding: 1rem; margin-bottom: 1rem;">
       <div style="display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; flex-wrap: wrap;">
-        <h3 style="margin: 0; font-size: 1.15rem; font-weight: 700; color: var(--text-heading);">${escapeHtml(censorProfanity(job.title))}</h3>
+        <h3 style="margin: 0; font-size: 1.15rem; font-weight: 700; color: var(--text-heading);">${escapeHtml(cleanModalTitle)}</h3>
         <span class="badge badge-mentoring">Mentoring</span>
       </div>
       <div style="font-size: 0.9rem; color: var(--text-muted); margin-top: 0.5rem; line-height: 1.5;">
@@ -4719,13 +4720,14 @@ async function loadMentoringRequests(isSilent = false) {
     pendingMentoringItems.forEach(({ job, app }) => {
       const proposedAmt = (app && app.priceOffer !== undefined) ? app.priceOffer : job.budget;
       const applicant = app.applicant || (app.applicantId && window.__usersMap ? window.__usersMap.get(app.applicantId) : null) || { id: app.applicantId, fullName: 'Student Mentee' };
+      const cleanMentoringTitle = censorProfanity(job.title || '').replace(/^mentoring\s*:\s*/i, '').trim() || 'Mentoring Session';
 
       const card = document.createElement('div');
       card.className = 'application-card t-skel-reveal';
       card.innerHTML = `
         <div style="flex: 1; min-width: 0;">
           <div style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
-            <h4 style="margin: 0; font-weight: 600;">${escapeHtml(censorProfanity(job.title))}</h4>
+            <h4 style="margin: 0; font-weight: 600;">${escapeHtml(cleanMentoringTitle)}</h4>
             <span class="badge badge-mentoring">Mentoring</span>
           </div>
           <div style="display: flex; align-items: center; gap: 0.5rem; margin-top: 0.35rem; flex-wrap: wrap;" class="text-sm">
@@ -4836,10 +4838,13 @@ async function loadMyApplications(isSilent = false) {
 
       const rateLabel = isOffer ? 'Agreed Rate / Budget' : 'Proposed Rate';
 
+      const rawTitle = app.helpRequest?.title || (isMentoring ? 'Mentoring Session' : (isOffer ? 'Service Order' : 'Service Request'));
+      const cleanAppTitle = isMentoring ? (rawTitle.replace(/^mentoring\s*:\s*/i, '').trim() || rawTitle) : rawTitle;
+
       card.innerHTML = `
         <div style="flex: 1; min-width: 0;">
           <div style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
-            <h4 style="margin: 0;">${escapeHtml(censorProfanity(app.helpRequest?.title || (isMentoring ? 'Mentoring Session' : (isOffer ? 'Service Order' : 'Service Request'))))}</h4>
+            <h4 style="margin: 0;">${escapeHtml(censorProfanity(cleanAppTitle))}</h4>
             ${typeBadge}
           </div>
           <small class="text-muted" style="display: block; margin-top: 0.25rem;">
@@ -5470,10 +5475,13 @@ async function selectConversation(convId) {
   const isClient = canComplete;
 
   const typeTag = isMentoring
-    ? '<span class="badge" style="background: rgba(245, 158, 11, 0.12); color: #d97706; border: 1px solid rgba(245, 158, 11, 0.25); font-size: 10px; padding: 2px 7px;">Mentoring</span>'
+    ? '<span class="badge badge-mentoring" style="font-size: 10px; padding: 2px 7px;">Mentoring</span>'
     : isOffer
       ? '<span class="badge badge-standing" style="font-size: 10px; padding: 2px 7px;">Service Offer</span>'
       : '<span class="badge badge-request" style="font-size: 10px; padding: 2px 7px;">Service Request</span>';
+
+  const rawChatJobTitle = conv.application?.helpRequest?.title || '';
+  const cleanChatJobTitle = isMentoring ? (rawChatJobTitle.replace(/^mentoring\s*:\s*/i, '').trim() || rawChatJobTitle) : rawChatJobTitle;
 
   const chatHeader = $('#chat-header-content');
   chatHeader.innerHTML = `
@@ -5482,7 +5490,7 @@ async function selectConversation(convId) {
       <div class="chat-header-user-text">
         <strong class="cursor-pointer hover:underline" onclick="openViewProfileDialog('${otherUser?.id}')">${otherUser?.fullName || 'User'}</strong>
         <div style="display: flex; align-items: center; gap: 0.4rem; margin-top: 2px; flex-wrap: wrap;">
-          <small class="text-muted">${conv.application?.helpRequest?.title || ''}</small>
+          <small class="text-muted">${escapeHtml(cleanChatJobTitle)}</small>
           ${typeTag}
         </div>
       </div>
@@ -5970,9 +5978,10 @@ async function loadTransactions() {
 
       if (isMentor) {
         // Applicant requested mentoring -> USER IS MENTEE (Paying mentor for guidance)
+        const cleanTitle = (a.helpRequest?.title || 'Mentoring Session').replace(/^mentoring\s*:\s*/i, '').trim() || 'Mentoring Session';
         txList.push({
           id: a.id,
-          title: a.helpRequest?.title || 'Mentoring Session',
+          title: cleanTitle,
           category: 'MENTORING',
           counterpart: `Paid to Mentor: ${counterpartName}`,
           amount: finalAmount,
@@ -6021,9 +6030,10 @@ async function loadTransactions() {
         const finalAmount = negotiatedMap[a.id] != null ? negotiatedMap[a.id] : (Number(a.priceOffer) || Number(p.budget) || 0);
         if (isMentor) {
           // Poster is the mentor -> USER IS MENTOR (Earning from student mentee)
+          const cleanTitle = (p.title || 'Mentoring Session').replace(/^mentoring\s*:\s*/i, '').trim() || 'Mentoring Session';
           txList.push({
             id: a.id,
-            title: p.title || 'Mentoring Session',
+            title: cleanTitle,
             category: 'MENTORING',
             counterpart: `Mentee: ${clientOrFreelancer}`,
             amount: finalAmount,
@@ -6171,7 +6181,7 @@ async function loadTransactions() {
 
 function renderTransactionsTable(filter = 'all') {
   const tbody = $('#transactions-tbody');
-  let list = allTransactions;
+  let list = (typeof window !== 'undefined' && window.allTransactions) ? window.allTransactions : allTransactions;
   if (filter === 'pending') list = list.filter(a => a.status === 'PENDING' || a.status === 'APPROVED');
   else if (filter === 'completed') list = list.filter(a => a.status === 'COMPLETED');
 
@@ -6189,8 +6199,8 @@ function renderTransactionsTable(filter = 'all') {
     const amountPrefix = isEarning ? '+ ' : '- ';
     const amountColor = isEarning ? 'color: var(--color-green);' : 'color: var(--text-heading);';
     const typeBadge = isEarning
-      ? '<span class="badge" style="background: rgba(16, 185, 129, 0.1); color: var(--color-green); border: 1px solid rgba(16, 185, 129, 0.2); font-size: 11px; padding: 2px 6px;">Earning</span>'
-      : '<span class="badge" style="background: rgba(99, 102, 241, 0.1); color: var(--primary-purple); border: 1px solid rgba(99, 102, 241, 0.2); font-size: 11px; padding: 2px 6px;">Payment</span>';
+      ? '<span class="badge badge-earning">Earning</span>'
+      : '<span class="badge badge-payment">Payment</span>';
 
     // The 3 badges: Service Offer (Blue), Service Request (Pink), Mentoring (Purple)
     const isMentor = item.category === 'MENTORING' || (item.title && item.title.toLowerCase().includes('mentor'));
@@ -6201,6 +6211,11 @@ function renderTransactionsTable(filter = 'all') {
       : (isOffer
           ? '<span class="badge badge-standing">Service Offer</span>'
           : '<span class="badge badge-request">Service Request</span>');
+
+    // Strip "Mentoring:" prefix from title since the Mentoring badge already indicates category
+    const cleanTitle = (item.title || '')
+      .replace(/^mentoring\s*:\s*/i, '')
+      .trim() || item.title || 'Mentoring Session';
 
     // Clear financial status labels
     let statusLabel = item.status || 'Pending';
@@ -6222,10 +6237,14 @@ function renderTransactionsTable(filter = 'all') {
     tr.innerHTML = `
       <td>
         <div style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
-          <strong>${escapeHtml(item.title)}</strong>
+          <strong>${escapeHtml(cleanTitle)}</strong>
           ${categoryBadge}
         </div>
-        <div class="text-xs text-muted" style="margin-top: 3px;">${item.counterpart} • ${typeBadge}</div>
+        <div class="text-xs text-muted" style="margin-top: 4px; display: flex; align-items: center; gap: 0.35rem; flex-wrap: wrap;">
+          <span>${item.counterpart}</span>
+          <span style="opacity: 0.6;">&bull;</span>
+          ${typeBadge}
+        </div>
         <div class="text-xs text-muted tx-mobile-date" style="margin-top: 3px; display: none;">${item.date}</div>
       </td>
       <td class="tx-col-date">${item.date}</td>
@@ -6234,6 +6253,9 @@ function renderTransactionsTable(filter = 'all') {
     `;
     tbody.appendChild(tr);
   });
+}
+if (typeof window !== 'undefined') {
+  window.renderTransactionsTable = renderTransactionsTable;
 }
 
 function setupTransactionTabs() {
@@ -7641,7 +7663,7 @@ function setupMentoringDialog() {
         }
 
         const reqRes = await createHelpRequest(dc, {
-          title: "Mentoring: " + title,
+          title: title,
           description: desc,
           budget: amount,
           requesterId: activeMentoringTarget.id,

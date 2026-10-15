@@ -2715,10 +2715,12 @@ body.dark-theme .badge-skill {
 .badge {
     display: inline-flex;
     align-items: center;
-    padding: 0.2rem 0.65rem;
+    justify-content: center;
+    padding: 1.5px 6.5px;
     border-radius: var(--radius-pill);
-    font-size: 0.75rem;
-    font-weight: 600;
+    font-size: 0.675rem;
+    font-weight: 550;
+    line-height: 1.25;
     white-space: nowrap;
     flex-shrink: 0;
 }
@@ -2765,6 +2767,31 @@ body:not(.light-theme) .badge-mentoring {
     color: #c084fc;
     border-color: rgba(168, 85, 247, 0.35);
 }
+
+/* Earning Badge - GREEN (Same size as the 3 category badges) */
+.badge-earning {
+    background: rgba(16, 185, 129, 0.12);
+    color: #059669;
+    border: 1px solid rgba(16, 185, 129, 0.28);
+}
+body:not(.light-theme) .badge-earning {
+    background: rgba(16, 185, 129, 0.2);
+    color: #34d399;
+    border-color: rgba(16, 185, 129, 0.35);
+}
+
+/* Payment Badge - PURPLE / INDIGO (Same size as the 3 category badges) */
+.badge-payment {
+    background: rgba(99, 102, 241, 0.12);
+    color: #4f46e5;
+    border: 1px solid rgba(99, 102, 241, 0.28);
+}
+body:not(.light-theme) .badge-payment {
+    background: rgba(99, 102, 241, 0.2);
+    color: #a5b4fc;
+    border-color: rgba(99, 102, 241, 0.35);
+}
+
 .badge-duration {
     background: rgba(99, 102, 241, 0.12);
     color: #4f46e5;

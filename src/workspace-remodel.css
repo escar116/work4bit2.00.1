@@ -28,8 +28,7 @@
 #app-views .main-content .btn-outline { background:white; border-color:#dce1ef; }
 #app-views .main-content :is(button,a,input,select,textarea):focus-visible { outline:3px solid rgba(167, 46, 255, 0.45); outline-offset:3px; }
 #app-views .main-content :is(.form-control,.marketplace-search-input) { color:var(--text-heading); }
-#app-views .main-content .form-control { border-color:#dce1ef; background:white; }
-#app-views .main-content .badge { border-radius:6px; padding:4px 8px; font-size:.72rem; }
+#app-views .main-content .badge { border-radius: var(--radius-pill); padding: 1.5px 6.5px; font-size: 0.675rem; line-height: 1.25; }
 #app-views .main-content .badge-normal { background: rgba(167, 46, 255, 0.08); color: rgb(96, 63, 242); border: 1px solid rgba(167, 46, 255, 0.22); }
 #app-views .main-content .empty-state { border:1px dashed #d7dced; border-radius:14px; background:#fff; color:var(--text-muted); padding:48px 24px; }
 
@@ -2845,8 +2844,9 @@
   }
 
   #section-transactions .data-table .badge {
-    font-size: 0.72rem !important;
-    padding: 3px 6px !important;
+    font-size: 0.675rem !important;
+    padding: 1.5px 6.5px !important;
+    line-height: 1.25 !important;
     white-space: nowrap !important;
   }
 
