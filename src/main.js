@@ -44,8 +44,10 @@ import {
 } from './activity-logger.js';
 import { renderLogsSection, getActionIcon } from './logs-view.js';
 import { renderAdminStatisticalCharts } from './admin-charts.js';
-import { censorProfanity } from './profanity-filter.js';
+import { censorProfanity, attachLiveProfanityFilter, initAllCensoredInputs } from './profanity-filter.js';
 window.censorProfanity = censorProfanity;
+window.attachLiveProfanityFilter = attachLiveProfanityFilter;
+window.initAllCensoredInputs = initAllCensoredInputs;
 
 // -- Firebase Config  ------------------------------------------------------------
 const firebaseConfig = {
@@ -2809,7 +2811,7 @@ function openServiceDetailsDialog(r, actionInfo) {
   }
 
   const titleEl = $('#sd-modal-title');
-  if (titleEl) titleEl.textContent = r.title || 'Untitled Service';
+  if (titleEl) titleEl.textContent = censorProfanity(r.title) || 'Untitled Service';
 
   const avatarEl = $('#sd-poster-avatar');
   if (avatarEl) avatarEl.textContent = initials(r.requester?.fullName || 'S');
@@ -2867,7 +2869,7 @@ function openServiceDetailsDialog(r, actionInfo) {
   }
 
   const descContent = $('#sd-description-content');
-  if (descContent) descContent.textContent = r.description || 'No description provided.';
+  if (descContent) descContent.textContent = censorProfanity(r.description) || 'No description provided.';
 
   // Configure action button inside details dialog
   const actionBtn = $('#sd-modal-action-btn');
@@ -3165,8 +3167,8 @@ function renderServices(requests) {
           ` : ''}
         </div>
       </div>
-      <h3 class="request-card-title cursor-pointer hover:underline card-open-details">${r.title}</h3>
-      <p class="request-card-desc line-clamp-3">${r.description || 'No description provided.'}</p>
+      <h3 class="request-card-title cursor-pointer hover:underline card-open-details">${escapeHtml(censorProfanity(r.title))}</h3>
+      <p class="request-card-desc line-clamp-3">${escapeHtml(censorProfanity(r.description || 'No description provided.'))}</p>
       <div class="request-card-meta">
         <span class="badge badge-normal">${r.category || 'General'}</span>
         ${standingOrDeadline}
@@ -3483,6 +3485,11 @@ function setupNewRequestDialog() {
   const changeBtn = $('#nr-image-change-btn');
   const dialogNewReq = $('#dialog-new-request');
 
+  const nrTitleEl = $('#nr-title');
+  const nrDescEl = $('#nr-description');
+  if (nrTitleEl) attachLiveProfanityFilter(nrTitleEl);
+  if (nrDescEl) attachLiveProfanityFilter(nrDescEl);
+
   // Trigger file chooser
   dropzone?.addEventListener('click', () => {
     fileInput?.click();
@@ -3608,8 +3615,8 @@ function setupNewRequestDialog() {
       return;
     }
 
-    const title = $('#nr-title').value.trim();
-    const description = $('#nr-description').value.trim();
+    const title = censorProfanity($('#nr-title').value.trim());
+    const description = censorProfanity($('#nr-description').value.trim());
     const requesterId = userData?.id || currentUser?.uid;
 
     if (!title) {
@@ -3853,12 +3860,13 @@ function openApplyDialog(request) {
   const isOffer = isJobOffer(request);
 
   $('#apply-modal-title').textContent = isOffer ? 'Avail / Order Service' : 'Submit Your Application';
-  $('#apply-job-title').textContent = `${isOffer ? 'Service Offer' : 'Job Request'}: ${request.title}`;
+  $('#apply-job-title').textContent = `${isOffer ? 'Service Offer' : 'Job Request'}: ${censorProfanity(request.title)}`;
   $('#apply-amount-label').textContent = isOffer ? 'Your Proposed Budget / Rate (₱) *' : 'Proposed Rate (₱) *';
   $('#apply-amount').value = request.budget || '';
 
   const msgLabel = $('#apply-message-label');
   const msgInput = $('#apply-message');
+  if (msgInput) attachLiveProfanityFilter(msgInput);
   if (isOffer) {
     if (msgLabel) msgLabel.textContent = 'Order Details & Scope *';
     if (msgInput) msgInput.placeholder = 'Describe what you need printed/done, dimensions, materials, or project specifications...';
@@ -3871,8 +3879,12 @@ function openApplyDialog(request) {
   $('#apply-submit').textContent = isOffer ? 'Send Order Request' : 'Submit Application';
   $('#dialog-apply').showModal();
 }
+window.openApplyDialog = openApplyDialog;
 
 function setupApplyDialog() {
+  const applyMsgInput = $('#apply-message');
+  if (applyMsgInput) attachLiveProfanityFilter(applyMsgInput);
+
   $('#apply-form')?.addEventListener('submit', async (e) => {
     e.preventDefault();
     const amount = Number($('#apply-amount').value);
@@ -3884,11 +3896,12 @@ function setupApplyDialog() {
     const btn = $('#apply-submit');
     btn.disabled = true; btn.textContent = 'Submitting...';
     try {
+      const appMessage = censorProfanity($('#apply-message').value.trim());
       await createApplication(dc, {
         helpRequestId: applyTarget.id,
         applicantId: userData.id,
         priceOffer: amount,
-        message: $('#apply-message').value.trim()
+        message: appMessage
       });
       showToast(isOffer ? `Order request sent! Proposed budget: ${peso(amount)}` : `Application sent! Proposed rate: ${peso(amount)}`);
       logUserAction('apply', isOffer ? `Ordered service: "${applyTarget?.title || 'Listing'}" (₱${Number(amount).toLocaleString()})` : `Applied for: "${applyTarget?.title || 'Listing'}" (₱${Number(amount).toLocaleString()})`, currentUser?.uid || userData?.id);
@@ -4036,7 +4049,7 @@ async function loadPostedJobs(isSilent = false) {
             ` : ''}
             <div>
               <h3 style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; margin-bottom: 0.25rem;">
-                <span>${job.title}</span> ${typeBadge}
+                <span>${escapeHtml(censorProfanity(job.title))}</span> ${typeBadge}
               </h3>
               <small class="text-muted">${isOffer ? 'Standing Service (Always Open for Campus Orders)' : (job.deadline ? `Due: ${formatDeadlineFriendly(job.deadline)} • ${getDisplayDuration(job)}` : `One-Time Request • ${getDisplayDuration(job)}`)}</small>
             </div>
@@ -4063,7 +4076,7 @@ async function loadPostedJobs(isSilent = false) {
             <div class="candidate-info">
               <strong class="cursor-pointer hover:underline" onclick="openViewProfileDialog('${app.applicant?.id}')">${app.applicant?.fullName || (isOffer ? 'Client' : 'Applicant')}</strong>
               <small class="text-muted">${app.applicant?.studentId || ''}</small>
-              <div class="candidate-message"><strong>${isOffer ? 'Order Scope & Details:' : 'Proposal:'}</strong> "${app.message}"</div>
+              <div class="candidate-message"><strong>${isOffer ? 'Order Scope & Details:' : 'Proposal:'}</strong> "${escapeHtml(censorProfanity(app.message))}"</div>
             </div>
             <div class="candidate-price">${peso(app.priceOffer)}</div>
             <div class="candidate-actions">
@@ -4141,8 +4154,8 @@ async function loadMentoringRequests(isSilent = false) {
       jobEl.innerHTML = `
         <div class="flex justify-between items-start mb-2">
           <div>
-            <h3 class="job-title" style="margin: 0;">${job.title}</h3>
-            <p class="text-sm text-muted mt-1">${job.description || ''}</p>
+            <h3 class="job-title" style="margin: 0;">${escapeHtml(censorProfanity(job.title))}</h3>
+            <p class="text-sm text-muted mt-1">${escapeHtml(censorProfanity(job.description || ''))}</p>
           </div>
           <span class="badge badge-normal" style="font-weight: 700; color: var(--color-green);">${peso(proposedAmt)}</span>
         </div>
@@ -4164,7 +4177,7 @@ async function loadMentoringRequests(isSilent = false) {
             <div class="candidate-info">
               <strong class="cursor-pointer hover:underline" onclick="openViewProfileDialog('${app.applicant?.id || ''}')">${app.applicant?.fullName || 'Mentoree'}</strong>
               <small class="text-muted">${app.applicant?.studentId || ''}</small>
-              <div class="candidate-message">"${app.message}"</div>
+              <div class="candidate-message">"${escapeHtml(censorProfanity(app.message))}"</div>
             </div>
             <div class="candidate-price">${peso(app.priceOffer)}</div>
             <div class="candidate-actions">
@@ -4230,7 +4243,7 @@ async function loadMyApplications(isSilent = false) {
       card.innerHTML = `
         <div style="flex: 1; min-width: 0;">
           <div style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
-            <h4 style="margin: 0;">${app.helpRequest?.title || (isOffer ? 'Service Order' : 'Service Request')}</h4>
+            <h4 style="margin: 0;">${escapeHtml(censorProfanity(app.helpRequest?.title || (isOffer ? 'Service Order' : 'Service Request')))}</h4>
             <span class="badge ${isOffer ? 'badge-standing' : 'badge-request'}">${isOffer ? '🛠️ Service Order' : 'Service Request'}</span>
           </div>
           <small class="text-muted" style="display: block; margin-top: 0.25rem;">
@@ -5682,6 +5695,8 @@ function setupInlineRatingForm() {
 function setupReviewDialog() {
   let selectedRating = 5;
   const starButtons = $$('#review-stars .star-btn');
+  const revCommentEl = document.getElementById('review-comment');
+  if (revCommentEl) attachLiveProfanityFilter(revCommentEl);
 
   function updateStars(val) {
     selectedRating = Math.max(1, Math.min(5, val));
@@ -5807,7 +5822,7 @@ function setupReviewDialog() {
       // 2. Submit the review to Firestore
       const revData = {
         rating: selectedRating,
-        comment: document.getElementById('review-comment').value.trim(),
+        comment: censorProfanity(document.getElementById('review-comment').value.trim()),
         reviewerId: userData.id,
         reviewerName: userData.fullName || 'Peer',
         targetUserId: reviewTarget.otherUser.id,
@@ -5897,7 +5912,7 @@ function renderReviews(reviews, prefix) {
         <strong class="text-white">${r.reviewerName || 'Anonymous'}</strong>
         <span class="text-yellow-400 font-bold">${'★'.repeat(Number(r.rating))}${'☆'.repeat(5 - Number(r.rating))}</span>
       </div>
-      <p class="text-sm text-gray-300 mt-2">${r.comment || ''}</p>
+      <p class="text-sm text-gray-300 mt-2">${escapeHtml(censorProfanity(r.comment || ''))}</p>
     </div>
   `).join('');
 }
@@ -5942,7 +5957,7 @@ async function loadProfile() {
     try { cachedPortfolio = JSON.parse(localStorage.getItem(`cached_portfolio_${userData.id}`) || '[]'); } catch (e) { cachedPortfolio = []; }
   }
 
-  if (bioDisplay) bioDisplay.textContent = cachedBio || 'No bio provided yet.';
+  if (bioDisplay) bioDisplay.textContent = censorProfanity(cachedBio) || 'No bio provided yet.';
   if (skillsDisplay) {
     if (cachedSkills && cachedSkills.length > 0) {
       skillsDisplay.innerHTML = cachedSkills.map(s => `<span class="skill-pill" style="display:inline-block; margin:2px; background:var(--accent-purple-light); color:var(--primary-purple); border:1px solid rgba(79, 70, 229, 0.2); font-weight:600; padding:4px 10px; border-radius:999px; font-size:12px;">${s}</span>`).join('');
@@ -6160,10 +6175,10 @@ function renderPortfolio(items) {
           </div>
         ` : ''}
         <div style="display: flex; align-items: flex-start; justify-content: space-between; gap: 0.5rem;">
-          <h4 class="portfolio-card-title">${escapeHtml(item.title)}</h4>
+          <h4 class="portfolio-card-title">${escapeHtml(censorProfanity(item.title))}</h4>
           <button type="button" class="portfolio-delete-btn" data-idx="${idx}" title="Delete project">✕</button>
         </div>
-        <p class="portfolio-card-desc">${escapeHtml(item.description)}</p>
+        <p class="portfolio-card-desc">${escapeHtml(censorProfanity(item.description))}</p>
       </div>
     `;
   }).join('');
@@ -6252,6 +6267,11 @@ function setupPortfolio() {
   removeBtn?.addEventListener('click', () => updatePortImgUI(null));
   changeBtn?.addEventListener('click', () => fileInput?.click());
 
+  const portTitleInput = $('#port-title');
+  const portDescInput = $('#port-desc');
+  if (portTitleInput) attachLiveProfanityFilter(portTitleInput);
+  if (portDescInput) attachLiveProfanityFilter(portDescInput);
+
   $('#btn-add-portfolio-item')?.addEventListener('click', (e) => {
     e.preventDefault();
     $('#form-add-portfolio')?.reset();
@@ -6261,8 +6281,8 @@ function setupPortfolio() {
 
   $('#form-add-portfolio')?.addEventListener('submit', async (e) => {
     e.preventDefault();
-    const title = $('#port-title')?.value.trim();
-    const desc = $('#port-desc')?.value.trim();
+    const title = censorProfanity($('#port-title')?.value.trim());
+    const desc = censorProfanity($('#port-desc')?.value.trim());
 
     if (!title || !desc) {
       showToast('Title and description are required.', 'error');
@@ -6342,7 +6362,7 @@ function renderReviewsProfile(reviews) {
         <div style="margin-bottom: 8px;">
             <span style="color: var(--color-rating); font-size: 0.85rem; letter-spacing: 1px;">${stars}</span>
         </div>
-        <p class="text-sm" style="color: var(--text-heading); line-height: 1.5; margin: 0; word-break: break-word;">${escapeHtml(r.comment || '')}</p>
+        <p class="text-sm" style="color: var(--text-heading); line-height: 1.5; margin: 0; word-break: break-word;">${escapeHtml(censorProfanity(r.comment || ''))}</p>
     </div>`;
   }).join('');
 
@@ -6429,7 +6449,7 @@ window.openViewProfileDialog = async function (userId) {
       if (profileDoc.exists()) {
         const data = profileDoc.data();
         const vpBio = document.getElementById('vp-bio');
-        if (vpBio) vpBio.textContent = data.bio || 'No bio provided.';
+        if (vpBio) vpBio.textContent = censorProfanity(data.bio) || 'No bio provided.';
 
         const photo = data.photoURL || data.profilePicture;
         if (photo) {
@@ -6459,8 +6479,8 @@ window.openViewProfileDialog = async function (userId) {
                     <img src="${item.imageUrl}" alt="${escapeHtml(item.title)}" style="width: 100%; height: 180px; object-fit: cover; display: block;" />
                   </div>
                 ` : ''}
-                <h4 class="portfolio-card-title">${escapeHtml(item.title)}</h4>
-                <p class="portfolio-card-desc">${escapeHtml(item.description)}</p>
+                <h4 class="portfolio-card-title">${escapeHtml(censorProfanity(item.title))}</h4>
+                <p class="portfolio-card-desc">${escapeHtml(censorProfanity(item.description))}</p>
               </div>
             `).join('');
           } else {
@@ -6523,7 +6543,7 @@ window.openViewProfileDialog = async function (userId) {
             <div style="margin-bottom: 8px;">
                 <span style="color: var(--color-rating); font-size: 0.85rem; letter-spacing: 1px;">${stars}</span>
             </div>
-            <p class="text-sm" style="color: var(--text-heading); line-height: 1.5; margin: 0; word-break: break-word;">${r.comment || ''}</p>
+            <p class="text-sm" style="color: var(--text-heading); line-height: 1.5; margin: 0; word-break: break-word;">${escapeHtml(censorProfanity(r.comment || ''))}</p>
         </div>`;
       }).join('');
     }
@@ -6871,6 +6891,13 @@ function setupMentoringDialog() {
   });
 
   const form = document.getElementById('mentoring-apply-form');
+  const mentTitleEl = document.getElementById('mentoring-title');
+  const mentDescEl = document.getElementById('mentoring-desc');
+  const mentTimeEl = document.getElementById('mentoring-time');
+  if (mentTitleEl) attachLiveProfanityFilter(mentTitleEl);
+  if (mentDescEl) attachLiveProfanityFilter(mentDescEl);
+  if (mentTimeEl) attachLiveProfanityFilter(mentTimeEl);
+
   if (form) {
     form.addEventListener('submit', async (e) => {
       e.preventDefault();
@@ -6880,9 +6907,9 @@ function setupMentoringDialog() {
       btn.textContent = 'Submitting...';
 
       try {
-        const title = document.getElementById('mentoring-title').value.trim();
-        const desc = document.getElementById('mentoring-desc').value.trim();
-        const time = document.getElementById('mentoring-time').value.trim();
+        const title = censorProfanity(document.getElementById('mentoring-title').value.trim());
+        const desc = censorProfanity(document.getElementById('mentoring-desc').value.trim());
+        const time = censorProfanity(document.getElementById('mentoring-time').value.trim());
         const amount = Number(document.getElementById('mentoring-amount').value);
         if (amount > 100000) {
           showToast('Proposed price cannot exceed ₱100,000.', 'error');
@@ -6980,7 +7007,10 @@ function setupEditProfile() {
       if (isMentorEl) isMentorEl.checked = userData?.isMentor === true;
 
       const bioEl = document.getElementById('edit-bio');
-      if (bioEl) bioEl.value = userData?.bio || '';
+      if (bioEl) {
+        attachLiveProfanityFilter(bioEl);
+        bioEl.value = censorProfanity(userData?.bio || '');
+      }
 
       const userSkills = userData?.skills || [];
       document.querySelectorAll('#edit-skills-grid input[type="checkbox"]').forEach(cb => {
@@ -7081,7 +7111,7 @@ function setupEditProfile() {
     form.addEventListener('submit', async (e) => {
       e.preventDefault();
       const bioEl = document.getElementById('edit-bio');
-      const bio = bioEl ? bioEl.value.trim() : '';
+      const bio = bioEl ? censorProfanity(bioEl.value.trim()) : '';
 
       const skills = Array.from(document.querySelectorAll('#edit-skills-grid input[type="checkbox"]:checked')).map(cb => cb.value);
 
@@ -7134,7 +7164,7 @@ function setupEditProfile() {
         }
 
         const bioDisplay = document.getElementById('profile-bio-display');
-        if (bioDisplay) bioDisplay.textContent = bio || 'No bio provided yet.';
+        if (bioDisplay) bioDisplay.textContent = censorProfanity(bio) || 'No bio provided yet.';
 
         const roleDisplay = document.getElementById('prof-role');
         if (roleDisplay) roleDisplay.textContent = prefRole === 'Offer My Skills' ? 'Skill Seeker / Service Provider' : 'Client in Need';
@@ -8020,7 +8050,7 @@ function renderAdminApplications() {
     const badgeClass = isCompleted ? 'badge-approved' : isApproved ? 'badge-normal' : a.status === 'TERMINATED' ? 'badge-rejected' : 'badge-pending';
 
     tr.innerHTML = `
-      <td><strong>${escapeHtml(a.helpRequest?.title || 'Service Request')}</strong></td>
+      <td><strong>${escapeHtml(censorProfanity(a.helpRequest?.title || 'Service Request'))}</strong></td>
       <td>
         <div class="flex items-center gap-2">
           <div class="avatar avatar-sm cursor-pointer" onclick="openViewProfileDialog('${a.applicant?.id}')" title="View Profile" style="overflow:hidden;padding:0;">${renderUserAvatar(a.applicant?.id, a.applicant?.fullName)}</div>
@@ -8032,7 +8062,7 @@ function renderAdminApplications() {
       </td>
       <td>${escapeHtml(a.applicant?.studentId || 'N/A')}</td>
       <td><strong>${peso(a.priceOffer)}</strong></td>
-      <td><div class="truncate" style="max-width: 220px;">"${escapeHtml(a.message)}"</div></td>
+      <td><div class="truncate" style="max-width: 220px;">"${escapeHtml(censorProfanity(a.message))}"</div></td>
       <td><span class="badge ${badgeClass}">${escapeHtml(a.status || 'Pending')}</span></td>
       <td>
         <div class="flex items-center justify-center gap-2">
@@ -8115,7 +8145,7 @@ function renderAdminListings() {
 
     tr.innerHTML = `
       <td>
-        <div style="font-weight: 600; color: var(--text-heading, #1e293b); line-height: 1.35;">${escapeHtml(item.title)}</div>
+        <div style="font-weight: 600; color: var(--text-heading, #1e293b); line-height: 1.35;">${escapeHtml(censorProfanity(item.title))}</div>
       </td>
       <td>${typeBadge}</td>
       <td>
@@ -8808,6 +8838,7 @@ document.addEventListener('DOMContentLoaded', () => {
   setupDialogCloseButtons();
   setupNotificationCenter();
   setupPortfolio();
+  initAllCensoredInputs();
 
   workspace = setupWorkspace({
     navigate: navigateTo,

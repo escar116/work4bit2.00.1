@@ -84,4 +84,88 @@ export function getProfanities(text) {
   return matches ? Array.from(new Set(matches.map(m => m.toLowerCase()))) : [];
 }
 
+/**
+ * Censors profanities during live typing, avoiding prematurely mangling words
+ * that the user is actively still typing at the current cursor position.
+ * @param {string} text - The input text to censor.
+ * @param {number} [cursorIndex] - The active cursor position (selectionEnd).
+ * @returns {string} - The censored text.
+ */
+export function censorProfanityLive(text, cursorIndex) {
+  if (!text || typeof text !== 'string') return text || '';
+  return text.replace(profanityRegex, (match, offset) => {
+    const matchEnd = offset + match.length;
+    const isActivelyTypingThisWord = (typeof cursorIndex === 'number' && cursorIndex === matchEnd && matchEnd === text.length);
+    if (isActivelyTypingThisWord) {
+      return match;
+    }
+    return match.replace(/[^\s]/g, '*');
+  });
+}
+
+/**
+ * Attaches real-time profanity filtering to an input or textarea element.
+ * Turns curse words to asterisks as words are completed during typing, and
+ * completely on change / blur / submit, preserving cursor selection position.
+ * @param {HTMLInputElement|HTMLTextAreaElement} el
+ */
+export function attachLiveProfanityFilter(el) {
+  if (!el || el._hasProfanityFilter) return;
+  el._hasProfanityFilter = true;
+
+  const onInput = () => {
+    const val = el.value;
+    if (!val || typeof val !== 'string') return;
+    const cursor = el.selectionEnd;
+    const censored = censorProfanityLive(val, cursor);
+    if (val !== censored) {
+      const start = el.selectionStart;
+      const end = el.selectionEnd;
+      el.value = censored;
+      if (typeof start === 'number' && typeof end === 'number') {
+        try {
+          el.setSelectionRange(start, end);
+        } catch (e) { }
+      }
+    }
+  };
+
+  const onBlurOrChange = () => {
+    const val = el.value;
+    if (!val || typeof val !== 'string') return;
+    const censored = censorProfanity(val);
+    if (val !== censored) {
+      el.value = censored;
+    }
+  };
+
+  el.addEventListener('input', onInput);
+  el.addEventListener('change', onBlurOrChange);
+  el.addEventListener('blur', onBlurOrChange);
+}
+
+/**
+ * Initializes live profanity filtering across all designated input fields.
+ */
+export function initAllCensoredInputs() {
+  const targetSelectors = [
+    '#edit-bio',               // Edit Profile: About Me
+    '#port-title',             // Add Portfolio: Project Title
+    '#port-desc',              // Add Portfolio: Project Description
+    '#review-comment',         // Complete Job: Review & Feedback
+    '#nr-title',               // Post / Edit Listing: Service Title
+    '#nr-description',         // Post / Edit Listing: Service Description
+    '#apply-message',          // Avail / Apply: Order Details & Scope / Cover Message
+    '#mentoring-title',        // Mentoring Proposal: Title
+    '#mentoring-desc',         // Mentoring Proposal: Description
+    '#chat-input'              // Live Chat Message Input
+  ];
+
+  targetSelectors.forEach(selector => {
+    document.querySelectorAll(selector).forEach(el => {
+      attachLiveProfanityFilter(el);
+    });
+  });
+}
+
 export { filipinoBadWords, enBadWords };
