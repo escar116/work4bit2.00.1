@@ -3960,10 +3960,14 @@ async function updateApplicationTabCounts() {
       const isMentoring = j.category === 'MENTORING' || (j.title && j.title.toLowerCase().startsWith('mentoring:'));
       return (j.status === 'OPEN' || !j.status) && !isMentoring;
     }).length;
-    const mentoringCount = allJobs.filter(j => {
+    let mentoringCount = 0;
+    allJobs.forEach(j => {
       const isMentoring = j.category === 'MENTORING' || (j.title && j.title.toLowerCase().startsWith('mentoring:'));
-      return (j.status === 'OPEN' || !j.status) && isMentoring;
-    }).length;
+      if (isMentoring && (j.status === 'OPEN' || !j.status)) {
+        const pendingApps = (j.applications_on_helpRequest || []).filter(a => a.status === 'PENDING');
+        mentoringCount += pendingApps.length;
+      }
+    });
     const appliedCount = (resApps?.data?.applications || []).filter(a => a.status !== 'REJECTED').length;
 
     const postedEl = $('#apps-posted-count');
@@ -4145,70 +4149,178 @@ async function loadPostedJobs(isSilent = false) {
   }
 }
 
+function openMentoringDetailsModal(app, job) {
+  const dialog = document.getElementById('dialog-mentoring-details');
+  const body = document.getElementById('mentoring-details-body');
+  if (!dialog || !body) return;
+
+  const applicant = app.applicant || (app.applicantId && window.__usersMap ? window.__usersMap.get(app.applicantId) : null) || { id: app.applicantId, fullName: 'Student Mentee' };
+  const proposedAmt = app.priceOffer != null ? app.priceOffer : job.budget;
+
+  body.innerHTML = `
+    <div style="background: var(--bg-card); border: 1px solid var(--border-light); border-radius: 10px; padding: 1rem; margin-bottom: 1rem;">
+      <div style="display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; flex-wrap: wrap;">
+        <h3 style="margin: 0; font-size: 1.15rem; font-weight: 700; color: var(--text-heading);">${escapeHtml(censorProfanity(job.title))}</h3>
+        <span class="badge badge-mentoring">Mentoring</span>
+      </div>
+      <div style="font-size: 0.9rem; color: var(--text-muted); margin-top: 0.5rem; line-height: 1.5;">
+        ${escapeHtml(censorProfanity(job.description || 'No additional session description provided.'))}
+      </div>
+    </div>
+
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-bottom: 1rem;">
+      <div style="background: rgba(37, 99, 235, 0.05); border: 1px solid rgba(37, 99, 235, 0.15); border-radius: 10px; padding: 0.85rem 1rem;">
+        <span style="font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em; font-weight: 700; color: #2563eb; display: block; margin-bottom: 0.25rem;">Proposed Rate</span>
+        <div style="font-size: 1.35rem; font-weight: 800; color: var(--color-green);">${peso(proposedAmt)}</div>
+      </div>
+      <div style="background: rgba(168, 85, 247, 0.05); border: 1px solid rgba(168, 85, 247, 0.15); border-radius: 10px; padding: 0.85rem 1rem;">
+        <span style="font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em; font-weight: 700; color: #a855f7; display: block; margin-bottom: 0.25rem;">Schedule / Expected Time</span>
+        <div style="font-size: 0.95rem; font-weight: 600; color: var(--text-heading); margin-top: 0.2rem;">${escapeHtml(censorProfanity(app.message || 'Flexible / To be agreed upon'))}</div>
+      </div>
+    </div>
+
+    <div style="border: 1px solid var(--border-light); border-radius: 10px; padding: 1rem;">
+      <span style="font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em; font-weight: 700; color: var(--text-muted); display: block; margin-bottom: 0.5rem;">Mentee / Requester Information</span>
+      <div style="display: flex; align-items: center; justify-content: space-between; gap: 0.75rem; flex-wrap: wrap;">
+        <div style="display: flex; align-items: center; gap: 0.75rem;">
+          <div class="avatar avatar-md cursor-pointer mentee-modal-view-prof" style="overflow: hidden; padding: 0; width: 44px; height: 44px;">
+            ${renderUserAvatar(applicant.id, applicant.fullName)}
+          </div>
+          <div>
+            <div class="font-bold cursor-pointer hover:underline mentee-modal-view-prof" style="font-size: 1rem; color: var(--text-heading);">
+              ${escapeHtml(applicant.fullName || 'Student Mentee')}
+            </div>
+            <small class="text-muted" style="display: block;">${escapeHtml(applicant.studentId || '')}</small>
+          </div>
+        </div>
+        <button type="button" id="btn-mentoring-modal-view-profile" class="btn btn-outline btn-sm">View Full Profile</button>
+      </div>
+    </div>
+  `;
+
+  const viewProfAction = () => {
+    dialog.close();
+    if (applicant.id) openViewProfileDialog(applicant.id);
+  };
+  const viewProfBtn = document.getElementById('btn-mentoring-modal-view-profile');
+  if (viewProfBtn) viewProfBtn.onclick = viewProfAction;
+  body.querySelectorAll('.mentee-modal-view-prof').forEach(el => el.onclick = viewProfAction);
+
+  const declineBtn = document.getElementById('btn-mentoring-details-decline');
+  if (declineBtn) {
+    declineBtn.onclick = async (e) => {
+      e.preventDefault();
+      dialog.close();
+      await handleReject(app, null, null, job);
+    };
+  }
+
+  const acceptBtn = document.getElementById('btn-mentoring-details-accept');
+  if (acceptBtn) {
+    acceptBtn.onclick = async (e) => {
+      e.preventDefault();
+      dialog.close();
+      await handleApprove(app, job);
+    };
+  }
+
+  dialog.showModal();
+}
+window.openMentoringDetailsModal = openMentoringDetailsModal;
+
 async function loadMentoringRequests(isSilent = false) {
   const container = document.getElementById('mentoring-requests-list');
   if (!container) return;
   if (!isSilent) container.innerHTML = getSkeletonApplicationsHtml(3);
   try {
     const res = !devPreview ? await listMyHelpRequestsWithApplications(dc, { userId: userData?.id }, SERVER_ONLY).catch(() => ({ data: { helpRequests: [] } })) : { data: { helpRequests: [] } };
-    const jobs = (res.data?.helpRequests || []).filter(j => {
-      const isMentoring = j.category === 'MENTORING' || (j.title && j.title.toLowerCase().startsWith('mentoring:'));
-      return (j.status === 'OPEN' || !j.status) && isMentoring;
+    const allJobs = res.data?.helpRequests || [];
+
+    // Filter to only mentoring requests that have pending proposals
+    const pendingMentoringItems = [];
+    allJobs.forEach(job => {
+      const isMentoring = isMentoringJob(job);
+      if (!isMentoring || (job.status && job.status !== 'OPEN')) return;
+      const apps = job.applications_on_helpRequest || [];
+      const pendingApps = apps.filter(a => a.status === 'PENDING');
+
+      // Auto-cleanup leftover mentoring jobs that have no pending applications (e.g. all were declined or accepted)
+      if (apps.length > 0 && pendingApps.length === 0) {
+        updateHelpRequestStatus(dc, { id: job.id, status: 'CLOSED' }).catch(() => {});
+      }
+
+      pendingApps.forEach(app => {
+        pendingMentoringItems.push({ job, app });
+      });
     });
-    jobs.reverse();
+
+    pendingMentoringItems.reverse();
     container.innerHTML = '';
-    if (jobs.length === 0) {
+    if (pendingMentoringItems.length === 0) {
       container.innerHTML = '<div class="empty-state text-center text-muted" style="padding: 2rem;">No pending mentoring requests received.</div>';
       return;
     }
-    jobs.forEach(job => {
-      const pending = (job.applications_on_helpRequest || []).filter(a => a.status === 'PENDING');
-      const proposedAmt = (pending[0] && pending[0].priceOffer !== undefined) ? pending[0].priceOffer : job.budget;
 
-      const jobEl = document.createElement('div');
-      jobEl.className = 'job-card t-skel-reveal';
-      jobEl.innerHTML = `
-        <div class="flex justify-between items-start mb-2">
-          <div>
-            <h3 class="job-title" style="margin: 0;">${escapeHtml(censorProfanity(job.title))}</h3>
-            <p class="text-sm text-muted mt-1">${escapeHtml(censorProfanity(job.description || ''))}</p>
+    pendingMentoringItems.forEach(({ job, app }) => {
+      const proposedAmt = (app && app.priceOffer !== undefined) ? app.priceOffer : job.budget;
+      const applicant = app.applicant || (app.applicantId && window.__usersMap ? window.__usersMap.get(app.applicantId) : null) || { id: app.applicantId, fullName: 'Student Mentee' };
+
+      const card = document.createElement('div');
+      card.className = 'application-card t-skel-reveal';
+      card.innerHTML = `
+        <div style="flex: 1; min-width: 0;">
+          <div style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
+            <h4 style="margin: 0; font-weight: 600;">${escapeHtml(censorProfanity(job.title))}</h4>
+            <span class="badge badge-mentoring">Mentoring</span>
           </div>
-          <span class="badge badge-normal" style="font-weight: 700; color: var(--color-green);">${peso(proposedAmt)}</span>
+          <div style="display: flex; align-items: center; gap: 0.5rem; margin-top: 0.35rem; flex-wrap: wrap;" class="text-sm">
+            <span class="text-muted" style="font-size: 0.85rem;">Proposed Rate: <strong style="color: var(--color-green); font-weight: 700;">${peso(proposedAmt)}</strong></span>
+            <span class="text-muted" style="font-size: 0.85rem;">&bull;</span>
+            <div style="display: inline-flex; align-items: center; gap: 0.35rem;">
+              <span class="text-muted" style="font-size: 0.85rem;">Client:</span>
+              <div class="avatar avatar-xs cursor-pointer mentee-profile-trigger" style="width: 20px; height: 20px; font-size: 10px; overflow: hidden; padding: 0; display: inline-flex; vertical-align: middle; border-radius: 50%;" title="View Profile">
+                ${renderUserAvatar(applicant.id, applicant.fullName)}
+              </div>
+              <strong class="cursor-pointer hover:underline mentee-profile-trigger" style="color: var(--text-heading); font-size: 0.85rem;" title="View Profile">
+                ${escapeHtml(applicant.fullName || 'Mentee')}
+              </strong>
+              <button type="button" class="btn btn-ghost btn-xs mentee-profile-trigger" style="padding: 1px 6px; font-size: 0.72rem; color: #2563eb; text-decoration: underline;" title="View Profile">View Profile</button>
+            </div>
+          </div>
         </div>
-        <div class="mt-4">
-          <h4 class="text-sm font-bold mb-2">Mentoring Proposals (${pending.length})</h4>
-          <div class="candidates-list"></div>
+        <div style="display: flex; align-items: center; gap: 0.5rem;" class="candidate-actions">
+          <button type="button" class="btn btn-outline btn-sm ment-details-btn">Details</button>
+          <button type="button" class="btn btn-outline btn-sm reject-btn ment-decline-btn" style="color: #ef4444; border-color: rgba(239, 68, 68, 0.35);">Decline</button>
+          <button type="button" class="btn btn-purple btn-sm approve-btn ment-accept-btn">Accept</button>
         </div>
       `;
-      const candList = jobEl.querySelector('.candidates-list');
 
-      if (pending.length === 0) {
-        candList.innerHTML = `<div class="text-sm text-muted italic" style="padding: 1rem 0;">No pending applications for this request.</div>`;
-      } else {
-        pending.forEach(app => {
-          const row = document.createElement('div');
-          row.className = 'candidate-row';
-          row.innerHTML = `
-            <div class="avatar avatar-sm cursor-pointer" onclick="openViewProfileDialog('${app.applicant?.id || ''}')" style="overflow:hidden;padding:0;">${renderUserAvatar(app.applicant?.id, app.applicant?.fullName)}</div>
-            <div class="candidate-info">
-              <strong class="cursor-pointer hover:underline" onclick="openViewProfileDialog('${app.applicant?.id || ''}')">${app.applicant?.fullName || 'Mentoree'}</strong>
-              <small class="text-muted">${app.applicant?.studentId || ''}</small>
-              <div class="candidate-message">"${escapeHtml(censorProfanity(app.message))}"</div>
-            </div>
-            <div class="candidate-price">${peso(app.priceOffer)}</div>
-            <div class="candidate-actions">
-              <button type="button" class="btn btn-outline btn-sm reject-btn">Decline</button>
-              <button type="button" class="btn btn-purple btn-sm approve-btn">Accept</button>
-            </div>
-          `;
-          const approveBtn = row.querySelector('.approve-btn');
-          const rejectBtn = row.querySelector('.reject-btn');
-          approveBtn?.addEventListener('click', (e) => { e.preventDefault(); handleApprove(app, job, approveBtn, rejectBtn); });
-          rejectBtn?.addEventListener('click', (e) => { e.preventDefault(); handleReject(app, rejectBtn, approveBtn); });
-          candList.appendChild(row);
+      card.querySelectorAll('.mentee-profile-trigger').forEach(el => {
+        el.addEventListener('click', (e) => {
+          e.preventDefault();
+          if (applicant.id) openViewProfileDialog(applicant.id);
         });
-      }
-      container.appendChild(jobEl);
+      });
+
+      card.querySelector('.ment-details-btn')?.addEventListener('click', (e) => {
+        e.preventDefault();
+        openMentoringDetailsModal(app, job);
+      });
+
+      const declineBtn = card.querySelector('.ment-decline-btn');
+      const acceptBtn = card.querySelector('.ment-accept-btn');
+
+      declineBtn?.addEventListener('click', (e) => {
+        e.preventDefault();
+        handleReject(app, declineBtn, acceptBtn, job);
+      });
+
+      acceptBtn?.addEventListener('click', (e) => {
+        e.preventDefault();
+        handleApprove(app, job, acceptBtn, declineBtn);
+      });
+
+      container.appendChild(card);
     });
   } catch (e) {
     console.error(e);
@@ -4246,25 +4358,38 @@ async function loadMyApplications(isSilent = false) {
       return;
     }
     apps.forEach(app => {
-      const isOffer = isJobOffer(app.helpRequest);
+      const isMentoring = isMentoringJob(app.helpRequest);
+      const isOffer = !isMentoring && isJobOffer(app.helpRequest);
       const card = document.createElement('div');
       card.className = 'application-card t-skel-reveal';
       const statusClass = app.status === 'APPROVED' ? 'badge-approved' : app.status === 'COMPLETED' ? 'badge-normal' : 'badge-pending';
       const statusText = app.status === 'APPROVED'
-        ? (isOffer ? 'Order Accepted' : 'Application Accepted')
+        ? (isMentoring ? 'Mentoring Accepted' : (isOffer ? 'Order Accepted' : 'Application Accepted'))
         : app.status === 'COMPLETED'
-          ? (isOffer ? 'Order Completed' : 'Job Completed')
-          : (isOffer ? 'Order Pending' : 'Application Pending');
+          ? (isMentoring ? 'Session Completed' : (isOffer ? 'Order Completed' : 'Job Completed'))
+          : (isMentoring ? 'Proposal Pending' : (isOffer ? 'Order Pending' : 'Application Pending'));
+
+      const typeBadge = isMentoring
+        ? `<span class="badge badge-mentoring">Mentoring</span>`
+        : (isOffer
+            ? `<span class="badge badge-standing">Service Offer</span>`
+            : `<span class="badge badge-request">Service Request</span>`);
+
+      const roleLabel = isMentoring
+        ? 'Mentor'
+        : (isOffer ? 'Service Provider' : 'Client / Requester');
+
+      const rateLabel = isOffer ? 'Agreed Rate / Budget' : 'Proposed Rate';
 
       card.innerHTML = `
         <div style="flex: 1; min-width: 0;">
           <div style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
-            <h4 style="margin: 0;">${escapeHtml(censorProfanity(app.helpRequest?.title || (isOffer ? 'Service Order' : 'Service Request')))}</h4>
-            <span class="badge ${isOffer ? 'badge-standing' : 'badge-request'}">${isOffer ? '🛠️ Service Order' : 'Service Request'}</span>
+            <h4 style="margin: 0;">${escapeHtml(censorProfanity(app.helpRequest?.title || (isMentoring ? 'Mentoring Session' : (isOffer ? 'Service Order' : 'Service Request'))))}</h4>
+            ${typeBadge}
           </div>
           <small class="text-muted" style="display: block; margin-top: 0.25rem;">
-            ${isOffer ? 'Agreed Rate / Budget' : 'Proposed Rate'}: <strong>${peso(app.priceOffer)}</strong>
-            ${app.helpRequest?.requester?.fullName ? ` &bull; ${isOffer ? 'Service Provider' : 'Client / Requester'}: ${app.helpRequest.requester.fullName}` : ''}
+            ${rateLabel}: <strong>${peso(app.priceOffer)}</strong>
+            ${app.helpRequest?.requester?.fullName ? ` &bull; ${roleLabel}: ${escapeHtml(app.helpRequest.requester.fullName)}` : ''}
           </small>
         </div>
         <div style="display: flex; align-items: center; gap: 0.5rem;">
@@ -4432,7 +4557,7 @@ async function handleApprove(application, job, approveBtn = null, rejectBtn = nu
   }
 }
 
-async function handleReject(application, rejectBtn = null, approveBtn = null) {
+async function handleReject(application, rejectBtn = null, approveBtn = null, job = null) {
   if (!application?.id || rejectingAppIds.has(application.id)) return;
   rejectingAppIds.add(application.id);
 
@@ -4446,7 +4571,7 @@ async function handleReject(application, rejectBtn = null, approveBtn = null) {
     approveBtn.style.pointerEvents = 'none';
   }
 
-  const candidateRow = rejectBtn?.closest('.candidate-row') || rejectBtn?.closest('.candidate-card') || rejectBtn?.closest('tr');
+  const candidateRow = rejectBtn?.closest('.candidate-row') || rejectBtn?.closest('.candidate-card') || rejectBtn?.closest('.application-card') || rejectBtn?.closest('tr');
   if (candidateRow) {
     candidateRow.style.transition = 'opacity 0.2s ease, transform 0.2s ease';
     candidateRow.style.opacity = '0.35';
@@ -4454,7 +4579,19 @@ async function handleReject(application, rejectBtn = null, approveBtn = null) {
 
   try {
     await updateApplicationStatus(dc, { id: application.id, status: 'REJECTED' });
-    showToast('Application rejected.');
+
+    // If this application belongs to a mentoring request, close the mentoring help request so it does not leave open leftovers
+    const isMent = (job && isMentoringJob(job)) || (application.helpRequest && isMentoringJob(application.helpRequest));
+    const targetJobId = job?.id || application.helpRequestId || application.helpRequest?.id;
+    if (isMent && targetJobId) {
+      try {
+        await updateHelpRequestStatus(dc, { id: targetJobId, status: 'CLOSED' });
+      } catch (closeErr) {
+        console.warn('Could not close declined mentoring request:', closeErr);
+      }
+    }
+
+    showToast(isMent ? 'Mentoring request declined.' : 'Application rejected.');
     if (candidateRow) candidateRow.remove();
     updateBadges();
     loadApplications();
@@ -5552,8 +5689,8 @@ async function loadTransactions() {
 
     renderTransactionsTable('all');
   } catch (err) {
-    console.error('Error loading transactions:', err);
-    tbody.innerHTML = '<tr><td colspan="4" class="text-center text-muted" style="padding: 2rem;">Error loading transactions.</td></tr>';
+    console.error('Error loading records:', err);
+    tbody.innerHTML = '<tr><td colspan="4" class="text-center text-muted" style="padding: 2rem;">Error loading records.</td></tr>';
   }
 }
 
@@ -5565,7 +5702,7 @@ function renderTransactionsTable(filter = 'all') {
 
   tbody.innerHTML = '';
   if (list.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="4" class="text-center text-muted" style="padding: 2rem;">No transaction records found.</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="4" class="text-center text-muted" style="padding: 2rem;">No payment or service records found.</td></tr>';
     return;
   }
 
