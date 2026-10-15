@@ -1598,10 +1598,10 @@ onAuthStateChanged(auth, async (user) => {
 // ============================================================================
 // LOGIN RATE-LIMITING & CONSECUTIVE FAILED ATTEMPTS LOCKOUT
 // 3rd failed attempt -> 10-second lock
-// 4th+ failed attempt -> 72-hour lock
+// 4th+ failed attempt -> 24-hour lock
 // ============================================================================
 const LOCKOUT_SHORT_DURATION_MS = 10 * 1000; // 10 seconds
-const LOCKOUT_LONG_DURATION_MS = 72 * 60 * 60 * 1000; // 72 hours
+const LOCKOUT_LONG_DURATION_MS = 24 * 60 * 60 * 1000; // 24 hours
 
 function getLockoutStorageKey(email) {
   const normalized = (email || '').trim().toLowerCase();
@@ -1619,7 +1619,7 @@ function getLoginLockState(email) {
         remainingMs: data.lockUntil - now,
         attempts: data.attempts || 0,
         lockUntil: data.lockUntil,
-        tier: data.tier || (data.attempts >= 4 ? '72h' : '10s')
+        tier: data.tier || (data.attempts >= 4 ? '24h' : '10s')
       };
     }
     return {
@@ -1648,7 +1648,7 @@ function recordFailedLoginAttempt(email) {
       tier = '10s';
     } else if (nextAttempts >= 4) {
       lockUntil = now + LOCKOUT_LONG_DURATION_MS;
-      tier = '72h';
+      tier = '24h';
     }
 
     localStorage.setItem(key, JSON.stringify({
@@ -1756,7 +1756,7 @@ function setupLanding() {
       const formatted = formatLockoutTime(curState.remainingMs);
       btn.textContent = `Locked (${formatted})`;
       if (errorEl) {
-        if (curState.tier === '72h') {
+        if (curState.tier === '24h' || curState.tier === '72h') {
           errorEl.innerHTML = `⚠️ <strong>Account temporarily locked (${formatted}).</strong> Too many consecutive failed attempts.<br>You can <a href="#" id="lockout-reset-shortcut" style="color:var(--purple);font-weight:700;text-decoration:underline;">reset your password now</a> to unlock immediately.`;
           $('#lockout-reset-shortcut')?.addEventListener('click', (ev) => {
             ev.preventDefault();
@@ -5973,6 +5973,7 @@ async function loadTransactions() {
         txList.push({
           id: a.id,
           title: a.helpRequest?.title || 'Mentoring Session',
+          category: 'MENTORING',
           counterpart: `Paid to Mentor: ${counterpartName}`,
           amount: finalAmount,
           status: a.status,
@@ -5985,6 +5986,7 @@ async function loadTransactions() {
         txList.push({
           id: a.id,
           title: a.helpRequest?.title || 'Standing Service Order',
+          category: 'OFFER',
           counterpart: `Paid to Provider: ${counterpartName}`,
           amount: finalAmount,
           status: a.status,
@@ -5997,6 +5999,7 @@ async function loadTransactions() {
         txList.push({
           id: a.id,
           title: a.helpRequest?.title || 'Job Proposal',
+          category: 'REQUEST',
           counterpart: `Client: ${counterpartName}`,
           amount: finalAmount,
           status: a.status,
@@ -6021,6 +6024,7 @@ async function loadTransactions() {
           txList.push({
             id: a.id,
             title: p.title || 'Mentoring Session',
+            category: 'MENTORING',
             counterpart: `Mentee: ${clientOrFreelancer}`,
             amount: finalAmount,
             status: a.status,
@@ -6033,6 +6037,7 @@ async function loadTransactions() {
           txList.push({
             id: a.id,
             title: p.title || 'Standing Service Offer',
+            category: 'OFFER',
             counterpart: `Client: ${clientOrFreelancer}`,
             amount: finalAmount,
             status: a.status,
@@ -6045,6 +6050,7 @@ async function loadTransactions() {
           txList.push({
             id: a.id,
             title: p.title || 'Service Request',
+            category: 'REQUEST',
             counterpart: `Paid to Provider: ${clientOrFreelancer}`,
             amount: finalAmount,
             status: a.status,
@@ -6061,6 +6067,7 @@ async function loadTransactions() {
         {
           id: 'tx_prev_1',
           title: '3D Printing of Enclosure Case (ABS/PLA)',
+          category: 'OFFER',
           counterpart: 'Client: Rafael Domingo',
           amount: 450,
           status: 'PENDING',
@@ -6071,6 +6078,7 @@ async function loadTransactions() {
         {
           id: 'tx_prev_2',
           title: 'Custom Robotics Sensor Bracket 3D Print',
+          category: 'OFFER',
           counterpart: 'Client: Engr. Noel Villanueva',
           amount: 900,
           status: 'COMPLETED',
@@ -6081,12 +6089,24 @@ async function loadTransactions() {
         {
           id: 'tx_prev_3',
           title: 'PCB Routing & Gerber Verification',
+          category: 'REQUEST',
           counterpart: 'Paid to Provider: Anna Salcedo',
           amount: 1200,
           status: 'COMPLETED',
           type: 'PAYMENT',
           date: 'Oct 10, 2026, 11:20 AM',
           timestamp: Date.now() - 3600000 * 96
+        },
+        {
+          id: 'tx_prev_4',
+          title: 'Embedded Systems & RTOS Mentoring Session',
+          category: 'MENTORING',
+          counterpart: 'Mentee: Christian Bautista',
+          amount: 500,
+          status: 'COMPLETED',
+          type: 'EARNING',
+          date: 'Oct 8, 2026, 2:00 PM',
+          timestamp: Date.now() - 3600000 * 120
         }
       );
     }
@@ -6172,6 +6192,16 @@ function renderTransactionsTable(filter = 'all') {
       ? '<span class="badge" style="background: rgba(16, 185, 129, 0.1); color: var(--color-green); border: 1px solid rgba(16, 185, 129, 0.2); font-size: 11px; padding: 2px 6px;">Earning</span>'
       : '<span class="badge" style="background: rgba(99, 102, 241, 0.1); color: var(--primary-purple); border: 1px solid rgba(99, 102, 241, 0.2); font-size: 11px; padding: 2px 6px;">Payment</span>';
 
+    // The 3 badges: Service Offer (Blue), Service Request (Pink), Mentoring (Purple)
+    const isMentor = item.category === 'MENTORING' || (item.title && item.title.toLowerCase().includes('mentor'));
+    const isOffer = item.category === 'OFFER' || (!isMentor && item.title && (item.title.toLowerCase().includes('print') || item.title.toLowerCase().includes('offer') || item.title.toLowerCase().includes('standing')));
+
+    const categoryBadge = isMentor
+      ? '<span class="badge badge-mentoring">Mentoring</span>'
+      : (isOffer
+          ? '<span class="badge badge-standing">Service Offer</span>'
+          : '<span class="badge badge-request">Service Request</span>');
+
     // Clear financial status labels
     let statusLabel = item.status || 'Pending';
     let statusBadgeClass = 'badge-pending';
@@ -6191,8 +6221,11 @@ function renderTransactionsTable(filter = 'all') {
 
     tr.innerHTML = `
       <td>
-        <strong>${item.title}</strong>
-        <div class="text-xs text-muted" style="margin-top: 2px;">${item.counterpart} • ${typeBadge}</div>
+        <div style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
+          <strong>${escapeHtml(item.title)}</strong>
+          ${categoryBadge}
+        </div>
+        <div class="text-xs text-muted" style="margin-top: 3px;">${item.counterpart} • ${typeBadge}</div>
         <div class="text-xs text-muted tx-mobile-date" style="margin-top: 3px; display: none;">${item.date}</div>
       </td>
       <td class="tx-col-date">${item.date}</td>
