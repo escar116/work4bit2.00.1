@@ -1920,6 +1920,12 @@ function setupRegister() {
   certInput?.addEventListener('change', async (e) => {
     const file = e.target.files[0];
     if (file) {
+      if (certDropzone) {
+        certDropzone.style.borderColor = '';
+        certDropzone.style.backgroundColor = '';
+        certDropzone.removeAttribute('aria-invalid');
+      }
+      hide(errorEl);
       const url = URL.createObjectURL(file);
       certPreview.src = url;
       show(certPreview);
@@ -1981,7 +1987,13 @@ function setupRegister() {
 
     const certFile = certInput?.files?.[0];
     if (!certFile) {
-      errorEl.textContent = 'Please upload your COE (Certificate of Enrollment).';
+      if (certDropzone) {
+        certDropzone.style.borderColor = '#ef4444';
+        certDropzone.style.backgroundColor = 'rgba(239, 68, 68, 0.06)';
+        certDropzone.setAttribute('aria-invalid', 'true');
+        certDropzone.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+      errorEl.textContent = 'Please upload your COE (Certificate of Enrollment or Assessment Form).';
       show(errorEl);
       return;
     }
@@ -1989,6 +2001,21 @@ function setupRegister() {
     btn.disabled = true; btn.textContent = 'Creating Account...';
 
     try {
+      const certUrl = await compressImage(certFile);
+      if (!certUrl) {
+        if (certDropzone) {
+          show(certDropzone);
+          hide(certPreview);
+          certDropzone.style.borderColor = '#ef4444';
+          certDropzone.style.backgroundColor = 'rgba(239, 68, 68, 0.06)';
+          certDropzone.setAttribute('aria-invalid', 'true');
+        }
+        errorEl.textContent = 'Please upload a valid image (JPG or PNG) of your COE.';
+        show(errorEl);
+        btn.disabled = false; btn.textContent = 'Create Account';
+        return;
+      }
+
       let uid, email, authProvider;
       if (googleUser) {
         uid = googleUser.uid;
@@ -2013,11 +2040,6 @@ function setupRegister() {
         const cred = await createUserWithEmailAndPassword(auth, email, password);
         uid = cred.user.uid;
         authProvider = 'password';
-      }
-
-      let certUrl = 'none';
-      if (certFile) {
-        certUrl = await compressImage(certFile);
       }
 
       await createUser(dc, {

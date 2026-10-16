@@ -154,13 +154,47 @@
     display: flex !important;
     align-items: center !important;
   }
+  #section-landing .footer {
+    padding: 26px 0 24px !important;
+    display: flex !important;
+    flex-wrap: wrap !important;
+    justify-content: space-between !important;
+    align-items: center !important;
+    row-gap: 12px !important;
+    column-gap: 12px !important;
+  }
+  #section-landing .footer .brand {
+    min-height: 0 !important;
+    font-size: 13.5px !important;
+    gap: 8px !important;
+  }
+  #section-landing .footer .brand img {
+    width: 24px !important;
+    height: 24px !important;
+  }
+  #section-landing .footer-links {
+    display: flex !important;
+    align-items: center !important;
+    gap: 14px !important;
+    font-size: 11.5px !important;
+    margin-left: auto !important;
+  }
   #section-landing .footer-links a {
-    min-height: 44px !important;
-    min-width: 44px !important;
+    min-height: 32px !important;
+    min-width: 0 !important;
     display: inline-flex !important;
     align-items: center !important;
     justify-content: center !important;
-    padding: 10px 12px !important;
+    padding: 4px 0 !important;
+    white-space: nowrap !important;
+  }
+  #section-landing .footer > span {
+    width: 100% !important;
+    order: 3 !important;
+    padding-top: 12px !important;
+    border-top: 1px solid rgba(255, 255, 255, 0.08) !important;
+    font-size: 11.5px !important;
+    text-align: center !important;
   }
   #section-landing .landing-dialog {
     width: min(92vw, 440px) !important;
